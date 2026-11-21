@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 /**
  * تیکت پشتیبانی.
@@ -177,24 +178,28 @@ class Ticket extends Model
      */
     public function addMessage(string $role, ?int $authorId, ?string $authorName, string $body, bool $internal = false): TicketMessage
     {
-        $message = $this->messages()->create([
-            'author_role' => $role,
-            'author_id'   => $authorId,
-            'author_name' => $authorName,
-            'body'        => $body,
-            'is_internal' => $internal,
-        ]);
+        return DB::transaction(function () use ($role, $authorId, $authorName, $body, $internal) {
+            // All normal customer/staff message writers participate in this ticket mutex.
+            static::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $message = $this->messages()->create([
+                'author_role' => $role,
+                'author_id'   => $authorId,
+                'author_name' => $authorName,
+                'body'        => $body,
+                'is_internal' => $internal,
+            ]);
 
-        if (! $internal) {
-            $this->forceFill([
-                'status'          => $role === 'staff' ? 'answered' : 'open',
-                'last_reply_role' => $role,
-                'last_reply_at'   => now(),
-                // پاسخ روی تیکت بسته، دوباره بازش می‌کند
-                'closed_at'       => null,
-            ])->save();
-        }
+            if (! $internal) {
+                $this->forceFill([
+                    'status'          => $role === 'staff' ? 'answered' : 'open',
+                    'last_reply_role' => $role,
+                    'last_reply_at'   => now(),
+                    // پاسخ روی تیکت بسته، دوباره بازش می‌کند
+                    'closed_at'       => null,
+                ])->save();
+            }
 
-        return $message;
+            return $message;
+        });
     }
 }

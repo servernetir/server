@@ -9,6 +9,8 @@ on:
       - 'website/app/Http/Controllers/Mcp/**'
       - 'website/app/Http/Middleware/Mcp*.php'
       - 'website/app/Models/User.php'
+      - 'website/app/Models/Ticket.php'
+      - 'website/app/Services/Ticket/**'
       - 'website/app/Models/McpAdminAction.php'
       - 'website/app/Providers/McpAdminServiceProvider.php'
       - 'website/config/mcp_admin.php'
@@ -75,6 +77,8 @@ jobs:
           composer check-platform-reqs
           composer audit --locked
           php artisan package:discover --ansi
+      - name: Verify limited release rollback preflight
+        run: python3 ../scripts/test_mcp_management_deploy.py
       - name: Test OAuth, owner isolation, command approvals and existing login guards
         run: |
           python3 <<'PY'
@@ -86,4 +90,4 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.mcp-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminMcpManagementTest.php tests/Feature/AdminMcpProxmoxTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminLoginMethodsTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning
+          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminMcpManagementTest.php tests/Feature/AdminMcpProxmoxTest.php tests/Feature/TicketTest.php tests/Feature/TicketReplyFlowTest.php tests/Feature/TicketHeldStatusTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminLoginMethodsTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning

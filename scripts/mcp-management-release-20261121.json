@@ -1,83 +1,22 @@
 [
   {
-    "path": "website/app/Services/Cloud/ProxmoxClient.php",
-    "sha256": "766890f78366a7d4bfc1359d25262ecc0e384f28145b5461ab6d60782940cdf8",
-    "before_sha256": "894353c70a3a382b238b622154d5be763929941c6b499cb712bfde138324d4c7",
-    "patch_proxmox": true
+    "path": "website/app/Models/Ticket.php",
+    "sha256": "4cbf7d6c77265c0fd5c23a37d2c304f6915e29cf6ae7dd67e214af932a37121c",
+    "before_sha256": "638b6edd67b0e8bcf5e31b7c8733d2a2ef994f7d67f2715dd932b19c09d40c30"
   },
   {
-    "path": "website/app/Services/Mcp/InfrastructureRead.php",
-    "sha256": "fd2e4e950b92c6b14294e20218609dc80548a8acce660ca17d9abff9775ffebb",
-    "before_sha256": "9177f97c826baf5ce70d966473a4d1f1ec80ebb5cc61d4fa60e83a5e27464a2a"
+    "path": "website/app/Services/Ticket/TicketReplyService.php",
+    "sha256": "8c809d4f7f17cb7b79cff85c7ccc9f78f0424a0921404484439f72c0604fb3bb",
+    "before_sha256": "16b9e0936fe7241c15f49148b59835bde20c9e7fe72b7593f7aaea6a1c16d33f"
   },
   {
-    "path": "website/app/Services/Mcp/AdminAccess.php",
-    "sha256": "d611721af3c3d185b8998103fa2e7306223f276b625949ba02f241d80f74e44f",
-    "before_sha256": "ee430fcff9f10a847bc577e09b1d61efa8ca14c88a9846a3ffdf36dc5e44b8a1"
-  },
-  {
-    "path": "website/app/Mcp/AdminInfrastructureServer.php",
-    "sha256": "4f570b03c02da94df5c48cc64b4e51116200845020b016317033c0445241d0a3",
-    "before_sha256": "9f8e747892e6f87740e43ac34437729174af4766700e261febe2d88dbdd76818"
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminTicket.php",
-    "sha256": "6eeb037f4ab92b70c5a34ee3046e5c2f4a9115f59fa0972a0316d17af86a9689",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminService.php",
-    "sha256": "ae882b68bbc020d009114a9a14e9c06ac753d43319bbd837a5f0d1e899a87851",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminErrors.php",
-    "sha256": "0cda6a9815f24292e88f36cff9cc482b415e2bf4594e0f46e944198dda699db0",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminOverview.php",
-    "sha256": "1712bdacfc5220b421c8285bc880910c66977bfac97db41badb1f839ca2dbc6b",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminServices.php",
-    "sha256": "45823a893260281ea5d298b264971bc3526cb87eba766902d22a3d1bb782fed6",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminTicketReply.php",
-    "sha256": "9e656d1fe3617fdac54b267c12d9b5d174a1e70c40ff70e018e27f4e6c4bebed",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Mcp/Tools/AdminTickets.php",
-    "sha256": "e930dfeb5fd29596870b5d13965ed4053888dfeab6c8d25eb15991af890e5a55",
-    "before_sha256": null
-  },
-  {
-    "path": "website/app/Services/Mcp/ManagementRead.php",
-    "sha256": "82afee4fceba25f91fd46a501e3d5fc78593826383cf5c025c7060e3f40a9476",
+    "path": "website/app/Services/Ticket/TicketChangedException.php",
+    "sha256": "bf18325901ada0d9ad252d868d7904402b327295e0e2ba5b66004d2dc4376169",
     "before_sha256": null
   },
   {
     "path": "website/app/Services/Mcp/TicketReplies.php",
-    "sha256": "44f16b36c803af4bbbec893d105cda7dcc231582889f122e9fcf2718d20ed3df",
-    "before_sha256": null
-  },
-  {
-    "path": "website/lang/fa/mcp_admin.php",
-    "sha256": "951c8771740b1c3a36118caf4ee9996faf48d99ef86702b76e589656383e50f9",
-    "before_sha256": "62c7869bc1cc69545f8616772bf8202d517556cff414b4c651d6b24e8a1e6f90"
-  },
-  {
-    "path": "website/lang/en/mcp_admin.php",
-    "sha256": "71cc11f9ea8b1c16239a9cbb3b3d8bff17060fbe679dc721c9791238be9a5792",
-    "before_sha256": "6f94c8c627e1c27ca519a3bfa291e2c6191f38d4ed2c56fb9ff78d3bd8334169"
-  },
-  {
-    "path": "website/lang/tr/mcp_admin.php",
-    "sha256": "55e64e13f314284b12ad14705d02ae0131e81234cd6702a31ceaece3d2d5a3b7",
-    "before_sha256": "f7fdb656985df9d0d66e79a3b2033dc641c3657306f5b4bcca16f9dbcabfeffe"
+    "sha256": "3f2d914a88c7cc6cf29e68367d26203b84c27e9eee8004759a04568f41348fd5",
+    "before_sha256": "44f16b36c803af4bbbec893d105cda7dcc231582889f122e9fcf2718d20ed3df"
   }
 ]
