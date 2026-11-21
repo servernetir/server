@@ -73,7 +73,7 @@
 @foreach($hrefLangUrls as $langCode => $langUrl)
 <link rel="alternate" hreflang="{{ $langCode }}" href="{{ $langUrl }}">
 @endforeach
-<link rel="alternate" hreflang="x-default" href="{{ $hrefLangUrls['fa'] }}">
+<link rel="alternate" hreflang="x-default" href="{{ $hrefLangUrls['fa'] ?? reset($hrefLangUrls) }}">
 @endif
 @endif
 <meta property="og:title" content="@yield('title', __('ui.meta_title'))">

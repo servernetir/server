@@ -50,6 +50,8 @@ return [
     // راهنمای محصول مشخص، از نگاشت عمومی دسته (مثلاً آموزش ← وردپرس) مقدم است.
     // عنوان/توضیح همچنان از همان محصول خوانده می‌شود؛ مقالات دیگر تغییر نمی‌کنند.
     'post_products' => [
+        'gpu-server-selection' => ['kind' => 'gpu'],
+        'gpu-servers-for-ai' => ['kind' => 'gpu'],
         'comfyui-hourly-gpu-guide' => ['kind' => 'gpu'],
         'jupyter-hourly-gpu-guide' => ['kind' => 'gpu'],
         'n8n-backup-migration-guide' => ['kind' => 'catalog', 'category' => 'cloud', 'slug' => 'n8n'],

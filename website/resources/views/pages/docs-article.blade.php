@@ -1,5 +1,10 @@
 @extends('layouts.site')
 
+{{-- A fallback remains accessible to readers, but is not a translated search landing page. --}}
+@if(!empty($doc['untranslated']))
+@section('noindex', '1')
+@endif
+
 @php
     $sec = $doc['section'];
     $url = url()->current();

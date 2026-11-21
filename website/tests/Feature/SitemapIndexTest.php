@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\SiteController;
+use App\Models\Post;
+use App\Models\PostTranslation;
 use App\Models\Product;
+use App\Services\DocsRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -94,6 +97,75 @@ class SitemapIndexTest extends TestCase
             }
         }
         $this->get('/sitemaps/orders.xml')->assertNotFound();
+        Http::assertNothingSent();
+    }
+
+    public function test_kb_sitemaps_and_hreflang_only_advertise_real_translations(): void
+    {
+        Http::preventStrayRequests();
+        $make = function (string $slug, array $locales, string $status = 'published'): Post {
+            $post = Post::create([
+                'slug' => $slug, 'type' => 'kb', 'category' => 'hosting',
+                'status' => $status, 'published_at' => '2026-08-02 08:00:00',
+            ]);
+            foreach ($locales as $locale) {
+                PostTranslation::create([
+                    'post_id' => $post->id, 'locale' => $locale, 'title' => $locale.' localized title',
+                    'excerpt' => 'Fixture excerpt', 'content' => '<p>Fixture body.</p>',
+                ]);
+            }
+
+            return $post;
+        };
+        $post = $make('kb-localized', ['fa', 'en']);
+        $make('kb-english-only', ['en']);
+        $make('kb-unpublished', ['fa', 'en', 'tr'], 'draft');
+        DocsRepository::flush();
+
+        foreach (['/sitemap.xml', '/sitemaps/docs.xml'] as $map) {
+            $locs = $this->locs($this->get($map)->assertOk()->getContent());
+            foreach (['/docs/kb-localized', '/en/docs/kb-localized', '/en/docs/kb-english-only'] as $path) {
+                $this->assertContains(url($path), $locs);
+            }
+            foreach (['/tr/docs/kb-localized', '/docs/kb-english-only', '/tr/docs/kb-english-only', '/docs/kb-unpublished'] as $path) {
+                $this->assertNotContains(url($path), $locs);
+            }
+        }
+
+        foreach (['/docs/kb-localized', '/en/docs/kb-localized'] as $path) {
+            $html = $this->get($path)->assertOk()->getContent();
+            $this->assertStringNotContainsString('content="noindex,follow"', $html);
+            $this->assertStringContainsString('<link rel="canonical" href="'.url($path).'">', $html);
+            $this->assertStringContainsString('<link rel="alternate" hreflang="fa" href="'.url('/docs/kb-localized').'">', $html);
+            $this->assertStringContainsString('<link rel="alternate" hreflang="en" href="'.url('/en/docs/kb-localized').'">', $html);
+            $this->assertStringNotContainsString('<link rel="alternate" hreflang="tr"', $html);
+            $this->assertStringContainsString('<link rel="alternate" hreflang="x-default" href="'.url('/docs/kb-localized').'">', $html);
+        }
+
+        $englishOnly = $this->get('/en/docs/kb-english-only')->assertOk()->getContent();
+        $this->assertStringContainsString('<link rel="canonical" href="'.url('/en/docs/kb-english-only').'">', $englishOnly);
+        $this->assertStringContainsString('<link rel="alternate" hreflang="en" href="'.url('/en/docs/kb-english-only').'">', $englishOnly);
+        $this->assertStringContainsString('<link rel="alternate" hreflang="x-default" href="'.url('/en/docs/kb-english-only').'">', $englishOnly);
+        $this->assertStringNotContainsString('<link rel="alternate" hreflang="fa"', $englishOnly);
+
+        foreach (['/tr/docs/kb-localized', '/docs/kb-english-only', '/tr/docs/kb-english-only'] as $path) {
+            $html = $this->get($path)->assertOk()->getContent();
+            $this->assertStringContainsString('content="noindex,follow"', $html);
+            $this->assertStringNotContainsString('<link rel="canonical"', $html);
+            $this->assertStringNotContainsString('<link rel="alternate" hreflang=', $html);
+        }
+        $this->get('/en/docs')->assertOk()->assertSee(url('/en/docs/kb-localized'), false);
+        $this->get('/tr/docs')->assertOk()->assertDontSee(url('/tr/docs/kb-localized'), false);
+
+        // A newly available translation restores normal discovery without any route changes.
+        PostTranslation::create([
+            'post_id' => $post->id, 'locale' => 'tr', 'title' => 'Turkish localized title',
+            'excerpt' => 'Fixture excerpt', 'content' => '<p>Fixture body.</p>',
+        ]);
+        DocsRepository::flush();
+        $sitemap = $this->locs($this->get('/sitemaps/docs.xml')->assertOk()->getContent());
+        $this->assertContains(url('/tr/docs/kb-localized'), $sitemap);
+        $this->get('/tr/docs/kb-localized')->assertOk()->assertSee('<link rel="canonical" href="'.url('/tr/docs/kb-localized').'">', false);
         Http::assertNothingSent();
     }
 
