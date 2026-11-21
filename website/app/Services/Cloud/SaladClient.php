@@ -248,6 +248,15 @@ class SaladClient implements CloudProvider
             return ['ok' => true, 'status' => $r->status(), 'body' => $body, 'message' => ''];
         }
 
+        // An alert must not change the provider result or repeat its operation.
+        if (is_array($body) && ($body['type'] ?? null) === 'no_credits_available') {
+            try {
+                app(\App\Services\Notify\SaladCreditAlert::class)->report($method, $path, $r->status());
+            } catch (\Throwable) {
+                // Notification failures are independent of provisioning/billing.
+            }
+        }
+
         /*
         | خطاهای این زیرساخت به قالبِ problem+json می‌آیند (title/type/errors)
         | و مستنداتشان هشدار می‌دهد گاهی هم **سندِ HTML**. نسخهٔ اول فقط
