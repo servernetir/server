@@ -1,15 +1,9 @@
-@extends('admin.layout')
-@section('title', __('email-evidence-review.title'))
-@section('nav_email_marketing', 'on')
-@section('content')
 <style>
   .er{--er-accent:var(--cyan);--er-review:var(--amber);display:grid;gap:22px;max-width:1440px;margin-inline:auto}
   html[data-theme="light"] .er{--er-accent:#0e7490;--er-review:#92400e}
   .er *{box-sizing:border-box}.er h2,.er h3,.er p,.er dl,.er dd{margin:0}
   .er h2,.er h3{color:var(--text);line-height:1.65}.er p{line-height:1.85;color:var(--muted)}
   .er-icon{width:23px;height:23px;display:block;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-  .er-back{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--muted);text-decoration:none}
-  .er-back:hover{color:var(--er-accent)}.er-back .er-icon{width:18px;height:18px}
   .er a:focus-visible,.er button:focus-visible,.er input:focus-visible{outline:2px solid var(--er-accent);outline-offset:4px}
   .er-hero{display:flex;align-items:center;justify-content:space-between;gap:30px;padding:30px clamp(20px,3vw,36px);border:1px solid var(--line2);border-radius:22px;background:radial-gradient(ellipse at 95% 0%,rgba(34,211,238,.12),transparent 55%),radial-gradient(ellipse at 0% 100%,rgba(139,92,246,.11),transparent 55%),var(--surface)}
   .er-hero-copy{display:grid;gap:10px;max-width:820px}.er-eyebrow{display:flex;align-items:center;gap:9px;font-weight:700;font-size:12px;color:var(--er-accent);letter-spacing:.035em}
@@ -67,12 +61,7 @@
   @media(prefers-reduced-motion:reduce){.er a,.er button,.er input{transition:none}}
 </style>
 
-<div class="er">
-  <a class="er-back" href="{{ route('admin.email-marketing.index') }}">
-    <svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14l-5-5 5-5M4 9h10a5 5 0 010 10h-2"/></svg>
-    {{ __('email-evidence-review.back') }}
-  </a>
-
+<div class="er" id="evidence" data-evidence-overview>
   <section class="er-hero" aria-labelledby="er-title">
     <div class="er-hero-copy">
       <div class="er-eyebrow">
@@ -93,21 +82,14 @@
       <span class="er-stat-icon"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
     </div>
     <div class="er-stat">
-      <div><dt>{{ __('email-evidence-review.pending_records') }}</dt><dd>{{ number_format($records->total()) }}</dd><small>{{ __('email-evidence-review.pending_note') }}</small></div>
+      <div><dt>{{ __('email-evidence-review.pending_records') }}</dt><dd data-evidence-pending="{{ $records->total() }}">{{ number_format($records->total()) }}</dd><small>{{ __('email-evidence-review.pending_note') }}</small></div>
       <span class="er-stat-icon review"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
     </div>
     <div class="er-stat">
-      <div><dt>{{ __('email-evidence-review.eligible_records') }}</dt><dd>0</dd><small>{{ __('email-evidence-review.eligible_note') }}</small></div>
+      <div><dt>{{ __('email-evidence-review.eligible_records') }}</dt><dd data-evidence-eligible="0">0</dd><small>{{ __('email-evidence-review.eligible_note') }}</small></div>
       <span class="er-stat-icon neutral"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="m8 8 8 8m0-8-8 8"/></svg></span>
     </div>
   </dl>
-
-  @if($errors->any())
-    <div class="er-alert is-error" role="alert">
-      <svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/></svg>
-      <div><strong>{{ __('email-evidence-review.error_title') }}</strong><p>{{ __('email-evidence-review.invalid_input') }}</p></div>
-    </div>
-  @endif
 
   @if(is_array(session('evidence_result')))
     <section class="er-card er-import-result" role="status" aria-labelledby="er-result-title">
@@ -201,4 +183,3 @@
     @endif
   </section>
 </div>
-@endsection
