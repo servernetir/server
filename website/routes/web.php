@@ -47,6 +47,7 @@ Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestCont
 
 $site = function (): void {
     require __DIR__.'/identity-site.php';
+    require __DIR__.'/email-marketing-public.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
     Route::get('/studio/download', \App\Http\Controllers\Ai\StudioDownloadsController::class)->name('studio.download');
     // [ai-storefront:start]
@@ -418,6 +419,7 @@ $site = function (): void {
         require __DIR__.'/studio-account.php';
         require __DIR__.'/domain-management.php';
         require __DIR__.'/madar-account.php';
+        require __DIR__.'/email-marketing-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
@@ -2817,6 +2819,8 @@ Route::prefix('admin')->group(function () {
     | ⚠️ `/users` عمداً بیرونِ فهرستِ سفید است: ساختِ کاربر یعنی ساختِ همکار.
     */
     Route::middleware(['auth:web', 'admin'])->group(function () {
+
+        require __DIR__.'/email-marketing-admin.php';
 
         // ── تنها چیزهایی که نویسندهٔ محتوا هم به آن‌ها دسترسی دارد ──
         Route::withoutMiddleware('admin')->group(function () {

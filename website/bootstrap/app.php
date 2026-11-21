@@ -199,6 +199,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 \App\Support\ErrorTracker::noteOnce('identity_api','Inquiry failure requires review',300,['exception_class'=>$e::class]);
                 return false; // Never log raw SQL bindings, HTTP messages or identity request context.
             }
+            if (\App\Support\EmailMarketingPrivacy::sensitive(request())) {
+                \App\Support\ErrorTracker::noteOnce('email_marketing','Email preference failure requires review',300,['exception_class'=>$e::class]);
+                return false; // Never log uploaded email addresses, SQL bindings or withdrawal capabilities.
+            }
             \App\Support\ErrorTracker::exception($e, app()->runningInConsole() ? null : request());
         });
     })->create();

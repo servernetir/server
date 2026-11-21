@@ -72,6 +72,7 @@ return [
         'account.', 'admin.', 'api.', 'auth.', 'login', 'register', 'password.',
         'system.', 'bale.', 'cloud-phone.', 'agent.', 'sms.',
         'builder.', 'payment.',
+        'email-marketing.',
     ],
 
     // پیشوندِ مسیر (بی‌پیشوندِ زبان) — سپرِ دوم برای روت‌های بی‌نام
@@ -79,6 +80,7 @@ return [
         '/account', '/admin', '/api', '/login', '/register', '/password', '/logout',
         '/system', '/cart', '/checkout', '/panel-preview', '/bale', '/cloud-phone', '/agent', '/up',
         '/sb', '/tools/ip', '/lookup', '/payment',
+        '/email-marketing',
         // ممیزی ۷: ریدایرکتِ شمارش‌پذیرِ پرداخت و مسیرِ سلامت — هر دو باید
         // **هر بار** به PHP برسند وگرنه چیزی را نمی‌شمارند/نمی‌سنجند.
         '/go', '/healthz',

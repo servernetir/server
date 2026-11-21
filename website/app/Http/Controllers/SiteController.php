@@ -631,10 +631,28 @@ class SiteController extends Controller
             $add('webtools', $wt);
         }
         $add('docs.index');
-        foreach (app(\App\Services\DocsRepository::class)->tree() as $sec) {
-            foreach ($sec['items'] as $item) {
-                $add('docs', $item['slug']);
+        // Like blog articles, a KB URL is a search landing page only when its own
+        // language exists. Map actual translations, not the visitor-facing fallback.
+        try {
+            $docs = \App\Models\Post::query()
+                ->where('type', 'kb')->where('status', 'published')
+                ->whereIn('category', array_keys((array) config('docs.sections', [])))
+                ->with('translations')->get();
+            foreach ($docs as $doc) {
+                $published = $doc->published_at ?? $doc->created_at;
+                foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
+                    $translation = $doc->translations->firstWhere('locale', $code);
+                    if ($translation === null) {
+                        continue;
+                    }
+                    $edited = $translation->updated_at;
+                    $modified = $edited && (! $published || $edited->greaterThan($published))
+                        ? $edited : $published;
+                    $urls[] = ['loc' => route($prefix.'docs', $doc->slug), 'lastmod' => $modified?->toDateString()];
+                }
             }
+        } catch (\Throwable) {
+            // Keep other sitemap sections available during a missing KB migration.
         }
         foreach (array_keys(config('lookup.types')) as $type) {
             $add('lookup', $type);

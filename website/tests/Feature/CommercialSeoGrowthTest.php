@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\Post;
+use App\Models\PostTranslation;
 use App\Services\Cloud\CountryLandingSeo;
 use App\Services\Cloud\PublicVpsCatalog;
 use App\Services\PublicPageStyles;
@@ -54,6 +56,30 @@ class CommercialSeoGrowthTest extends TestCase
             $this->assertDoesNotMatchRegularExpression('~<link[^>]+href="[^"]*/hourly-explorer\.css~', $response->getContent());
         }
         $this->assertSame($original, $plan->fresh()->getRawOriginal());
+        Http::assertNothingSent();
+    }
+
+    public function test_gpu_blog_articles_link_to_the_localized_gpu_product(): void
+    {
+        foreach (['gpu-server-selection', 'gpu-servers-for-ai'] as $slug) {
+            $post = Post::create([
+                'slug' => $slug, 'type' => 'blog', 'category' => 'cloud',
+                'status' => 'published', 'published_at' => '2026-08-02 08:00:00',
+            ]);
+            foreach (['fa', 'en', 'tr'] as $locale) {
+                PostTranslation::create([
+                    'post_id' => $post->id, 'locale' => $locale, 'title' => $locale.' GPU guide',
+                    'excerpt' => 'Fixture excerpt', 'content' => '<p>Fixture body.</p>',
+                ]);
+            }
+
+            foreach (['' => 'fa', '/en' => 'en', '/tr' => 'tr'] as $prefix => $locale) {
+                $html = $this->get($prefix.'/blog/'.$slug)->assertOk()->getContent();
+                $this->assertStringContainsString('class="btn btn-glass bp-author-cta" href="'.url($prefix.'/gpu').'"', $html);
+                $this->assertSame(url($prefix.'/gpu'), blog_related_product('cloud', $slug)['href']);
+                $this->assertSame(url($prefix.'/cloud/iaas'), blog_related_product('cloud')['href']);
+            }
+        }
         Http::assertNothingSent();
     }
 
