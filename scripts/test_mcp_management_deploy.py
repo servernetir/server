@@ -34,4 +34,28 @@ class ReleaseTest(unittest.TestCase):
             from unittest.mock import patch
             with patch.object(Path,'unlink',checked_unlink):module.main()
             self.assertFalse(tool.exists());self.assertEqual(b'old registration',server.read_bytes())
+    def test_four_file_followup_restores_caller_before_removing_named_parameter(self):
+        spec=importlib.util.spec_from_file_location('mcp_followup',Path(__file__).with_name('deploy-mcp-management-20261121.py'))
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/'app';module.ROOT=root;module.BACKUPS=Path(temp)/'backups';module.fetch=lambda *_:b'[]'
+            (root/'storage/framework').mkdir(parents=True)
+            commit='c'*40;stage=module.BACKUPS/('mcp-management-20261121-'+commit[:12]);stage.mkdir(parents=True)
+            manifest=json.loads(Path(__file__).with_name('mcp-management-release-20261121.json').read_text())
+            records=[]
+            for row in manifest:
+                name=row['path'].removeprefix('website/');path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'new')
+                before=b'old' if row['before_sha256'] else None
+                if before:
+                    backup=stage/'backup'/name;backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(before)
+                records.append({'path':name,'before':hashlib.sha256(before).hexdigest() if before else None,
+                    'after':hashlib.sha256(b'new').hexdigest(),'mode':0o644})
+            (stage/'prepared.json').write_text(json.dumps(records));(stage/'receipt.json').write_text('{}')
+            caller=root/'app/Services/Mcp/TicketReplies.php';service=root/'app/Services/Ticket/TicketReplyService.php'
+            original=module.write
+            def checked_write(path,data,mode):
+                if path==service:self.assertEqual(b'old',caller.read_bytes())
+                return original(path,data,mode)
+            module.write=checked_write;sys.argv=['deploy','rollback',commit];module.main()
+            self.assertEqual(b'old',service.read_bytes());self.assertEqual(b'old',caller.read_bytes())
 if __name__=='__main__':unittest.main()
