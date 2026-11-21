@@ -28,6 +28,9 @@
      ولی دسکریپشنِ نتیجهٔ جست‌وجو باید نیتِ خرید را جواب دهد — «خرید»، «قیمت»،
      «تحویل آنی». Search Console نشان داد CTR صفحاتِ محصول زیرِ ۱٪ است. --}}
 @section('description', lc($product)['seo_d'] ?? lc($product)['hero_d'])
+@if(in_array($category ?? '', ['vps', 'dedicated', 'hosting'], true) && in_array($slug ?? '', ['iran', 'iran-infrastructure'], true))
+@section('faOnly', 'y')
+@endif
 
 @section('content')
 @php
@@ -717,7 +720,10 @@
       <a class="loc" href="{{ lroute('vps.hourly') }}"><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.hv_badge') }}</a>
       @endif
       @foreach($related as $rSlug => $r)
-      <a class="loc" href="{{ $category === 'hosting' ? lroute('hosting', $rSlug) : lroute('catalog', ['category' => $category, 'slug' => $rSlug]) }}"><svg class="icon"><use href="#i-{{ $r['icon'] }}"/></svg>{{ lc($r)['t'] }}</a>
+      @php $relatedHref = $category === 'hosting' ? lroute('hosting', $rSlug) : lroute('catalog', ['category' => $category, 'slug' => $rSlug]); @endphp
+      @if(\App\Services\Customer\IranSalesVisibility::allowsUrl($relatedHref))
+      <a class="loc" href="{{ $relatedHref }}"><svg class="icon"><use href="#i-{{ $r['icon'] }}"/></svg>{{ lc($r)['t'] }}</a>
+      @endif
       @endforeach
     </div>
   </div>

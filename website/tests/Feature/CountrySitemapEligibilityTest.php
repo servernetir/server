@@ -51,7 +51,8 @@ class CountrySitemapEligibilityTest extends TestCase
         $domestic = $this->withHeaders(['CF-IPCountry' => 'IR'])->get('/sitemap.xml')->assertOk()->getContent();
         $this->assertSame($foreign, $domestic);
         foreach (['', '/en', '/tr'] as $prefix) {
-            foreach (['iran', 'germany', 'austria'] as $slug) {
+            $this->assertSame($prefix === '' ? 1 : 0, substr_count($foreign, '<loc>'.url($prefix.'/vps/iran').'</loc>'));
+            foreach (['germany', 'austria'] as $slug) {
                 $this->assertSame(1, substr_count($foreign, '<loc>'.url($prefix.'/vps/'.$slug).'</loc>'));
             }
             $this->assertSame(0, substr_count($foreign, '<loc>'.url($prefix.'/vps/singapore').'</loc>'));

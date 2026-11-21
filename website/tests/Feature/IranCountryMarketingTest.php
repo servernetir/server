@@ -118,6 +118,53 @@ class IranCountryMarketingTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_foreign_catalogue_crosslinks_exclude_iran_and_persian_landing_has_no_foreign_alternates(): void
+    {
+        $this->offer();
+        CloudLocation::create(['code' => 'de-frankfurt', 'country' => 'DE', 'city' => 'Frankfurt', 'is_active' => true]);
+
+        foreach (['/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/cloud')->assertOk()
+                ->assertSee('href="'.url($prefix.'/cloud/de-frankfurt').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/cloud/ir-tehran').'"', false);
+            $this->get($prefix.'/dedicated/germany')->assertOk()
+                ->assertDontSee('href="'.url($prefix.'/dedicated/iran').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/dedicated/iran-infrastructure').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/cloud/ir-tehran').'"', false);
+        }
+
+        $this->get('/cloud')->assertOk()->assertSee('href="'.url('/cloud/ir-tehran').'"', false);
+        $this->get('/dedicated/germany')->assertOk()
+            ->assertSee('href="'.url('/dedicated/iran').'"', false)
+            ->assertSee('href="'.url('/dedicated/iran-infrastructure').'"', false);
+
+        foreach (['/vps/iran', '/dedicated/iran', '/dedicated/iran-infrastructure'] as $path) {
+            $page = $this->get($path)->assertOk()
+                ->assertSee('rel="alternate" hreflang="fa"', false);
+            foreach (['en', 'tr'] as $locale) {
+                $page->assertDontSee('hreflang="'.$locale.'"', false)
+                    ->assertDontSee('href="'.url('/'.$locale.$path).'"', false);
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_foreign_hourly_pages_describe_eligible_locations_without_promoting_iran(): void
+    {
+        $this->offer();
+        $this->get('/en/vps/hourly')->assertOk()
+            ->assertSee('Where are hourly VPS plans available?')
+            ->assertDontSee('Do you offer hourly VPS in Iran?')
+            ->assertDontSee('our Iranian data centres');
+        $this->get('/tr/vps/hourly')->assertOk()
+            ->assertSee('Saatlik VPS planları hangi konumlarda sunuluyor?')
+            ->assertDontSee('İran’da saatlik VPS var mı?')
+            ->assertDontSee('İran veri merkezlerimizde');
+        $this->get('/vps/hourly')->assertOk()->assertSee('سرور مجازی ساعتی ایران هم دارید؟');
+        Http::assertNothingSent();
+    }
+
     public function test_a_warm_guest_page_cache_does_not_grant_purchase_or_hide_the_verified_catalogue(): void
     {
         $plan = $this->offer();

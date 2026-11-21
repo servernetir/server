@@ -21,8 +21,8 @@ use Tests\TestCase;
  *
  * کارفرما: «زیرساخت KYC برای خارجی‌ها — اطلاعاتشان را بفرستند، خودمان تأیید
  * کنیم؛ قبض و پاسپورت و…». خارجی = فردی بدونِ استعلامِ هویتِ ایرانی. تأییدِ
- * مدیر همان پرچمِ verified را می‌زند که IranSalesGate می‌خوانَد — پس دروازهٔ
- * محصولاتِ ایران خودکار برای تأییدشده باز می‌شود.
+ * مدیر پروفایل را verified می‌کند؛ فروش محصولاتِ ایران همچنان نیازمند
+ * تأیید شاهکار است.
  */
 class ForeignKycTest extends TestCase
 {
@@ -170,6 +170,8 @@ class ForeignKycTest extends TestCase
         $this->assertStringContainsString('name="doc_selfie"', $html);
         $this->assertStringContainsString('name="birth_date"', $html);
         $this->assertStringContainsString('name="id_type"', $html);
+        $this->assertStringContainsString('eligible services become available subject to their individual requirements', $html);
+        $this->assertStringNotContainsString('including those hosted in Iran - are unlocked', $html);
     }
 
     /** 🔴 کارتِ ملی/گواهینامه پشتِ مدرک هم می‌خواهد و kindِ ذخیره‌شده همان نوع است */

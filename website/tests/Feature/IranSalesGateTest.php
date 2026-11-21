@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Services\Customer\IranSalesGate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
 /**
@@ -25,12 +26,13 @@ use Tests\TestCase;
  */
 class IranSalesGateTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, SeedsCatalogPricing;
 
     protected function setUp(): void
     {
         parent::setUp();
         Http::fake();
+        $this->seedCatalogPricing();
     }
 
     private function customer(bool $verified): Customer
@@ -152,6 +154,49 @@ class IranSalesGateTest extends TestCase
             ]);
 
         $res->assertSessionDoesntHaveErrors('country');
+    }
+
+    public function test_fixed_delivery_server_is_also_subject_to_shahkar_and_locale_policy(): void
+    {
+        $server = Server::create(['name' => 'VPS-IR', 'type' => 'vps', 'country' => 'IR', 'status' => 'active']);
+        $product = Product::create([
+            'name' => 'Fixed VPS', 'slug' => 'fixed-vps', 'category' => 'vps', 'server_id' => $server->id,
+            'base_price_eur' => '2', 'cycle' => 'monthly', 'is_active' => true,
+        ]);
+        $this->assertSame([], $product->availableCountries());
+        $customer = $this->customer(false);
+        $this->actingAs($customer, 'customer')
+            ->post('/account/order/'.$product->slug, ['cycle' => 'monthly'])
+            ->assertSessionHasErrors('country');
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+
+        $verified = $this->customer(true);
+        $this->actingAs($verified, 'customer')->get('/account/order/'.$product->slug)->assertOk();
+        foreach (['/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/account/order/'.$product->slug)->assertNotFound();
+            $this->post($prefix.'/account/order/'.$product->slug, ['cycle' => 'monthly'])->assertSessionHasErrors('country');
+        }
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->post('/account/order/'.$product->slug, ['cycle' => 'monthly'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('services', ['server_id' => $server->id, 'customer_id' => $verified->id]);
+    }
+
+    public function test_the_same_fixed_non_iran_delivery_is_not_restricted_by_shahkar(): void
+    {
+        $server = Server::create(['name' => 'VPS-DE', 'type' => 'vps', 'country' => 'DE', 'status' => 'active']);
+        $product = Product::create([
+            'name' => 'Fixed VPS DE', 'slug' => 'fixed-vps-de', 'category' => 'vps', 'server_id' => $server->id,
+            'base_price_eur' => '2', 'cycle' => 'monthly', 'is_active' => true,
+        ]);
+        $this->assertSame([], $product->availableCountries());
+        $this->actingAs($this->customer(false), 'customer');
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/account/order/'.$product->slug)->assertOk();
+        }
+        $this->post('/account/order/'.$product->slug, ['cycle' => 'monthly'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('services', ['server_id' => $server->id]);
     }
 
     /** فروشگاهِ ابری: مکانِ ir-* برای احرازنشده نه دیده می‌شود نه سفارش‌پذیر است */

@@ -69,6 +69,13 @@ class SecurityHeaders
             // the official console host on an owned Arvan service detail page;
             // never widen every account page, payment page or console origin.
             $formAction = "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com";
+            // The Search Console consent form redirects its POST to Google.
+            // Permit that destination only on the authenticated discovery page.
+            if ($request->isMethod('GET') && $response->getStatusCode() === 200
+                && $request->path() === 'admin/ai-growth/google-discovery'
+                && $request->user('web')?->isAdmin()) {
+                $formAction .= ' https://accounts.google.com';
+            }
             // اسنپ‌پی: همان تلهٔ زرین‌پال — ۳۰۲ ِ بعد از submit به صفحهٔ پرداختش
             if (config('snapppay.enabled')) {
                 $formAction .= $this->snappPayHosts();

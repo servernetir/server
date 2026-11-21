@@ -84,7 +84,7 @@ return [
     'nav_hosting' => 'Hosting', 'nav_servers' => 'Sunucular', 'nav_domains' => 'Alan Adları',
     'nav_enterprise' => 'Kurumsal', 'nav_support' => 'Destek', 'nav_login' => 'Müşteri Paneli',
 
-    'hero_badge' => "2009'dan beri · İran ve Avrupa'da veri merkezleri · SLA güvenceli · 7/24 destek",
+    'hero_badge' => "2009'dan beri · Uluslararası veri merkezleri · SLA güvenceli · 7/24 destek",
     'hero_h1a' => 'Çevrimiçi hayallerinizin güvenli yuvası,', 'hero_h1b' => 'hiç sarsılmayan bir altyapı.',
     'hero_lead' => 'Başlamak için bulut hosting, kurumlar ve yapay zekâ ekipleri için özel sunucu ve GPU altyapısı — asla yetersiz kalmayan altyapıda.',
     'hero_rot1' => 'Sanal sunucular 90 saniyeden kısa sürede hazır',
@@ -103,7 +103,7 @@ return [
     'from' => 'başlangıç', 'mo' => '/ay', 'order' => 'Sipariş ver', 'prod_view' => 'Paketleri gör',
 
     'vps_badge' => 'Bulut VPS', 'vps_title' => 'Yüksek performans, dürüst fiyatlar',
-    'vps_sub' => 'NVMe depolama, anında kurulum, İran ve Avrupa lokasyonları.',
+    'vps_sub' => 'NVMe depolama, anında kurulum ve mevcut uluslararası veri merkezi konumları.',
     'popular' => 'En popüler', 'traffic' => 'Trafik', 'choose' => 'Paketi seç',
 
     'ent_badge' => 'Kurumsal', 'ent_title' => 'Üretim hattından dil modeline — altyapıyı biz kuruyoruz',
@@ -1700,7 +1700,7 @@ return [
     'prof_selfie_hint' => 'Ayni kimlik belgesini yuzunuzun yaninda tutarken cekilmis bir fotograf - JPG/PNG, en fazla 5 MB',
     'prof_doc_address' => 'Adres belgesi',
     'prof_doc_address_hint' => 'Adiniza duzenlenmis, son 3 ay icinde kesilmis bir fatura veya banka ekstresi - PDF veya fotograf, en fazla 5 MB',
-    'prof_foreign_note' => 'Standart KYC (Wise/Binance gibi): bir kimlik belgesi (pasaport, kimlik karti veya surucu belgesi), ayni belgeyi tutarken cekilmis bir selfie ve son 3 ay icinde duzenlenmis bir adres belgesi yukleyin. Ekibimiz genellikle bir is gunu icinde inceler; onaydan sonra Iran da barindirilan hizmetler dahil tum hizmetler acilir.',
+    'prof_foreign_note' => 'Standart KYC (Wise/Binance gibi): bir kimlik belgesi (pasaport, kimlik kartı veya sürücü belgesi), aynı belgeyi tutarken çekilmiş bir selfie ve son 3 ay içinde düzenlenmiş bir adres belgesi yükleyin. Ekibimiz genellikle bir iş günü içinde inceler; onaydan sonra uygun hizmetler kendi erişim koşullarına göre açılır.',
     'auth_email' => 'E-posta',
     'auth_email_bad' => 'Bu e-posta adresi geçerli görünmüyor.',
     'auth_email_hint' => 'Faturalar, yenileme hatırlatmaları ve hizmet bildirimleri bu adrese gelir.',
@@ -2956,7 +2956,7 @@ return [
     'hv_pill_deliver' => 'Kapasiteye bağlı otomatik kurulum',
     'hv_pill_nocommit' => 'Aylık taahhüt yok',
     'hv_pill_countries' => ':n ülke',
-    'hv_pill_iran' => 'İran + yurt dışı',
+    'hv_pill_iran' => 'Uluslararası konumlar',
     'hv_cta_order' => 'Saatlik sunucu sipariş et',
     'hv_cta_rates' => 'Ücretleri gör',
 
@@ -3031,9 +3031,9 @@ return [
     'hv_faq3_a' => 'Siparişte bakiye tükenme politikasını seçersiniz. Saklama seçildiğinde doğrulanmış kapatmadan sonra veriler silinmeden önce en fazla :hours saat tutulur. Devam etmek için süre dolmadan bakiye yükleyin. Saklama yedekleme değildir.',
     'hv_faq4_q' => 'Saatlik sunucu aylıktan daha mı zayıf?',
     'hv_faq4_a' => 'Hayır. Kaynaklar, disk, ağ ve IP seçilen pakete göre aynıdır; faturalama farklıdır. Gösterilen saatlik ücret esas alınır ve her zaman aylık fiyattan türetilmez. Kapatmak ücreti durdurmaz; faturalamayı bitirmek için sunucuyu silin.',
-    'hv_faq5_q' => 'İran’da saatlik VPS var mı?',
-    'hv_faq5_a' => 'Evet. Saatlik sunucular İran veri merkezlerimizde (:cities) ve yurt dışında mevcuttur; konumu siparişte seçersiniz.',
-    'hv_faq5_a_nop' => 'Evet. Saatlik sunucular hem İran veri merkezlerimizde hem yurt dışında mevcuttur; konumu siparişte seçersiniz.',
+    'hv_faq5_q' => 'Saatlik VPS planları hangi konumlarda sunuluyor?',
+    'hv_faq5_a' => 'Güncel katalogda listelenen uygun konumları karşılaştırın ve sipariş sırasında kullanılabilir bir konum seçin.',
+    'hv_faq5_a_nop' => 'Güncel katalogda listelenen uygun konumları karşılaştırın ve sipariş sırasında kullanılabilir bir konum seçin.',
     'hv_faq6_q' => 'Saatlik sunucu ne kadar sürede teslim edilir?',
     'hv_faq6_a' => 'Kurulum otomatiktir ancak teslimat süresi plana ve kapasiteye bağlıdır. İlk saat siparişte ödenir; sonraki ölçüm doğrulanmış teslimat gerektirir ve teslimat bekleme süresi kullanıma eklenmez. Başarısız teslimat aynı siparişin bakiye telafi süreciyle ele alınır.',
     'hv_faq7_q' => 'Maliyeti nasıl kontrol ederim?',

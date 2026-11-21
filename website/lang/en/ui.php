@@ -84,7 +84,7 @@ return [
     'nav_hosting' => 'Hosting', 'nav_servers' => 'Servers', 'nav_domains' => 'Domains',
     'nav_enterprise' => 'Enterprise', 'nav_support' => 'Support', 'nav_login' => 'Client Area',
 
-    'hero_badge' => 'Since 2009 · Datacenters in Iran and Europe · SLA-backed · 24/7 support',
+    'hero_badge' => 'Since 2009 · International datacenters · SLA-backed · 24/7 support',
     'hero_h1a' => 'The safe home for your online dreams,', 'hero_h1b' => 'on infrastructure that never blinks.',
     'hero_lead' => 'Cloud hosting to start, dedicated and GPU infrastructure for enterprises and AI teams — on infrastructure that never runs short.',
     'hero_rot1' => 'Virtual servers deployed in under 90 seconds',
@@ -103,7 +103,7 @@ return [
     'from' => 'from', 'mo' => '/mo', 'order' => 'Order now', 'prod_view' => 'View plans',
 
     'vps_badge' => 'Cloud VPS', 'vps_title' => 'High performance, honest prices',
-    'vps_sub' => 'NVMe storage, instant deployment, and datacenter locations in Iran & Europe.',
+    'vps_sub' => 'NVMe storage, instant deployment, and available international datacenter locations.',
     'popular' => 'Most popular', 'traffic' => 'Traffic', 'choose' => 'Choose plan',
 
     'ent_badge' => 'Enterprise', 'ent_title' => 'From the production line to the language model — we build the infrastructure',
@@ -1700,7 +1700,7 @@ return [
     'prof_selfie_hint' => 'A photo of yourself holding the same identity document next to your face - JPG/PNG, up to 5 MB',
     'prof_doc_address' => 'Proof of address',
     'prof_doc_address_hint' => 'A utility bill or bank statement in your name, issued within the last 3 months - PDF or photo, up to 5 MB',
-    'prof_foreign_note' => 'Standard KYC (like Wise or Binance): upload an identity document (passport, national ID or driving license), a selfie holding that same document, and a proof of address issued within the last 3 months. Our team usually reviews within one business day; once approved, all services - including those hosted in Iran - are unlocked for you.',
+    'prof_foreign_note' => 'Standard KYC (like Wise or Binance): upload an identity document (passport, national ID or driving license), a selfie holding that same document, and a proof of address issued within the last 3 months. Our team usually reviews within one business day; once approved, eligible services become available subject to their individual requirements.',
     'auth_email' => 'Email',
     'auth_email_bad' => 'That email address does not look valid.',
     'auth_email_hint' => 'Invoices, renewal reminders and service notices go to this address.',
@@ -2956,7 +2956,7 @@ return [
     'hv_pill_deliver' => 'Automatic provisioning, subject to capacity',
     'hv_pill_nocommit' => 'No monthly commitment',
     'hv_pill_countries' => ':n countries',
-    'hv_pill_iran' => 'Iran + abroad',
+    'hv_pill_iran' => 'International locations',
     'hv_cta_order' => 'Order an hourly server',
     'hv_cta_rates' => 'See rates',
 
@@ -3031,9 +3031,9 @@ return [
     'hv_faq3_a' => 'Choose an end-of-credit policy when ordering. With retention, after a confirmed shutdown, data is kept for up to :hours hours before deletion. Top up before the deadline to continue. Retention is not a backup.',
     'hv_faq4_q' => 'Is an hourly server weaker than a monthly one?',
     'hv_faq4_a' => 'No. Resources, disk, network and IP follow the selected plan; billing differs. The displayed hourly rate is the billing basis and is not necessarily derived from the monthly price. Powering off does not stop charges; delete the server to end billing.',
-    'hv_faq5_q' => 'Do you offer hourly VPS in Iran?',
-    'hv_faq5_a' => 'Yes. Hourly servers are available in our Iranian data centres (:cities) as well as abroad; you pick the location at checkout.',
-    'hv_faq5_a_nop' => 'Yes. Hourly servers are available both in our Iranian data centres and abroad; you pick the location at checkout.',
+    'hv_faq5_q' => 'Where are hourly VPS plans available?',
+    'hv_faq5_a' => 'Compare eligible locations listed in the current catalog and choose an available location at checkout.',
+    'hv_faq5_a_nop' => 'Compare eligible locations listed in the current catalog and choose an available location at checkout.',
     'hv_faq6_q' => 'How fast is an hourly server delivered?',
     'hv_faq6_a' => 'Provisioning is automatic, but delivery time depends on the plan and available capacity. The first hour is paid at checkout; later metering requires verified delivery and does not add the delivery wait to usage. Failed delivery is handled through the credit compensation process for that order.',
     'hv_faq7_q' => 'How do I keep the cost under control?',
