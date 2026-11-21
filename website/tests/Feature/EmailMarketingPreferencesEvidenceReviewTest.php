@@ -7,6 +7,10 @@ use App\Models\EmailMarketingPreference;
 use App\Models\ExternalEmailConsentReview;
 use App\Models\User;
 use App\Services\Marketing\EmailMarketingPreferences;
+use DOMDocument;
+use DOMElement;
+use DOMNodeList;
+use DOMXPath;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -64,6 +68,89 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         Mail::assertNothingQueued();
     }
 
+    private function pageDom(string $html): DOMXPath
+    {
+        $document = new DOMDocument;
+        // The view uses HTML5 elements. Suppress HTML4-parser warnings, but
+        // never permit network access or load external document resources.
+        $this->assertTrue($document->loadHTML($html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING));
+
+        return new DOMXPath($document);
+    }
+
+    private function elements(DOMXPath $dom, string $path): DOMNodeList
+    {
+        $nodes = $dom->query($path);
+        $this->assertInstanceOf(DOMNodeList::class, $nodes);
+
+        return $nodes;
+    }
+
+    private function element(DOMXPath $dom, string $path): DOMElement
+    {
+        $nodes = $this->elements($dom, $path);
+        $this->assertSame(1, $nodes->length, $path);
+        $node = $nodes->item(0);
+        $this->assertInstanceOf(DOMElement::class, $node);
+
+        return $node;
+    }
+
+    public function test_evidence_dashboard_has_an_accessible_review_only_form_and_empty_state(): void
+    {
+        $this->admin();
+
+        $page = $this->get('/admin/email-marketing/evidence')->assertOk()
+            ->assertSee(__('email-evidence-review.intro'))
+            ->assertSee(__('email-evidence-review.empty'));
+        $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
+        $this->assertSame('no-referrer', $page->headers->get('Referrer-Policy'));
+        $this->assertSame('noindex, nofollow', $page->headers->get('X-Robots-Tag'));
+        $dom = $this->pageDom((string) $page->getContent());
+
+        $form = $this->element($dom, '//form[@id="evidence-review-upload"]');
+        $this->assertSame(route('admin.email-marketing.evidence.stage'), $form->getAttribute('action'));
+        $this->assertSame('post', strtolower($form->getAttribute('method')));
+        $this->assertSame('multipart/form-data', $form->getAttribute('enctype'));
+        $formPath = '//form[@id="evidence-review-upload"]';
+        $csrf = $this->element($dom, $formPath.'//input[@name="_token" and @type="hidden"]');
+        $this->assertNotEmpty($csrf->getAttribute('value'));
+        $file = $this->element($dom, $formPath.'//input[@name="file" and @type="file"]');
+        $this->assertTrue($file->hasAttribute('required'));
+        $this->assertStringContainsString('.csv', $file->getAttribute('accept'));
+        $this->assertSame('evidence-review-file', $file->getAttribute('id'));
+        $this->assertGreaterThan(0, $this->elements($dom, '//label[@for="evidence-review-file"]')->length);
+
+        $ack = $this->element($dom, $formPath.'//input[@name="acknowledge" and @type="checkbox"]');
+        $this->assertSame('1', $ack->getAttribute('value'));
+        $this->assertSame('evidence-review-acknowledge', $ack->getAttribute('id'));
+        $this->assertTrue($ack->hasAttribute('required'));
+        $this->assertFalse($ack->hasAttribute('checked'));
+        $this->assertGreaterThan(0, $this->elements($dom, '//label[@for="evidence-review-acknowledge"]')->length);
+        $this->element($dom, $formPath.'//button[@type="submit"]');
+
+        $links = [];
+        foreach ($this->elements($dom, '//a[@href]') as $link) {
+            $links[] = $link->getAttribute('href');
+        }
+        $this->assertContains(route('admin.email-marketing.index'), $links);
+        $this->assertContains(route('admin.email-marketing.evidence.sample'), $links);
+
+        $total = $this->element($dom, '//*[@data-evidence-total]');
+        $this->assertSame('0', $total->getAttribute('data-evidence-total'));
+        $this->assertStringContainsString('0', $total->textContent);
+        $this->element($dom, '//*[@data-evidence-empty]');
+        $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-row]')->length);
+
+        $sample = $this->get('/admin/email-marketing/evidence/sample')->assertOk();
+        $this->assertStringContainsString('text/csv', $sample->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment;', $sample->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('no-store', $sample->headers->get('Cache-Control'));
+        $this->assertSame("\xEF\xBB\xBF".self::HEADER, $sample->getContent());
+        $this->assertDatabaseCount('external_email_consent_reviews', 0);
+        $this->assertReviewOnly();
+    }
+
     public function test_evidence_upload_assigns_unique_internal_ids_and_preserves_the_supplied_consent_dates(): void
     {
         $admin = $this->admin();
@@ -110,8 +197,27 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $page = $this->get('/admin/email-marketing/evidence')->assertOk()
             ->assertSee((string) $rows[0]->contact_id)
             ->assertSee((string) $rows[1]->contact_id)
-            ->assertDontSee('one@external.example.test')->assertDontSee('archive-synthetic-one');
+            ->assertSee(__('email-evidence-review.review_only'))
+            ->assertSee(__('email-evidence-review.no_message'))
+            ->assertDontSee('one@external.example.test')->assertDontSee('two@external.example.test')
+            ->assertDontSee('archive-synthetic-one')->assertDontSee('archive-synthetic-two');
         $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
+        $dom = $this->pageDom((string) $page->getContent());
+        $total = $this->element($dom, '//*[@data-evidence-total]');
+        $this->assertSame('2', $total->getAttribute('data-evidence-total'));
+        $this->assertStringContainsString('2', $total->textContent);
+        $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-empty]')->length);
+        $recordNodes = $this->elements($dom, '//*[@data-evidence-row]');
+        $this->assertSame(2, $recordNodes->length);
+        $displayedIds = [];
+        foreach ($recordNodes as $node) {
+            $displayedIds[] = (int) $node->getAttribute('data-evidence-row');
+        }
+        $this->assertSame([(int) $rows[1]->contact_id, (int) $rows[0]->contact_id], $displayedIds);
+        foreach (['rows' => '3', 'added' => '2', 'duplicates' => '1'] as $metric => $value) {
+            $node = $this->element($dom, '//*[@data-evidence-metric="'.$metric.'"]');
+            $this->assertSame($value, trim($node->textContent));
+        }
         $this->assertReviewOnly();
         $this->assertDatabaseCount('customers', $customerCount);
     }
