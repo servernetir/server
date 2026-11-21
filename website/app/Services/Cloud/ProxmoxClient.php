@@ -233,6 +233,13 @@ class ProxmoxClient implements CloudProvider
             'curl' => [CURLOPT_RESOLVE => [$name.':'.$port.':'.$address]]]];
     }
 
+    /** Read-only transport shared by the owner MCP gateway; retains TLS name/CA and redirect policy. */
+    public function guestInventory(): array
+    {
+        $r = $this->req('GET', '/cluster/resources', ['type' => 'vm']);
+        return ['ok' => $r['ok'], 'data' => $r['ok'] ? ($r['body']['data'] ?? null) : null];
+    }
+
     public function testConnection(): array
     {
         $r = $this->req('GET', '/nodes/'.rawurlencode($this->node()).'/qemu');
