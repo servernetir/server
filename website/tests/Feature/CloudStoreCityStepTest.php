@@ -103,6 +103,11 @@ class CloudStoreCityStepTest extends TestCase
             'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
         ]);
 
+        $c->identityVerification()->create([
+            'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $c->email),
+            'birth_date' => '1990-01-01', 'mobile' => $c->phone,
+            'status' => 'verified', 'shahkar_matched' => true,
+        ]);
         return $c;
     }
 

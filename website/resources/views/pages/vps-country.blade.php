@@ -1,6 +1,9 @@
 @extends('layouts.site')
 @section('title', $seo['title'])
 @section('description', $seo['description'])
+@if($iso === 'IR')
+@section('faOnly', 'y')
+@endif
 @php $hasHourlyPlans = collect($vpsRows)->contains(fn (array $row) => !empty($row['hourly_url'])); @endphp
 @if(!$indexable)
 @section('noindex', 'y')

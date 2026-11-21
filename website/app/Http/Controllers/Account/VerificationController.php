@@ -50,7 +50,7 @@ class VerificationController extends Controller
         | کشور (کدِ ISO — ستون char(2) است؛ متنِ آزاد روی MariaDB می‌شکست) +
         | مدرکِ هویتی به انتخاب (پاسپورت/کارتِ ملی/گواهینامه، کارت‌ها با پشت) +
         | سلفی با همان مدرک + مدرکِ آدرسِ ≤۳ ماه. تأییدِ دستیِ تیمِ ماست و
-        | همان پرچمِ verified را می‌زند که IranSalesGate می‌خوانَد.
+        | وضعیت پروفایل را تأیید می‌کند؛ مجوز خرید ایران همچنان استعلام موفق شاهکار می‌خواهد.
         */
         $foreign = ! $isCompany && $customer->identityVerification === null;
 

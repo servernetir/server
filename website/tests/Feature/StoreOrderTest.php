@@ -170,6 +170,11 @@ class StoreOrderTest extends TestCase
             'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone,
         ]);
+        $customer->identityVerification()->create([
+            'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $customer->email),
+            'birth_date' => '1990-01-01', 'mobile' => $customer->phone,
+            'status' => 'verified', 'shahkar_matched' => true,
+        ]);
 
         $this->actingAs($customer, 'customer')
             ->post("/account/order/{$product->slug}", [

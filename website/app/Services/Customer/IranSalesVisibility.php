@@ -2,25 +2,12 @@
 
 namespace App\Services\Customer;
 
-use Illuminate\Support\Facades\Auth;
-
-/** Request-scoped visibility for the existing Iran purchase gate. */
+/** Public catalog visibility is localized independently of purchase eligibility. */
 class IranSalesVisibility
 {
     public static function restricted(): bool
     {
-        try {
-            $customer = Auth::guard('customer')->user();
-            $key = '_iran_purchase_restricted_'.($customer?->getAuthIdentifier() ?? 'guest');
-            $attributes = request()->attributes;
-            if (! $attributes->has($key)) {
-                $attributes->set($key, IranSalesGate::blocksIranFor($customer));
-            }
-
-            return (bool) $attributes->get($key);
-        } catch (\Throwable) {
-            return true;
-        }
+        return app()->getLocale() !== 'fa';
     }
 
     public static function allowsCountry(?string $country): bool
@@ -35,8 +22,9 @@ class IranSalesVisibility
             return true;
         }
         $path = strtolower(rawurldecode((string) ($parts['path'] ?? '')));
+        $foreignPath = preg_match('~^/(?:en|tr)(?=/|$)~', $path);
         $path = preg_replace('~^/(?:en|tr)(?=/|$)~', '', $path);
-        $iran = preg_match('~^/(?:vps|dedicated|hosting)/iran(?:/|$)~', $path)
+        $iran = preg_match('~^/(?:vps|dedicated|hosting)/iran(?:-infrastructure)?(?:/|$)~', $path)
             || preg_match('~^/cloud/ir(?:-|/|$)~', $path);
         parse_str((string) ($parts['query'] ?? ''), $query);
         foreach (['location', 'loc', 'country'] as $key) {
@@ -45,7 +33,7 @@ class IranSalesVisibility
             }
         }
 
-        return ! $iran || ! self::restricted();
+        return ! $iran || (! $foreignPath && ! self::restricted());
     }
 
     public static function allowsItem(array $item, string $scope = ''): bool
@@ -61,7 +49,7 @@ class IranSalesVisibility
             $parameters = $route[1] ?? [];
             if ($name === 'catalog' && is_array($parameters)
                 && in_array($parameters['category'] ?? '', ['vps', 'dedicated', 'cloud', 'hosting'], true)
-                && strtolower((string) ($parameters['slug'] ?? '')) === 'iran'
+                && in_array(strtolower((string) ($parameters['slug'] ?? '')), ['iran', 'iran-infrastructure'], true)
                 && self::restricted()) {
                 return false;
             }
@@ -73,7 +61,7 @@ class IranSalesVisibility
                 }
             }
         }
-        if (strtolower((string) ($item['slug'] ?? '')) === 'iran'
+        if (in_array(strtolower((string) ($item['slug'] ?? '')), ['iran', 'iran-infrastructure'], true)
             && in_array($scope, ['vps', 'dedicated', 'cloud', 'hosting'], true)
             && self::restricted()) {
             return false;

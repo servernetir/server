@@ -64,6 +64,15 @@ class StoreController extends Controller
             return redirect(lroute('account.services'))->with('err', 'این پلن موقتاً آمادهٔ سفارش نیست.');
         }
 
+        $countries = $product->isLicense() ? [] : $product->availableCountries();
+        $visibleCountries = array_values(array_filter($countries, fn ($c) => \App\Services\Customer\IranSalesVisibility::allowsCountry($c)));
+        // Manual packages may carry a fixed delivery server rather than a
+        // country selector. Hide an Iran-only package on foreign locales too.
+        if (! $product->isLicense() && \App\Services\Customer\IranSalesVisibility::restricted()) {
+            abort_if(($countries !== [] && $visibleCountries === [])
+                || ($countries === [] && \App\Services\Customer\IranSalesGate::isIranTarget($product->server?->country)), 404);
+        }
+
         /*
         | تحویلِ امضاشده از /order/{sku} (ممیزی ۶ — SN-ORDER-001): دوره‌ای که کاربر
         | روی سایت انتخاب کرده همین‌جا از پیش انتخاب می‌شود. امضای نامعتبر/منقضی
@@ -97,7 +106,7 @@ class StoreController extends Controller
             // مشتریِ احرازنشده «ایران» را اصلاً نمی‌بیند (لایهٔ نمایش؛ گیتِ
             // سختِ سفارش پایین‌تر است — نمایش قابلِ دورزدن است، سفارش نه)
             'countries' => $product->isLicense() ? [] : array_values(array_filter(
-                $product->availableCountries(),
+                $visibleCountries,
                 fn ($c) => ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
             )),
             'cycles'    => $product->orderCycles(),
@@ -194,6 +203,18 @@ class StoreController extends Controller
         $server = $country ? $product->pickOrderServer($country) : null;
         if ($country && $server === null) {
             return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
+        }
+
+        // Check the actual delivery destination as well as the submitted
+        // selector. With manual packages the effective server can come from
+        // product.server_id even when no country was part of the form.
+        $effectiveCountry = $server === null ? $product->server?->country : $server->country;
+        if (\App\Services\Customer\IranSalesGate::blocks($customer, $effectiveCountry)) {
+            return back()->withInput()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
+        }
+        if (! \App\Services\Customer\IranSalesVisibility::allowsCountry($country)
+            || ! \App\Services\Customer\IranSalesVisibility::allowsCountry($effectiveCountry)) {
+            return back()->withInput()->withErrors(['country' => __('ui.stf_pkg_na')]);
         }
 
         // مبلغِ دوره در لحظهٔ سفارش قفل می‌شود؛ تغییرِ بعدیِ تخفیف‌ها یا نرخِ ارز

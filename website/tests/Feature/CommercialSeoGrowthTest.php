@@ -168,6 +168,11 @@ class CommercialSeoGrowthTest extends TestCase
         foreach (['', '/en', '/tr'] as $prefix) {
             foreach (\App\Services\Cloud\CloudCountry::marketingSlugs() as $slug) {
                 $path = $prefix.'/vps/'.$slug;
+                if ($slug === 'iran' && $prefix !== '') {
+                    $this->get($path)->assertNotFound();
+
+                    continue;
+                }
                 $response = $this->get($path)->assertOk();
                 $html = $response->getContent();
                 $this->assertSame([], $response->viewData('vpsRows'), $path);

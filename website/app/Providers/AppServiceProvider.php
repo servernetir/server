@@ -347,7 +347,9 @@ class AppServiceProvider extends ServiceProvider
                     | صفحه را بخواباند. نبودنِ لینکِ زبان بی‌آزار است، ۵۰۰ نه.
                     */
                     try {
-                        $localeUrls[$code] = route($prefix.$baseRoute, $params);
+                        $candidate = route($prefix.$baseRoute, $params);
+                        $localeUrls[$code] = $code !== 'fa' && ! \App\Services\Customer\IranSalesVisibility::allowsUrl($candidate)
+                            ? route($prefix.'cloud.index') : $candidate;
                     } catch (\Throwable) {
                         $localeUrls[$code] = $home;
                     }

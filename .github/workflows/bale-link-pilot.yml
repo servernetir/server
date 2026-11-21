@@ -1,0 +1,27 @@
+name: Offline Bale link pilot checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'relay/bale-delivery-probe.py'
+      - 'relay/test_bale_delivery_probe.py'
+      - '.github/workflows/bale-link-pilot.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bale-link-pilot-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-delivery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify both endpoints and dropped directions without network
+        run: sudo unshare --net -- env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s relay -p test_bale_delivery_probe.py -v

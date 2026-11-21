@@ -11,6 +11,8 @@
   try {
       if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
           $clLocs = \App\Models\CloudLocation::where('is_active', true)->orderBy('sort')->get()
+              ->filter(fn ($l) => \App\Services\Customer\IranSalesVisibility::allowsCountry($l->country)
+                  && \App\Services\Customer\IranSalesVisibility::allowsCountry((string) $l->code))
               ->reject(fn ($l) => isset($clExcept) && (string) $l->code === (string) $clExcept)
               // ممیزی ۷: کدِ legacy صفحهٔ مکان ندارد (۳۰۱ به صفحهٔ کشور) —
               // لینک‌دادن به ریدایرکت، همان چیزی است که این پارشال آمده بود حل کند

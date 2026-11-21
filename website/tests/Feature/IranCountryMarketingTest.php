@@ -29,30 +29,30 @@ class IranCountryMarketingTest extends TestCase
         $this->seedCatalogPricing();
     }
 
-    public function test_guests_and_unverified_customers_get_localized_indexable_guidance_without_restricted_catalogue_data(): void
+    public function test_persian_guests_and_unverified_customers_see_prices_but_not_order_links(): void
     {
         $plan = $this->offer();
         $original = $plan->fresh()->getRawOriginal();
-        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
-
         foreach ([null, $this->customer(false)] as $customer) {
             if ($customer) {
                 $this->actingAs($customer, 'customer');
             }
-            foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
-                $response = $this->get($prefix.'/vps/iran')->assertOk();
-                $this->restrictedLanding($response, $prefix, true);
-                $response->assertSee('<title>'.e(__('country-seo.restricted.title')).'</title>', false);
-                $response->assertSee('content="'.e(__('country-seo.restricted.description')).'"', false);
-                $response->assertDontSee(__('vps-catalog.unavailable'));
-                $this->assertStringNotContainsString('country-seo.', $response->getContent());
-                $this->assertSame(1, substr_count($xml, '<loc>'.url($prefix.'/vps/iran').'</loc>'));
-                $this->assertFalse(IranSalesVisibility::allowsCountry('IR'));
-                $this->assertFalse(IranSalesVisibility::allowsUrl($prefix.'/vps/iran'));
-                $this->assertTrue(IranSalesGate::blocksIranFor($customer));
+            $page = $this->get('/vps/iran')->assertOk();
+            $page->assertSee($plan->public_name)->assertSee('data-vps-row', false)
+                ->assertSee(__('ui.iran_purchase_verify'))->assertSee('account/verify')
+                ->assertDontSee('account/cloud-store?location=ir', false);
+            $this->assertNull($page->viewData('vpsRows')[0]['monthly_url']);
+            $this->assertTrue(IranSalesGate::blocksIranFor($customer));
+            foreach (['/en', '/tr'] as $prefix) {
+                $this->get($prefix.'/vps/iran')->assertNotFound();
+                $this->get($prefix.'/cloud/ir-tehran')->assertNotFound();
             }
         }
-
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        $this->assertStringContainsString('<loc>'.url('/vps/iran').'</loc>', $xml);
+        foreach (['/en', '/tr'] as $prefix) {
+            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/iran').'</loc>', $xml);
+        }
         $this->assertSame($original, $plan->fresh()->getRawOriginal());
         Http::assertNothingSent();
     }
@@ -89,23 +89,19 @@ class IranCountryMarketingTest extends TestCase
     {
         $this->offer();
         $this->mock(\App\Services\Cloud\CloudPublicQuote::class)
-            ->shouldReceive('monthlyPrice')->andReturn(0);
+            ->shouldReceive('monthlyPrice')->andReturn(0)
+            ->getMock()->shouldReceive('quote')->andReturn(['irt' => 0]);
         $this->assertIranUnavailable();
         Http::assertNothingSent();
     }
 
-    public function test_verified_customers_and_an_explicitly_open_gate_keep_actual_plans_and_offers(): void
+    public function test_shahkar_verified_customer_can_order_in_persian_only_is_listed(): void
     {
         $plan = $this->offer();
-        Setting::put(IranSalesGate::SETTING, '1');
-        foreach (['', '/en', '/tr'] as $prefix) {
-            $this->visibleCatalogue($this->get($prefix.'/vps/iran')->assertOk(), $plan);
-        }
-
-        Setting::put(IranSalesGate::SETTING, '0');
         $this->actingAs($this->customer(true), 'customer');
-        foreach (['', '/en', '/tr'] as $prefix) {
-            $this->visibleCatalogue($this->get($prefix.'/vps/iran')->assertOk(), $plan);
+        $this->visibleCatalogue($this->get('/vps/iran')->assertOk(), $plan);
+        foreach (['/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/vps/iran')->assertNotFound();
         }
         Http::assertNothingSent();
     }
@@ -122,68 +118,76 @@ class IranCountryMarketingTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_warm_guest_page_cache_cannot_hide_the_verified_catalogue_or_publish_it_to_guests(): void
+    public function test_foreign_catalogue_crosslinks_exclude_iran_and_persian_landing_has_no_foreign_alternates(): void
+    {
+        $this->offer();
+        CloudLocation::create(['code' => 'de-frankfurt', 'country' => 'DE', 'city' => 'Frankfurt', 'is_active' => true]);
+
+        foreach (['/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/cloud')->assertOk()
+                ->assertSee('href="'.url($prefix.'/cloud/de-frankfurt').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/cloud/ir-tehran').'"', false);
+            $this->get($prefix.'/dedicated/germany')->assertOk()
+                ->assertDontSee('href="'.url($prefix.'/dedicated/iran').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/dedicated/iran-infrastructure').'"', false)
+                ->assertDontSee('href="'.url($prefix.'/cloud/ir-tehran').'"', false);
+        }
+
+        $this->get('/cloud')->assertOk()->assertSee('href="'.url('/cloud/ir-tehran').'"', false);
+        $this->get('/dedicated/germany')->assertOk()
+            ->assertSee('href="'.url('/dedicated/iran').'"', false)
+            ->assertSee('href="'.url('/dedicated/iran-infrastructure').'"', false);
+
+        foreach (['/vps/iran', '/dedicated/iran', '/dedicated/iran-infrastructure'] as $path) {
+            $page = $this->get($path)->assertOk()
+                ->assertSee('rel="alternate" hreflang="fa"', false);
+            foreach (['en', 'tr'] as $locale) {
+                $page->assertDontSee('hreflang="'.$locale.'"', false)
+                    ->assertDontSee('href="'.url('/'.$locale.$path).'"', false);
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_foreign_hourly_pages_describe_eligible_locations_without_promoting_iran(): void
+    {
+        $this->offer();
+        $this->get('/en/vps/hourly')->assertOk()
+            ->assertSee('Where are hourly VPS plans available?')
+            ->assertDontSee('Do you offer hourly VPS in Iran?')
+            ->assertDontSee('our Iranian data centres');
+        $this->get('/tr/vps/hourly')->assertOk()
+            ->assertSee('Saatlik VPS planları hangi konumlarda sunuluyor?')
+            ->assertDontSee('İran’da saatlik VPS var mı?')
+            ->assertDontSee('İran veri merkezlerimizde');
+        $this->get('/vps/hourly')->assertOk()->assertSee('سرور مجازی ساعتی ایران هم دارید؟');
+        Http::assertNothingSent();
+    }
+
+    public function test_a_warm_guest_page_cache_does_not_grant_purchase_or_hide_the_verified_catalogue(): void
     {
         $plan = $this->offer();
         $verified = $this->customer(true);
         config(['pagecache.enabled' => true]);
         Cache::flush();
-        $this->restrictedLanding($this->get('/vps/iran')->assertOk()->assertHeader('X-Cache', 'MISS'), '', true);
-        $this->restrictedLanding($this->get('/vps/iran')->assertOk()->assertHeader('X-Cache', 'HIT'), '', true);
-
+        $this->get('/vps/iran')->assertOk()->assertHeader('X-Cache', 'MISS')->assertSee('احراز هویت و خرید');
+        $this->get('/vps/iran')->assertOk()->assertHeader('X-Cache', 'HIT')->assertSee('احراز هویت و خرید');
         $this->actingAs($verified, 'customer');
         $this->visibleCatalogue($this->get('/vps/iran')->assertOk()->assertHeader('X-Cache', 'BYPASS'), $plan);
-        auth('customer')->logout();
-        $this->app['session']->flush();
-        $this->restrictedLanding($this->get('/vps/iran')->assertOk(), '', true);
+        $this->get('/en/vps/iran')->assertNotFound();
+        $this->get('/tr/vps/iran')->assertNotFound();
         Http::assertNothingSent();
     }
 
     private function assertIranUnavailable(): void
     {
         $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
-        foreach (['', '/en', '/tr'] as $prefix) {
-            $this->restrictedLanding($this->get($prefix.'/vps/iran')->assertOk(), $prefix, false);
-            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/iran').'</loc>', $xml);
-        }
-    }
-
-    private function restrictedLanding(TestResponse $response, string $prefix, bool $indexable): void
-    {
-        $html = $response->getContent();
-        $this->assertMatchesRegularExpression('~(?:id="public-page-vps-catalog-css"|href="[^"]*/assets/css/vps-catalog\.css[^"]*")~', explode('</head>', $html)[0]);
-        if (($response->baseResponse->original ?? null) instanceof \Illuminate\Contracts\View\View) {
-            $this->assertSame([], $response->viewData('vpsRows'));
-            $this->assertSame($indexable, $response->viewData('indexable'));
-        }
-        $this->assertSame(! $indexable, str_contains($html, 'name="robots" content="noindex,follow"'));
-        $this->assertFalse(str_contains(strtolower($response->headers->get('X-Robots-Tag', '')), 'noindex'));
-        $response->assertSee('data-vps-access-notice', false)
-            ->assertSee(__('ui.iran_gate_blocked'))
-            ->assertSee('href="'.url($prefix.'/login').'"', false)
-            ->assertSee('href="'.url($prefix.'/contact').'"', false)
+        $this->get('/vps/iran')->assertOk()
             ->assertDontSee('data-vps-row', false)
-            ->assertDontSee('IR-PRIVATE-FIXTURE')
-            ->assertDontSee('Iran fixture city')
-            ->assertDontSee('account/cloud-store', false);
-        $this->assertSame(1, preg_match('~<div class="vpsc-cities">(.*?)</div>~s', $html, $cities));
-        $this->assertSame('', trim($cities[1]));
-
-        $faq = null;
-        foreach ($this->schemas($html) as $schema) {
-            array_walk_recursive($schema, function ($value, $key): void {
-                if ($key === '@type') {
-                    $this->assertNotContains($value, ['Offer', 'ItemList']);
-                }
-            });
-            if (($schema['@type'] ?? '') === 'FAQPage') {
-                $faq = $schema;
-            }
-        }
-        $seo = app(CountryLandingSeo::class)->content('IR', catalogRestricted: true);
-        $this->assertSame($seo['faq_ld']['mainEntity'], $faq['mainEntity']);
-        foreach ($seo['faq'] as $row) {
-            $response->assertSee($row['q'])->assertSee($row['a']);
+            ->assertSee('name="robots" content="noindex,follow"', false);
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/iran').'</loc>', $xml);
         }
     }
 
@@ -217,6 +221,13 @@ class IranCountryMarketingTest extends TestCase
             'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
             'status' => $verified ? 'verified' : 'draft', 'email' => $customer->email, 'mobile' => $customer->phone,
         ]);
+        if ($verified) {
+            $customer->identityVerification()->create([
+                'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $customer->email),
+                'birth_date' => '1990-01-01', 'mobile' => $customer->phone,
+                'status' => 'verified', 'shahkar_matched' => true,
+            ]);
+        }
         return $customer;
     }
 

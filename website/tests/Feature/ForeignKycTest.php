@@ -21,8 +21,8 @@ use Tests\TestCase;
  *
  * کارفرما: «زیرساخت KYC برای خارجی‌ها — اطلاعاتشان را بفرستند، خودمان تأیید
  * کنیم؛ قبض و پاسپورت و…». خارجی = فردی بدونِ استعلامِ هویتِ ایرانی. تأییدِ
- * مدیر همان پرچمِ verified را می‌زند که IranSalesGate می‌خوانَد — پس دروازهٔ
- * محصولاتِ ایران خودکار برای تأییدشده باز می‌شود.
+ * مدیر پروفایل را verified می‌کند؛ فروش محصولاتِ ایران همچنان نیازمند
+ * تأیید شاهکار است.
  */
 class ForeignKycTest extends TestCase
 {
@@ -103,7 +103,7 @@ class ForeignKycTest extends TestCase
     }
 
     /** 🔴 تأییدِ مدیر ⇒ پروفایل verified ⇒ دروازهٔ ایران برای همین مشتری باز */
-    public function test_admin_approval_verifies_and_opens_the_iran_gate(): void
+    public function test_foreign_document_approval_does_not_replace_shahkar(): void
     {
         $c = $this->foreigner();
 
@@ -119,7 +119,7 @@ class ForeignKycTest extends TestCase
 
         $this->assertSame('verified', $p->fresh()->status);
         $this->assertSame('approved', CustomerDocument::where('customer_profile_id', $p->id)->first()->status);
-        $this->assertFalse(IranSalesGate::blocks($c->fresh(), 'IR'), 'تأییدِ مدیر باید دروازه را باز کند.');
+        $this->assertTrue(IranSalesGate::blocks($c->fresh(), 'IR'), 'Foreign document approval is not Shahkar verification.');
     }
 
     /** فردِ ایرانی (با استعلامِ ثبتِ احوال) پاسپورت لازم ندارد */
@@ -170,6 +170,8 @@ class ForeignKycTest extends TestCase
         $this->assertStringContainsString('name="doc_selfie"', $html);
         $this->assertStringContainsString('name="birth_date"', $html);
         $this->assertStringContainsString('name="id_type"', $html);
+        $this->assertStringContainsString('eligible services become available subject to their individual requirements', $html);
+        $this->assertStringNotContainsString('including those hosted in Iran - are unlocked', $html);
     }
 
     /** 🔴 کارتِ ملی/گواهینامه پشتِ مدرک هم می‌خواهد و kindِ ذخیره‌شده همان نوع است */

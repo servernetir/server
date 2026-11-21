@@ -154,10 +154,10 @@ class PublicVpsCountryScopeTest extends TestCase
         $iran = $locations->only('ir-tehran');
         Setting::put('iran_sales_open_to_unverified', '0');
 
-        // The deployed visibility gate hides restricted destinations entirely.
-        // The country optimization must preserve that behavior, not expose a disabled card.
-        $this->assertSame([], $this->assertEquivalent('IR', $offers, collect(), $iran));
-        $this->assertSame(['philippines'], array_column(
+        $guestRows = $this->assertEquivalent('IR', $offers, collect(), $iran);
+        $this->assertSame(['iran'], array_column($guestRows, 'slug'));
+        $this->assertNull($guestRows[0]['monthly_url']);
+        $this->assertEqualsCanonicalizing(['iran', 'philippines'], array_column(
             app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
 
         // Use the real profile gate so a cached guest decision cannot hide Iran from a verified customer.
@@ -169,6 +169,11 @@ class PublicVpsCountryScopeTest extends TestCase
             'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone,
         ]);
+        $customer->identityVerification()->create([
+            'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $customer->email),
+            'birth_date' => '1990-01-01', 'mobile' => $customer->phone,
+            'status' => 'verified', 'shahkar_matched' => true,
+        ]);
         $this->actingAs($customer, 'customer');
         $rows = $this->assertEquivalent('IR', $offers, collect(), $iran);
         $this->assertSame(['iran'], array_column($rows, 'slug'));
@@ -178,7 +183,7 @@ class PublicVpsCountryScopeTest extends TestCase
             app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
     }
 
-    public function test_explicit_iran_gate_opening_keeps_guest_country_rows_and_links(): void
+    public function test_legacy_iran_gate_opening_keeps_guest_country_rows_without_purchase_links(): void
     {
         // Settings changes take effect on the next request; start this request with the explicit opening.
         Setting::put('iran_sales_open_to_unverified', '1');
@@ -186,7 +191,7 @@ class PublicVpsCountryScopeTest extends TestCase
         $locations = collect(['ir-tehran' => $this->location('ir-tehran', 'IR'), 'ph-manila' => $this->location('ph-manila', 'PH')]);
         $rows = $this->assertEquivalent('IR', $offers, collect(), $locations->only('ir-tehran'));
         $this->assertSame(['iran'], array_column($rows, 'slug'));
-        $this->assertStringContainsString('plan=iran&cycle=monthly', $rows[0]['monthly_url']);
+        $this->assertNull($rows[0]['monthly_url']);
         $this->assertNull($rows[0]['hourly_url']);
         $this->assertEqualsCanonicalizing(['iran', 'philippines'], array_column(
             app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));

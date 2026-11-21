@@ -311,7 +311,8 @@ class CloudStoreController extends Controller
         }
 
         // مشتریِ احرازنشده مکان‌های ایران را نمی‌بیند (گیتِ سختِ سفارش جداست)
-        if (\App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
+        if (\App\Services\Customer\IranSalesVisibility::restricted()
+            || \App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
             $usable = $usable->reject(
                 fn (CloudLocation $l) => strtoupper((string) $l->country) === 'IR'
             )->values();

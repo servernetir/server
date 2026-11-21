@@ -38,6 +38,9 @@ class CatalogController extends Controller
 
     public function show(string $category, string $slug): View|\Illuminate\Http\RedirectResponse
     {
+        abort_if(in_array($category, ['vps', 'dedicated', 'hosting'], true)
+            && in_array($slug, ['iran', 'iran-infrastructure'], true)
+            && \App\Services\Customer\IranSalesVisibility::restricted(), 404);
         if ($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true)) {
             return redirect()->to(lroute('gpu'), 301);
         }
