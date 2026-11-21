@@ -290,9 +290,11 @@ class AdminNotifier
     }
 
     /**
+     * Shared trusted manager routing for normal notifications and urgent incidents.
+     *
      * @return array<int,array{0:string,1:string}>
      */
-    private function baleDestinations(): array
+    public function baleDestinations(): array
     {
         $phones = config('servernet.contact.notify_phones', []);
         $chats  = config('servernet.contact.notify_chat_ids', []);

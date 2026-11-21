@@ -126,6 +126,12 @@ class BaleNotifier
     /** ارسالِ اعلانِ داخلی به یک مدیر، بدون افتادن روی مقصدِ سراسریِ مدیر اول. */
     public function toAdminAt(string $mobile, string $chatId, string $text): void
     {
+        $this->deliverToAdminAt($mobile, $chatId, $text);
+    }
+
+    /** Receipt for critical alerts: accepted by Bale or by the existing Iran outbox. */
+    public function deliverToAdminAt(string $mobile, string $chatId, string $text): bool
+    {
         try {
             if ($chatId === '' && $mobile !== '' && Schema::hasTable('bale_contacts')) {
                 $chatId = (string) (BaleContact::chatIdFor($mobile) ?? '');
@@ -139,20 +145,22 @@ class BaleNotifier
                     ['area' => 'bale-admin', 'phone' => $mobile === '' ? 'خالی' : 'ست شده'],
                 );
 
-                return;
+                return false;
             }
 
             if ($this->sender->send($chatId, $text)) {
-                return;
+                return true;
             }
 
             // آلمان نشد → صفِ ایران، همان fallbackِ همیشگی. هیچ هزینه‌ای ندارد.
             if ($mobile !== '') {
-                $this->queueForIran($mobile, $chatId, $text);
+                return $this->queueForIran($mobile, $chatId, $text);
             }
         } catch (\Throwable) {
             // اعلانِ داخلی هرگز نباید جریان اصلی را بشکند
         }
+
+        return false;
     }
 
     /**
@@ -204,10 +212,10 @@ class BaleNotifier
         }
     }
 
-    private function queueForIran(string $mobile, string $chatId, string $text): void
+    private function queueForIran(string $mobile, string $chatId, string $text): bool
     {
         if (! Schema::hasTable('sms_outbox')) {
-            return;
+            return false;
         }
 
         SmsOutbox::create([
@@ -219,5 +227,7 @@ class BaleNotifier
             // بله برای اعلان است نه فقط کد، پس عمر کمی بلندتر — ولی نه زیاد
             'expires_at'   => now()->addMinutes(10),
         ]);
+
+        return true;
     }
 }

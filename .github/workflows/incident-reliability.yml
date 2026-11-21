@@ -139,6 +139,9 @@ jobs:
                   raise SystemExit("Expected exactly one test file for " + name + ", found " + str(len(matches)))
           print("Linted", len(files), "changed PHP files; verified", len(classes), "selected test classes")
           PY
+      - name: Rehearse scoped GPU alert install and rollback offline
+        if: matrix.database == 'sqlite'
+        run: CREDIT_TEST_PHP=php python3 -m unittest discover -s ../scripts/tests -p test_deploy_salad_credit_alerts_20261121.py -v
       - name: Isolate application execution from external networks
         id: isolate
         env:
@@ -207,7 +210,7 @@ jobs:
       - name: Run core incident and public page regressions
         run: |
           set -euo pipefail
-          selected="$INCIDENT_CORE_FILTER|test_a_running_machine_has_no_build_detail|test_readiness_is_checked_beyond_the_first_instance_with_an_ip|test_ready_replica_with_invalid_gateway_dns_is_not_ready|test_the_guide_carries_the_token_when_the_gate_is_armed|test_stopped_gpu_keeps_its_address_but_not_the_open_application_link|test_off_gpu_with_a_pending_restart_offers_confirmed_normal_stop_instead_of_duplicate_start|test_pending_restart_control_requires_owner_active_hourly_and_off_status"
+          selected="$INCIDENT_CORE_FILTER|SaladCreditAlertTest|BaleAdminChannelTest|BaleManagerPolicyTest|test_a_running_machine_has_no_build_detail|test_readiness_is_checked_beyond_the_first_instance_with_an_ip|test_ready_replica_with_invalid_gateway_dns_is_not_ready|test_the_guide_carries_the_token_when_the_gate_is_armed|test_stopped_gpu_keeps_its_address_but_not_the_open_application_link|test_off_gpu_with_a_pending_restart_offers_confirmed_normal_stop_instead_of_duplicate_start|test_pending_restart_control_requires_owner_active_hourly_and_off_status"
           # This fixture deliberately creates a minimal settings table and requires SQLite.
           if [ "$DB_CONNECTION" = mysql ]; then
             selected="$(printf '%s' "$selected" | sed 's/|InternalLinkAssetResolutionTest//')"
