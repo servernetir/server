@@ -50,3 +50,19 @@ After authorization:
 6. Observe the next natural daily run. Report selected source date, popularity evidence or fallback, each locale's final stage, public URLs and Google receipt separately.
 
 Rollback: pause native generation or disable only repair before restoring preimages with current-hash checks. Pause Google discovery before removing its marked cron entry; retain paid jobs, drafts, published posts and discovery receipts. Do not revoke a shared Google OAuth client or roll back unrelated files.
+
+## Live scoped installation — 21 November 2026
+
+The owner explicitly authorized installation/publication in the next turn. Routine cPanel login with the existing saved account succeeded; the account identity `servernetcloud`, application root and PHP 8.4.28 were verified. The existing marked 15-minute native cron was present; no Google-discovery cron was present initially.
+
+Twenty-two reviewed runtime sources were staged from pinned commit `e2350091d7dc18617a410f9025d053c836f776a7`, independently hash-checked, backed up privately and installed under three shared release locks plus the Growth worker lock. Nine existing files matched the known base, twelve were absent, and one route-file overlay was reconciled: only the four discovery routes were added; the live Hermes action allow-list was preserved. PHP and targeted Blade lint passed; only the three Growth views were compiled. No migration, environment change or shared cache flush was performed. The first preflight's standalone Blade compiler failed before any live file write; the application-aware compiler succeeded. All 22 after-hashes were verified. The Google discovery UI is now reachable and its policy was enabled.
+
+Native no-inference resumption published the saved 18 November bundle as Post 580 and the 20 November bundle as Post 581, each with three translations. The 19 November bundle still contained price assertions in fa/en, and the 21 November Persian provider response was truncated/invalid JSON; en/tr were complete. No new inference was used for this diagnosis or initial recovery.
+
+### Bounded saved-locale correction
+
+A follow-up adds `--resume=YYYY-MM-DD --repair-saved --actor=ID`. The default `--resume` remains inference-free, but now records malformed JSON as a locale validation failure instead of aborting the entire inspection. The explicit repair path uses the existing one-per-locale quoted repair and existing budget caps; passing locales and paid receipts remain unchanged. It processes the saved daily key, including historical dates, and retains original URL dates. Repair instructions omit numeric prices/promises rather than weakening the commercial-claim filter. No automatic historical backfill is added to the ordinary cron.
+
+Regression coverage includes truncated fa JSON with passing en/tr and an idempotent historical correction. The follow-up must pass CI before live installation and any corrective provider call. Subsequent publication, cron, authorization and sitemap acceptance results are recorded separately; reaching the connection UI does not prove Google authorization or submission.
+
+Private installation receipts and rollback preimages: `deploy-backups/blog-20261121/`. Temporary source staging is outside the account root. The small preview/install tools are retained in `scripts/daily-blog-release-20261121/`; they never contain credentials or live data. The original installed manifest must be retained even when a guarded follow-up changes two of its files.

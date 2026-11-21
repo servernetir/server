@@ -354,4 +354,48 @@ class DailyBlogPublisherTest extends TestCase
         $this->assertDatabaseCount('growth_jobs', 3);
         Http::assertSentCount(3);
     }
+    public function test_saved_malformed_locale_can_be_repaired_without_repeating_passing_calls(): void
+    {
+        $valid = json_encode($this->article(), JSON_UNESCAPED_UNICODE);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['*/chat/completions' => function ($request) use ($valid) {
+            $fa = str_contains($request['messages'][0]['content'], 'Write ONLY the fa version');
+            return Http::response(['choices' => [['message' => ['content' => $fa ? '{"translations":{"fa":{"body":"truncated' : $valid]]],
+                'usage' => ['prompt_tokens' => 30, 'completion_tokens' => 100, 'total_tokens' => 130]]);
+        }]);
+        $publisher = app(DailyBlogPublisher::class);
+        $initial = $publisher->tick();
+        $this->assertSame('blocked', $initial['stage']);
+        $this->assertSame('incomplete_translations', $initial['validation_failures']['fa']);
+        Http::assertSentCount(3);
+        Setting::put('daily_blog_quality_repair', '1');
+        $this->fakeArticle();
+        $result = $publisher->repairSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'));
+        $this->assertSame('published', $result['stage']);
+        $this->assertSame($initial['locale_jobs']['en'], $result['locale_jobs']['en']);
+        $this->assertSame($initial['locale_jobs']['tr'], $result['locale_jobs']['tr']);
+        $this->assertDatabaseCount('growth_jobs', 4);
+        $this->assertSame([], $result['validation_failures']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_historical_budgeted_repair_uses_the_saved_daily_key_and_is_idempotent(): void
+    {
+        $bad = $this->article();
+        $bad['translations']['en']['body'] = 'short';
+        $this->fakeArticle($bad);
+        $publisher = app(DailyBlogPublisher::class);
+        $this->assertSame('blocked', $publisher->tick()['stage']);
+        $this->travelTo(now()->addDay());
+        Setting::put('daily_blog_quality_repair', '1');
+        $this->fakeArticle();
+        $result = $publisher->repairSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'));
+        $this->assertSame('published', $result['stage']);
+        $this->assertStringContainsString('daily-insight-2026-11-16-', $result['urls'][0]);
+        $this->assertSame($result['post_id'], $publisher->repairSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'))['post_id']);
+        $this->assertDatabaseCount('growth_jobs', 4);
+        Http::assertSentCount(1);
+    }
+
 }
