@@ -4,6 +4,8 @@ namespace App\Models;
 
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /** An immutable evidence review reference, not a recipient or consent grant. */
 class ExternalEmailConsentReview extends Model
@@ -23,6 +25,16 @@ class ExternalEmailConsentReview extends Model
     public function getContactIdAttribute(): int
     {
         return (int) $this->getKey() + 999;
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(ExternalEmailConsentReviewEvent::class, 'review_id');
+    }
+
+    public function latestDecision(): HasOne
+    {
+        return $this->hasOne(ExternalEmailConsentReviewEvent::class, 'review_id')->latestOfMany();
     }
 
     protected static function booted(): void
