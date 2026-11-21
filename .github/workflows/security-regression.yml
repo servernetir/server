@@ -54,6 +54,7 @@ jobs:
             tests/Feature/CloudProxmoxTest.php \
             tests/Feature/MarketingCampaignEngineTest.php \
             tests/Feature/PaymentCallbackTest.php \
+            tests/Feature/PaymentTerminalStateTest.php \
             tests/Feature/WalletPrimitivesTest.php \
             tests/Feature/TicketAttachmentTest.php \
             tests/Feature/N8nSmsRelayTest.php \
@@ -66,6 +67,61 @@ jobs:
           node-version: '22'
       - name: Verify gateway and relay contracts
         run: python3 tools/security/run-offline.py -- node --test relay/cloudflare/gpu-proxy.test.mjs relay/n8n/*.test.js relay/n8n/*.test.cjs
+      - name: Verify private recovery archive boundaries
+        run: python3 tools/security/run-offline.py -- python3 -m unittest discover -s tools/security -p test_restore_drill.py -v
+
+  payment-concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb: ['10.11', '11.4']
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only
+          MARIADB_DATABASE: servernet_payment_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_LOCALE: fa
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: servernet_payment_testing
+      DB_USERNAME: root
+      DB_PASSWORD: ci-only
+      DB_URL: ''
+      PAYMENT_CONCURRENCY: '1'
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_mysql, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install isolated application dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+      - name: Race real committed payment callbacks
+        working-directory: website
+        run: php vendor/bin/phpunit tests/Feature/PaymentTerminalStateTest.php tests/Feature/PaymentMariaDbConcurrencyTest.php
 
   social:
     runs-on: ubuntu-latest

@@ -109,20 +109,32 @@ class PaymentService
 
         $result = $gateway->start($payment, route('payment.callback', ['gateway' => $gateway->key()]));
 
-        if (! $result->ok) {
-            $payment->forceFill([
+        // The gateway call runs outside the transaction. A callback or a new
+        // attempt can finish first; never save the stale model over that state.
+        $changed = Payment::whereKey($payment->id)->where('status', 'pending')->update(
+            $result->ok ? [
+                'status' => 'redirected',
+                'external_ref' => $result->externalRef,
+            ] : [
                 'status' => 'failed',
                 'error_code' => self::clip($result->errorCode, 24),
                 'error_message' => self::clip($result->error, 255),
-            ])->save();
+            ]);
+        $payment->refresh();
 
+        if ($payment->isPaid()) {
+            return new StartOutcome(true, payment: $payment,
+                instructions: ['message' => __('panel.payment_success')]);
+        }
+
+        if (! $result->ok) {
             return new StartOutcome(false, error: $result->error);
         }
 
-        $payment->forceFill([
-            'status' => 'redirected',
-            'external_ref' => $result->externalRef,
-        ])->save();
+        if ($changed !== 1 || $payment->status !== 'redirected') {
+            return new StartOutcome(false, payment: $payment,
+                error: __('payment-security.attempt_closed'));
+        }
 
         return new StartOutcome(true, payment: $payment, redirectUrl: $result->redirectUrl,
             instructions: $result->instructions);
@@ -153,13 +165,21 @@ class PaymentService
         $result = $gateway->verify($payment, $callback);
 
         if (! $result->paid) {
-            $payment->forceFill([
-                'status' => $result->canceled ? 'canceled' : 'failed',
-                'error_code' => self::clip($result->errorCode, 24),
-                'error_message' => self::clip($result->error, 255),
-            ])->save();
+            Payment::whereKey($payment->id)
+                ->whereIn('status', ['pending', 'redirected'])
+                ->update([
+                    'status' => $result->canceled ? 'canceled' : 'failed',
+                    'error_code' => self::clip($result->errorCode, 24),
+                    'error_message' => self::clip($result->error, 255),
+                ]);
+            $payment->refresh();
 
-            return new SettleOutcome(false, $payment, error: $result->error, canceled: $result->canceled);
+            if ($payment->isPaid()) {
+                return new SettleOutcome(true, $payment, alreadySettled: true);
+            }
+
+            return new SettleOutcome(false, $payment, error: $payment->error_message ?? $result->error,
+                canceled: $payment->status === 'canceled');
         }
 
         return $this->applyPaid($payment, $result);

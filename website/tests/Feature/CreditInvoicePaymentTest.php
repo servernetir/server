@@ -9,6 +9,7 @@ use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -39,6 +40,11 @@ class CreditInvoicePaymentTest extends TestCase
         parent::setUp();
         $this->configureSupplierPrices();
         config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+        // Legacy manual overrides no longer price an order. Seed an explicit
+        // synthetic, fresh Navasan record so the real pricing guard is exercised.
+        Cache::put('fx.eur_irt', ['currency' => 'EUR', 'rate_toman' => 100000,
+            'source' => 'navasan.net', 'source_item' => 'eur_hav', 'unit' => 'IRT',
+            'at' => now()->toIso8601String(), 'source_at' => now()->toIso8601String()], now()->addHour());
 
         Http::fake([
             ...$this->supplierPriceStubs(),'*' => Http::response([], 500)]);
@@ -98,7 +104,7 @@ class CreditInvoicePaymentTest extends TestCase
         $c = $this->customer();
         [$d, $inv] = $this->renewalInvoice($c);
 
-        $this->pay($c, $inv)->assertRedirect();
+        $this->pay($c, $inv)->assertRedirect()->assertSessionHasNoErrors();
 
         $inv->refresh();
         $this->assertSame('paid', $inv->status);
