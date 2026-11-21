@@ -4,6 +4,7 @@ import fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile, urllib.r
 from pathlib import Path
 ROOT=Path('/home/servernetcloud/servernet_app')
 PHP='/opt/cpanel/ea-php84/root/usr/bin/php'
+BACKUPS=Path('/home/servernetcloud/deploy-backups')
 def sha(b): return hashlib.sha256(b).hexdigest()
 def fetch(commit,path):
     with urllib.request.urlopen('https://raw.githubusercontent.com/servernetir/server/'+commit+'/'+path,timeout=30) as r: return r.read()
@@ -18,10 +19,13 @@ def write(path,data,mode):
 def main():
     mode,commit=sys.argv[1:3]
     assert mode in ['prepare','apply','verify','rollback'] and re.fullmatch('[0-9a-f]{40}',commit)
-    stage=Path('/home/servernetcloud/deploy-backups')/('mcp-management-20261121-'+commit[:12])
+    stage=BACKUPS/('mcp-management-20261121-'+commit[:12])
     stage.mkdir(parents=True,exist_ok=True,mode=0o700);os.chmod(stage,0o700)
-    lock=(ROOT/'storage/framework/servernet-release.lock').open('a')
-    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    with (ROOT/'storage/framework/servernet-release.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        return run_release(mode,commit,stage)
+
+def run_release(mode,commit,stage):
     manifest=json.loads(fetch(commit,'scripts/mcp-management-release-20261121.json'))
     receipt=stage/'receipt.json'
     if mode=='prepare':
@@ -53,8 +57,15 @@ def main():
         print(json.dumps({'status':'verified','files':len(records),'sha':commit}));return
     if mode=='rollback':
         assert receipt.exists()
-        for r in reversed(records):
-            p=ROOT/r['path'];assert sha(p.read_bytes())==r['after'], 'Newer file, refuse rollback: '+r['path']
+        # Preflight every target and backup before changing any file.
+        for r in records:
+            p=ROOT/r['path'];assert p.is_file() and not p.is_symlink() and sha(p.read_bytes())==r['after'], 'Newer or missing file, refuse rollback: '+r['path']
+            if r['before'] is not None:
+                b=stage/'backup'/r['path'];assert b.is_file() and sha(b.read_bytes())==r['before'], 'Invalid rollback backup: '+r['path']
+        # Remove registration first, restore existing dependencies next, remove new inert classes last.
+        ordered=list(reversed(sorted(records,key=lambda r:(r['before'] is not None,r['path']=='app/Mcp/AdminInfrastructureServer.php'))))
+        for r in ordered:
+            p=ROOT/r['path']
             if r['before'] is not None: write(p,(stage/'backup'/r['path']).read_bytes(),r['mode'])
             else: p.unlink()
         print(json.dumps({'status':'rolled_back','sha':commit}));return

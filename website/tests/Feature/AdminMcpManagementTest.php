@@ -72,6 +72,20 @@ class AdminMcpManagementTest extends TestCase
         catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) { $this->assertSame(409, $e->getStatusCode()); }
         $this->assertDatabaseCount('mcp_admin_actions', 0); $this->assertSame(1, $t->messages()->count());
     }
+    public function test_customer_message_after_claim_prevents_an_outdated_staff_reply(): void
+    {
+        $u = $this->owner(); $t = $this->ticket(); $id = (string) Str::uuid();
+        $this->mock(TicketReplyService::class)->shouldReceive('post')->once()->andReturnUsing(function ($ticket, $authorId, $authorName, $body, $internal = false, $close = false, $afterMessage = null, $expectedLastMessageId = null) {
+            $ticket->addMessage('customer', null, null, 'intervening customer reply');
+            return (new TicketReplyService)->post($ticket, $authorId, $authorName, $body,
+                internal: $internal, expectedLastMessageId: $expectedLastMessageId);
+        });
+        $result = app(TicketReplies::class)->post($u, $id, $t->id, 'Outdated staff response', 0, true);
+        $this->assertFalse($result['ok']); $this->assertSame('ticket_changed', $result['code']);
+        $this->assertSame(1, $t->messages()->count()); $this->assertSame('customer', $t->messages()->first()->author_role);
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
     public function test_new_request_key_cannot_race_an_unreconciled_reply(): void
     {
         $u = $this->owner(); $t = $this->ticket(); $id = (string) Str::uuid();

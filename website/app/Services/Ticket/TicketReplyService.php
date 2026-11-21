@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Services\Notify\Notifier;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
 
 /**
  * «کارمند به تیکت پاسخ داد» — یک پیاده‌سازی، چند فراخوان.
@@ -60,18 +61,30 @@ class TicketReplyService
         bool $internal = false,
         bool $close = false,
         ?callable $afterMessage = null,
+        ?int $expectedLastMessageId = null,
     ): TicketMessage {
-        $message = $ticket->addMessage('staff', $authorId, $authorName, $body, internal: $internal);
+        $persist = function () use ($ticket, $authorId, $authorName, $body, $internal, $close, $afterMessage) {
+            $message = $ticket->addMessage('staff', $authorId, $authorName, $body, internal: $internal);
 
-        if ($afterMessage !== null) {
-            $afterMessage($message);
-        }
+            if ($afterMessage !== null) {
+                $afterMessage($message);
+            }
 
-        // «پاسخ و بستن» در یک حرکت — کار رایج پشتیبانی.
-        // ⚠️ باید همین‌جا باشد؛ چرایش در docblockِ کلاس (بندِ ۱).
-        if ($close && ! $internal) {
-            $ticket->forceFill(['status' => 'closed', 'closed_at' => now()])->save();
-        }
+            // «پاسخ و بستن» در یک حرکت — کار رایج پشتیبانی.
+            // ⚠️ باید همین‌جا باشد؛ چرایش در docblockِ کلاس (بندِ ۱).
+            if ($close && ! $internal) {
+                $ticket->forceFill(['status' => 'closed', 'closed_at' => now()])->save();
+            }
+
+            return $message;
+        };
+        $message = $expectedLastMessageId === null ? $persist() : DB::transaction(function () use ($ticket, $expectedLastMessageId, $persist) {
+            Ticket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+            if ((int) ($ticket->messages()->max('id') ?? 0) !== $expectedLastMessageId) {
+                throw new TicketChangedException;
+            }
+            return $persist();
+        });
 
         // یادداشت داخلی اعلان ندارد — مشتری نمی‌بیندش، پس نباید خبردار شود.
         if (! $internal && $ticket->customer) {

@@ -6,6 +6,7 @@ use App\Models\McpAdminAction;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Ticket\TicketReplyService;
+use App\Services\Ticket\TicketChangedException;
 use Illuminate\Support\Facades\DB;
 
 final class TicketReplies
@@ -43,8 +44,11 @@ final class TicketReplies
             return ($action->result ?? ['ok' => false, 'outcome' => 'unknown', 'reconcile_before_retry' => true]) + ['replayed' => true];
         }
         try {
-            $message = app(TicketReplyService::class)->post(Ticket::findOrFail($ticketId), $user->id, $user->name, $body, internal: $internal);
+            $message = app(TicketReplyService::class)->post(Ticket::findOrFail($ticketId), $user->id, $user->name, $body, internal: $internal, expectedLastMessageId: $expectedLastMessageId);
             $result = ['ok' => true, 'ticket_id' => $ticketId, 'message_id' => $message->id, 'internal' => $internal];
+            $action->update(['status' => 'completed', 'result' => $result]);
+        } catch (TicketChangedException) {
+            $result = ['ok' => false, 'code' => 'ticket_changed', 'reconcile_before_retry' => true];
             $action->update(['status' => 'completed', 'result' => $result]);
         } catch (\Throwable) {
             $result = ['ok' => false, 'outcome' => 'unknown', 'reconcile_before_retry' => true];
