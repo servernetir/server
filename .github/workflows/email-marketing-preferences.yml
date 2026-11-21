@@ -6,6 +6,7 @@ on:
     paths:
       - 'website/app/Services/Marketing/EmailMarketingPreferences.php'
       - 'website/app/Models/EmailMarketingPreference.php'
+      - 'website/app/Models/ExternalEmailConsentReview.php'
       - 'website/app/Models/Customer.php'
       - 'website/app/Support/EmailMarketingPrivacy.php'
       - 'website/app/Support/ErrorTracker.php'
@@ -13,7 +14,9 @@ on:
       - 'website/config/email-marketing.php'
       - 'website/config/pagecache.php'
       - 'website/database/migrations/*email_marketing_preferences.php'
+      - 'website/database/migrations/*external_email_consent_reviews.php'
       - 'website/lang/**/email-marketing.php'
+      - 'website/lang/**/email-evidence-review.php'
       - 'website/resources/views/**/email-*.blade.php'
       - 'website/resources/views/email-marketing/**'
       - 'website/routes/**'
@@ -27,6 +30,7 @@ on:
     paths:
       - 'website/app/Services/Marketing/EmailMarketingPreferences.php'
       - 'website/app/Models/EmailMarketingPreference.php'
+      - 'website/app/Models/ExternalEmailConsentReview.php'
       - 'website/app/Models/Customer.php'
       - 'website/app/Support/EmailMarketingPrivacy.php'
       - 'website/app/Support/ErrorTracker.php'
@@ -34,7 +38,9 @@ on:
       - 'website/config/email-marketing.php'
       - 'website/config/pagecache.php'
       - 'website/database/migrations/*email_marketing_preferences.php'
+      - 'website/database/migrations/*external_email_consent_reviews.php'
       - 'website/lang/**/email-marketing.php'
+      - 'website/lang/**/email-evidence-review.php'
       - 'website/resources/views/**/email-*.blade.php'
       - 'website/resources/views/email-marketing/**'
       - 'website/routes/**'
@@ -117,6 +123,8 @@ jobs:
             tests/Feature/EmailMarketingPreferencesTest.php --display-warnings --fail-on-warning --colors=never
           python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
             tests/Feature/EmailMarketingPreferencesRoutesTest.php --display-warnings --fail-on-warning --colors=never
+          python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
+            tests/Feature/EmailMarketingPreferencesEvidenceReviewTest.php --display-warnings --fail-on-warning --colors=never
       - name: Check same constraints against disposable MariaDB
         if: matrix.database == 'mariadb'
         working-directory: website
@@ -131,4 +139,4 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.email-marketing-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .email-marketing-ci.xml --filter='EmailMarketingPreferences(Test|RoutesTest)' --display-warnings --fail-on-warning --colors=never
+          php vendor/bin/phpunit -c .email-marketing-ci.xml --filter='EmailMarketingPreferences(Test|RoutesTest|EvidenceReviewTest)' --display-warnings --fail-on-warning --colors=never

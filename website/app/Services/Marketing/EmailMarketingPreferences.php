@@ -53,6 +53,19 @@ final class EmailMarketingPreferences
         return $this->digests($this->normalizeEmail($email))[0];
     }
 
+    /** Shared address identity for evidence review only; this is not consent. */
+    public function evidenceReviewIdentity(string $email): array
+    {
+        $this->assertReady();
+        $keys = $this->keys();
+
+        return [
+            'digests' => $this->digests($this->normalizeEmail($email)),
+            'key_id' => $this->keyId($keys[0]),
+            'known_key_ids' => array_map(fn (string $key) => $this->keyId($key), $keys),
+        ];
+    }
+
     public function preferenceFor(Customer $customer): ?EmailMarketingPreference
     {
         if (! $this->ready()) {

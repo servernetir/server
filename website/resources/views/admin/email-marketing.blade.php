@@ -4,6 +4,9 @@
 @section('content')
 <h2>{{ __('email-marketing.title') }}</h2>
 <p>{{ __('email-marketing.admin_intro') }}</p>
+@if(config('email-marketing.evidence_review_enabled'))
+  <p><a class="btn btn-glass" href="{{ route('admin.email-marketing.evidence.index') }}">{{ __('email-evidence-review.title') }}</a></p>
+@endif
 
 @if(session('ok'))<p role="status">{{ session('ok') }}</p>@endif
 @if($errors->any())<div role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
