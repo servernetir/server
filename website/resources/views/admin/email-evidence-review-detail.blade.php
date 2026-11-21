@@ -31,6 +31,17 @@
       <div><dt>{{ __('email-evidence-review.state') }}</dt><dd>{{ $state === 'pending' ? __('email-evidence-review.review_only') : __('email-evidence-review.state_'.$state) }}</dd></div>
     </dl>
   </section>
+  @if(!empty($sharedDocument))
+    <section class="erd-card" aria-labelledby="erd-document-title">
+      <h3 id="erd-document-title">{{ __('email-evidence-review.document_detail_title') }}</h3>
+      <p>{{ __('email-evidence-review.document_detail_notice') }}</p>
+      <dl class="erd-meta">
+        <div><dt>{{ __('email-evidence-review.document_group') }}</dt><dd dir="ltr" data-evidence-document-batch="{{ $sharedDocument['batch_id'] }}">{{ $sharedDocument['batch_id'] }}</dd></div>
+        <div><dt>{{ __('email-evidence-review.document_reference') }}</dt><dd dir="auto">{{ $sharedDocument['reference'] ?? '—' }}</dd></div>
+        <div><dt>{{ __('email-evidence-review.document_linked_at') }}</dt><dd dir="ltr">{{ ($sharedDocument['created_at'] ?? null)?->format('Y-m-d H:i:s T') ?? '—' }}</dd></div>
+      </dl>
+    </section>
+  @endif
   <p class="erd-notice">{{ __('email-evidence-review.review_workflow_notice') }}</p>
   @if(session('review_error'))
     <div role="alert" class="erd-message error">{{ session('review_error') }}</div>
