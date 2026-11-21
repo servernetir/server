@@ -1,0 +1,85 @@
+name: Administrator MCP security contract
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Mcp/**'
+      - 'website/app/Services/Mcp/**'
+      - 'website/app/Http/Controllers/Mcp/**'
+      - 'website/app/Http/Middleware/Mcp*.php'
+      - 'website/app/Models/User.php'
+      - 'website/app/Models/McpAdminAction.php'
+      - 'website/app/Providers/McpAdminServiceProvider.php'
+      - 'website/config/mcp_admin.php'
+      - 'website/config/auth.php'
+      - 'website/bootstrap/providers.php'
+      - 'website/routes/mcp-admin.php'
+      - 'website/database/migrations/*oauth*'
+      - 'website/database/migrations/*mcp_admin*'
+      - 'website/composer.*'
+      - 'website/tests/Feature/AdminMcp*.php'
+      - '.github/workflows/admin-mcp.yml'
+permissions:
+  contents: read
+concurrency:
+  group: admin-mcp-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  security-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mysql]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only
+          MARIADB_DATABASE: mcp_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'mcp_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-only
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install pinned dependencies without application scripts
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-scripts --no-plugins --prefer-dist --no-progress
+          composer check-platform-reqs
+          composer audit --locked
+          php artisan package:discover --ansi
+      - name: Test OAuth, owner isolation, command approvals and existing login guards
+        run: |
+          python3 <<'PY'
+          import os, xml.etree.ElementTree as ET
+          tree = ET.parse('phpunit.xml')
+          for key in ['DB_CONNECTION','DB_HOST','DB_PORT','DB_DATABASE','DB_USERNAME','DB_PASSWORD']:
+              node = tree.find('./php/env[@name="'+key+'"]')
+              if node is None: node = ET.SubElement(tree.find('php'), 'env', name=key)
+              node.set('value', os.environ[key]); node.set('force', 'true')
+          tree.write('.mcp-ci.xml', encoding='unicode')
+          PY
+          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning

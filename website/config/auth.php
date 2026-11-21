@@ -38,6 +38,7 @@ return [
     */
 
     'guards' => [
+        'mcp_admin' => ['driver' => 'passport', 'provider' => 'users'],
         // کارکنان و ادمین — دست‌نخورده
         'web' => [
             'driver' => 'session',

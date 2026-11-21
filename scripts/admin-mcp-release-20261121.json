@@ -1,0 +1,256 @@
+{
+  "files": [
+    {
+      "path": "app/Http/Controllers/Mcp/AdminController.php",
+      "sha256": "37d2fb07afdef7a8bd52dcf43744a9bbf7a83cbbb8ca46834f07d3576328f650",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Controllers/Mcp/OAuthController.php",
+      "sha256": "08bc0fb2f0bcc37189a757639c824fded7b6a23e327ce9058f56674e483abfbd",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Middleware/ConsoleHost.php",
+      "sha256": "9ca2bc9255212640f1746e0b8b7c581ba7df7d00e9add8ff48f5b8116b37e40d",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "    private const CONSOLE_EXTRA = [\n        'assets/*', 'favicon.ico', 'favicon.svg', 'robots.txt', 'up',\n",
+          "after": "    private const CONSOLE_EXTRA = [\n        '.well-known/oauth-protected-resource', '.well-known/oauth-protected-resource/*',\n        '.well-known/oauth-authorization-server',\n        'assets/*', 'favicon.ico', 'favicon.svg', 'robots.txt', 'up',\n"
+        }
+      ]
+    },
+    {
+      "path": "app/Http/Middleware/McpAdminAccess.php",
+      "sha256": "1c9fe48d17bb4f20d731697432b384ec4723f206ddbae38f7ed1b69e33341b93",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Middleware/McpConsentOwner.php",
+      "sha256": "86e30bd934618ea78fe4ab0546b75d98db9026ed74ee39ac8a067b1855d38780",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Middleware/McpOAuthRequest.php",
+      "sha256": "78da893266399363d9b799f68845dee72c2203553a37f7d498c4d11bf33fcc09",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Middleware/McpTokenAuthentication.php",
+      "sha256": "93ebec7ff04b3bb678e43056f5e8381e60598012bb1a1f13e57d308f7a07a906",
+      "kind": "new"
+    },
+    {
+      "path": "app/Http/Middleware/SecurityHeaders.php",
+      "sha256": "bcadb880dca2aa390576cc28c3f726fcd5ecbb460ab2e8faf28f9178f0ef03dd",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "            $formAction = \"form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com\";\n            // The Search Console consent form redirects its POST to Google.\n",
+          "after": "            $formAction = \"form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com\";\n            if ($request->isMethod('GET') && $response->getStatusCode() === 200\n                && $request->routeIs('passport.authorizations.authorize')\n                && \\App\\Services\\Mcp\\AdminAccess::allowed($request->user('web'))) {\n                $formAction .= ' https://chatgpt.com';\n            }\n            // The Search Console consent form redirects its POST to Google.\n"
+        }
+      ]
+    },
+    {
+      "path": "app/Mcp/AdminInfrastructureServer.php",
+      "sha256": "9f8e747892e6f87740e43ac34437729174af4766700e261febe2d88dbdd76818",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/AdminTool.php",
+      "sha256": "e85fd02b71961d3636c2ee497f54b871934d7f076dca3660a69d72d221ee1463",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/ExecuteSshCommand.php",
+      "sha256": "0f84fa3b690189370079458d801f169c6881fd1a6d75ff87fccaae3838b16011",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/InfrastructureInventory.php",
+      "sha256": "2f168f22b95c8cfb2336ca3b9d4b5ad9afde23fb348338a67e95e9d90b642903",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/InfrastructureStatus.php",
+      "sha256": "9a6271e18128a62352f572425fb80d48405152a7a0c852e024ddc88ae0a886d2",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/RequestSshCommand.php",
+      "sha256": "1b91c1931e4952d80fe9f391580572bc1aada019409c96909bd48f225d0dd1d7",
+      "kind": "new"
+    },
+    {
+      "path": "app/Mcp/Tools/SshDiagnostic.php",
+      "sha256": "54df8f15bb4978c2592fa6d1104dd57c74e7f652b77cb818d69515da69f2e528",
+      "kind": "new"
+    },
+    {
+      "path": "app/Models/McpAdminAction.php",
+      "sha256": "ef6eba406a252e6605223eab288f8101a6ba655e7d61aa3d7d7fc740ddad32a3",
+      "kind": "new"
+    },
+    {
+      "path": "app/Models/User.php",
+      "sha256": "2dea811fac4953ced2f4a41c7ff9241e992a6cc92cd81f53b9c3546092e50ec8",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]\nclass User extends Authenticatable\n{\n",
+          "after": "#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]\nclass User extends Authenticatable implements \\Laravel\\Passport\\Contracts\\OAuthenticatable\n{\n"
+        },
+        {
+          "before": "    use HasFactory, HasTwoFactor, Notifiable;\n\n",
+          "after": "    use HasFactory, HasTwoFactor, Notifiable;\n    use \\Laravel\\Passport\\HasApiTokens;\n\n"
+        }
+      ]
+    },
+    {
+      "path": "app/Providers/McpAdminServiceProvider.php",
+      "sha256": "45b007893a535b5a0ee785dc8405dabf835c867248d9d939ab7bfb9804fa7c81",
+      "kind": "new"
+    },
+    {
+      "path": "app/Services/Mcp/AdminAccess.php",
+      "sha256": "ee430fcff9f10a847bc577e09b1d61efa8ca14c88a9846a3ffdf36dc5e44b8a1",
+      "kind": "new"
+    },
+    {
+      "path": "app/Services/Mcp/CommandApprovals.php",
+      "sha256": "d27bd46caef1e6afe8d434a58461b501c5608070fc7ea04d37b3a7900d3946a5",
+      "kind": "new"
+    },
+    {
+      "path": "app/Services/Mcp/InfrastructureRead.php",
+      "sha256": "9177f97c826baf5ce70d966473a4d1f1ec80ebb5cc61d4fa60e83a5e27464a2a",
+      "kind": "new"
+    },
+    {
+      "path": "app/Services/Mcp/ResourceAccessToken.php",
+      "sha256": "81e7ef06696ac5b9dd8e4bb6f42a20e1e0b60a799f9c1fff7a01a286c641b1e1",
+      "kind": "new"
+    },
+    {
+      "path": "app/Services/Mcp/SshGateway.php",
+      "sha256": "c8f5f97749461d5ef2b122550fa525f32dea037b17d04da058ad9abfd2268fd8",
+      "kind": "new"
+    },
+    {
+      "path": "bootstrap/providers.php",
+      "sha256": "fd000fa37fba0d3a51c31cd5907ee921835ff344a99957a58fefb485fd22651b",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "    AppServiceProvider::class,\n];\n",
+          "after": "    AppServiceProvider::class,\n    App\\Providers\\McpAdminServiceProvider::class,\n];\n"
+        }
+      ]
+    },
+    {
+      "path": "composer.json",
+      "sha256": "a36194f33f674e2c91170a7b1fc46ee0cd0a4518adfb0c85121a0b6f1adf8d34",
+      "kind": "replace"
+    },
+    {
+      "path": "composer.lock",
+      "sha256": "435a698147fe5fb33c2d8ad61eb271b7425d40b64ed13f48bd99467bddaf1814",
+      "kind": "replace"
+    },
+    {
+      "path": "config/auth.php",
+      "sha256": "86de7a2ff5fc19c49b7306dae2745fc4aef7612ccd82f022a16394113b707f05",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "    'guards' => [\n        // کارکنان و ادمین — دست‌نخورده\n",
+          "after": "    'guards' => [\n        'mcp_admin' => ['driver' => 'passport', 'provider' => 'users'],\n        // کارکنان و ادمین — دست‌نخورده\n"
+        }
+      ]
+    },
+    {
+      "path": "config/mcp_admin.php",
+      "sha256": "2be0794a7ccd565d07397b2885c1f4b43d61c2fd82bb94421f6ec564df36858b",
+      "kind": "new"
+    },
+    {
+      "path": "database/migrations/2026_11_21_145900_create_oauth_auth_codes_table.php",
+      "sha256": "41dff9b139101246364cc9313dd9fecf56fca8cbea5c503c63634cf5a6c2cefd",
+      "kind": "new"
+    },
+    {
+      "path": "database/migrations/2026_11_21_145901_create_oauth_access_tokens_table.php",
+      "sha256": "3bf6dc642eae0edd69facbff1f0cb4d00a9f13c697120b505a1b244bf84b7b13",
+      "kind": "new"
+    },
+    {
+      "path": "database/migrations/2026_11_21_145902_create_oauth_refresh_tokens_table.php",
+      "sha256": "23f602fe6a363df8665f479a106f684bd695fa5007ede6521ee77dc9af1d7d26",
+      "kind": "new"
+    },
+    {
+      "path": "database/migrations/2026_11_21_145903_create_oauth_clients_table.php",
+      "sha256": "2d7123ec306666257a861e9f05d256b01cf0075812569fbe05f647d24d38359e",
+      "kind": "new"
+    },
+    {
+      "path": "database/migrations/2026_11_21_150000_create_mcp_admin_actions.php",
+      "sha256": "ac8714a7992977e2df1560ad1a2958f6e037b44d798a39334feece784880e924",
+      "kind": "new"
+    },
+    {
+      "path": "lang/en/mcp_admin.php",
+      "sha256": "6f94c8c627e1c27ca519a3bfa291e2c6191f38d4ed2c56fb9ff78d3bd8334169",
+      "kind": "new"
+    },
+    {
+      "path": "lang/fa/mcp_admin.php",
+      "sha256": "62c7869bc1cc69545f8616772bf8202d517556cff414b4c651d6b24e8a1e6f90",
+      "kind": "new"
+    },
+    {
+      "path": "lang/tr/mcp_admin.php",
+      "sha256": "f7fdb656985df9d0d66e79a3b2033dc641c3657306f5b4bcca16f9dbcabfeffe",
+      "kind": "new"
+    },
+    {
+      "path": "resources/views/admin/layout.blade.php",
+      "sha256": "0e5912c1e6c8a61e2cc7bf309d8fcb9f91593d32877f388096d9ec625d94698c",
+      "kind": "patch",
+      "patches": [
+        {
+          "before": "      <a href=\"/admin/users\" class=\"@yield('nav_users')\"><svg class=\"icon\"><use href=\"#i-user\"/></svg>کاربران پنل</a>\n      @endif\n",
+          "after": "      <a href=\"/admin/users\" class=\"@yield('nav_users')\"><svg class=\"icon\"><use href=\"#i-user\"/></svg>کاربران پنل</a>\n      <a href=\"/admin/mcp\"><svg class=\"icon\"><use href=\"#i-lock\"/></svg>{{ __('mcp_admin.title') }}</a>\n      @endif\n"
+        }
+      ]
+    },
+    {
+      "path": "resources/views/mcp-admin/action.blade.php",
+      "sha256": "9ef18e2f12db3cbe64fe798910f03d58310da13635da9587b8045fa5ae860f65",
+      "kind": "new"
+    },
+    {
+      "path": "resources/views/mcp-admin/authorize.blade.php",
+      "sha256": "40ed368d53585ab5b347dc77b886b8a56995fd3e9310a516e67f6841991dd927",
+      "kind": "new"
+    },
+    {
+      "path": "resources/views/mcp-admin/index.blade.php",
+      "sha256": "39106c392fa5fb21f13be11cb9efe4823ddcea50abc47cc47d5f96b81c217609",
+      "kind": "new"
+    },
+    {
+      "path": "routes/mcp-admin.php",
+      "sha256": "36ad6aa17478f32629bcc2db37fd5615668eb7eb2eda8ed8aaf2047a3a5b06e3",
+      "kind": "new"
+    }
+  ],
+  "migration_paths": [
+    "database/migrations/2026_11_21_145900_create_oauth_auth_codes_table.php",
+    "database/migrations/2026_11_21_145901_create_oauth_access_tokens_table.php",
+    "database/migrations/2026_11_21_145902_create_oauth_refresh_tokens_table.php",
+    "database/migrations/2026_11_21_145903_create_oauth_clients_table.php",
+    "database/migrations/2026_11_21_150000_create_mcp_admin_actions.php"
+  ]
+}

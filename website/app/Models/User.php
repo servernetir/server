@@ -13,10 +13,11 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'name_latin', 'email', 'password', 'role', 'phone_extension'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]
-class User extends Authenticatable
+class User extends Authenticatable implements \Laravel\Passport\Contracts\OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasTwoFactor, Notifiable;
+    use \Laravel\Passport\HasApiTokens;
 
     /**
      * نقش‌های کارمندی و برچسبشان.
