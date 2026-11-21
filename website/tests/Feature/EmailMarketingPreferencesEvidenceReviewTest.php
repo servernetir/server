@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\EmailMarketingPreference;
 use App\Models\ExternalEmailConsentReview;
+use App\Models\ExternalEmailConsentReviewEvent;
 use App\Models\User;
 use App\Services\Marketing\EmailMarketingPreferences;
+use DomainException;
 use DOMDocument;
 use DOMElement;
 use DOMNodeList;
@@ -94,6 +96,402 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertInstanceOf(DOMElement::class, $node);
 
         return $node;
+    }
+
+    private function stageReview(
+        string $address = 'member@external.example.test',
+        string $reference = 'archive-original-001',
+    ): ExternalEmailConsentReview {
+        $date = now()->subDays(7)->toDateString();
+        $this->upload(self::HEADER."{$address},{$date},{$reference}\n")->assertRedirect();
+
+        return ExternalEmailConsentReview::query()->sole();
+    }
+
+    private function reviewUrl(ExternalEmailConsentReview $review): string
+    {
+        return '/admin/email-marketing/evidence/'.$review->getKey().'/review';
+    }
+
+    private function decisionUrl(ExternalEmailConsentReview $review): string
+    {
+        return '/admin/email-marketing/evidence/'.$review->getKey().'/decision';
+    }
+
+    private function verificationPayload(
+        ExternalEmailConsentReview $review,
+        array $overrides = [],
+    ): array {
+        return array_replace([
+            'decision' => 'verified',
+            'expected_event' => '0',
+            'acknowledge' => '1',
+            'source_email' => 'member@external.example.test',
+            'source_date' => $review->consent_date->format('Y-m-d'),
+            'source_reference' => $review->evidence_reference,
+            'source_kind' => 'web_form',
+            'review_reference' => 'independent-verification-log-001',
+        ], $overrides);
+    }
+
+    private function assertEvidenceCounts(int $pending, int $verified, int $rejected, int $revoked): void
+    {
+        $page = $this->get('/admin/email-marketing')->assertOk();
+        $dom = $this->pageDom((string) $page->getContent());
+        foreach ([
+            'total' => $pending + $verified + $rejected + $revoked,
+            'pending' => $pending,
+            'verified' => $verified,
+            'rejected' => $rejected,
+            'revoked' => $revoked,
+            'eligible' => 0,
+        ] as $metric => $value) {
+            $attribute = 'data-evidence-'.$metric;
+            $this->assertSame((string) $value, $this->element($dom, '//*[@'.$attribute.']')->getAttribute($attribute));
+        }
+    }
+
+    public function test_record_detail_exposes_only_one_review_and_requires_original_evidence_inputs(): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $this->assertEvidenceCounts(1, 0, 0, 0);
+
+        $dashboard = $this->get('/admin/email-marketing')->assertOk()
+            ->assertDontSee('member@external.example.test')
+            ->assertDontSee('archive-original-001')
+            ->assertDontSee($review->email_digest);
+        $list = $this->pageDom((string) $dashboard->getContent());
+        $reviewLink = $this->element($list, '//*[@id="evidence"]//a[@href="'.url($this->reviewUrl($review)).'"]');
+        $this->assertNotEmpty(trim($reviewLink->textContent));
+        $this->assertSame(0, $this->elements($list, '//*[@id="evidence"]//form[contains(@action, "/decision")]')->length);
+
+        $page = $this->get($this->reviewUrl($review))->assertOk()
+            ->assertSee((string) $review->contact_id)
+            ->assertDontSee('member@external.example.test')
+            ->assertDontSee('archive-original-001')
+            ->assertDontSee($review->email_digest);
+        $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
+        $page->assertHeader('Referrer-Policy', 'no-referrer');
+        $page->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $dom = $this->pageDom((string) $page->getContent());
+        $this->assertSame('pending', $this->element($dom, '//*[@data-evidence-state]')->getAttribute('data-evidence-state'));
+        $this->element($dom, '//*[@data-evidence-audit-empty]');
+        $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-decision]')->length);
+
+        $forms = $this->elements($dom, '//form[@action="'.url($this->decisionUrl($review)).'"]');
+        $this->assertSame(3, $forms->length);
+        foreach (['verified', 'rejected', 'revoked'] as $decision) {
+            $formPath = '//form[@action="'.url($this->decisionUrl($review)).'"][.//input[@name="decision" and @value="'.$decision.'"]]';
+            $form = $this->element($dom, $formPath);
+            $this->assertSame('post', strtolower($form->getAttribute('method')));
+            $this->assertNotEmpty($this->element($dom, $formPath.'//input[@name="_token" and @type="hidden"]')->getAttribute('value'));
+            $this->assertSame('0', $this->element($dom, $formPath.'//input[@name="expected_event" and @type="hidden"]')->getAttribute('value'));
+            $ack = $this->element($dom, $formPath.'//input[@name="acknowledge" and @type="checkbox"]');
+            $this->assertSame('1', $ack->getAttribute('value'));
+            $this->assertTrue($ack->hasAttribute('required'));
+            $this->assertFalse($ack->hasAttribute('checked'));
+        }
+
+        $verifyPath = '//form[.//input[@name="decision" and @value="verified"]]';
+        foreach (['source_email', 'source_date', 'source_reference', 'review_reference'] as $field) {
+            $input = $this->element($dom, $verifyPath.'//input[@name="'.$field.'"]');
+            $this->assertTrue($input->hasAttribute('required'));
+            $this->assertSame('', $input->getAttribute('value'), $field.' must never be pre-filled');
+            $this->assertNotSame('hidden', strtolower($input->getAttribute('type')));
+        }
+        $this->assertTrue($this->element($dom, $verifyPath.'//select[@name="source_kind"]')->hasAttribute('required'));
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertReviewOnly();
+    }
+
+    public function test_verified_decision_is_a_private_append_only_audit_event_and_not_sendable_consent(): void
+    {
+        $admin = $this->admin();
+        $review = $this->stageReview();
+        $before = DB::table('external_email_consent_reviews')->sole();
+
+        $this->post($this->decisionUrl($review), $this->verificationPayload($review))
+            ->assertRedirect(url($this->reviewUrl($review)))
+            ->assertSessionHas('review_success')
+            ->assertSessionMissing('_old_input');
+
+        $row = DB::table('external_email_consent_review_events')->sole();
+        $this->assertSame((int) $review->id, (int) $row->review_id);
+        $this->assertSame('verified', $row->decision);
+        $this->assertSame('evidence_checked', $row->reason);
+        $this->assertSame('web_form', $row->source_kind);
+        $this->assertSame((int) $admin->id, (int) $row->reviewed_by);
+        $this->assertSame(now()->toDateString(), substr((string) $row->created_at, 0, 10));
+        $this->assertNotEmpty($row->review_reference);
+        $this->assertStringNotContainsString('independent-verification-log-001', $row->review_reference);
+        $this->assertStringNotContainsString('archive-original-001', json_encode($row));
+        $this->assertStringNotContainsString('member@external.example.test', json_encode($row));
+        $this->assertStringNotContainsString('member@external.example.test', json_encode(session()->all()));
+        $this->assertStringNotContainsString('archive-original-001', json_encode(session()->all()));
+        $this->assertStringNotContainsString('independent-verification-log-001', json_encode(session()->all()));
+
+        $event = ExternalEmailConsentReviewEvent::query()->sole();
+        $this->assertSame('independent-verification-log-001', $event->review_reference);
+        $this->assertArrayNotHasKey('review_reference', $event->toArray());
+        $this->assertSame((array) $before, (array) DB::table('external_email_consent_reviews')->sole());
+        $this->assertEvidenceCounts(0, 1, 0, 0);
+
+        $page = $this->get($this->reviewUrl($review))->assertOk()
+            ->assertDontSee('member@external.example.test')
+            ->assertDontSee('archive-original-001')
+            ->assertDontSee('independent-verification-log-001')
+            ->assertSee($admin->name)
+            ->assertSee(__('email-evidence-review.state_verified'))
+            ->assertSee(__('email-evidence-review.reason_evidence_checked'))
+            ->assertSee(__('email-evidence-review.source_web_form'));
+        $dom = $this->pageDom((string) $page->getContent());
+        $this->assertSame('verified', $this->element($dom, '//*[@data-evidence-state]')->getAttribute('data-evidence-state'));
+        $auditRow = $this->element($dom, '//*[@data-evidence-decision="verified"]');
+        $this->assertStringContainsString($admin->name, $auditRow->textContent);
+        $this->assertStringContainsString($event->created_at->format('Y-m-d H:i:s T'), $auditRow->textContent);
+        $this->assertSame(0, $this->elements($dom, '//form[.//input[@name="decision" and @value="verified"]]')->length);
+
+        // A fresh model instance cannot update or erase a historical decision.
+        try {
+            $event->forceFill(['decision' => 'revoked'])->save();
+            $this->fail('A review decision audit event must be immutable.');
+        } catch (DomainException) {
+            $this->assertSame('verified', $event->fresh()->decision);
+        }
+        try {
+            $event->fresh()->delete();
+            $this->fail('A review decision audit event cannot be deleted.');
+        } catch (DomainException) {
+            $this->assertDatabaseCount('external_email_consent_review_events', 1);
+        }
+        $this->assertReviewOnly();
+    }
+
+    #[DataProvider('invalidVerificationDecisions')]
+    public function test_invalid_verification_neither_records_decisions_nor_flashes_sensitive_inputs(array $overrides): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $before = DB::table('external_email_consent_reviews')->sole();
+        // Resolve the placeholders against the actual record's identities.
+        if (($overrides['review_reference'] ?? null) === '{id}') {
+            $overrides['review_reference'] = (string) $review->id;
+        } elseif (($overrides['review_reference'] ?? null) === '{contact_id}') {
+            $overrides['review_reference'] = (string) $review->contact_id;
+        }
+        $payload = $this->verificationPayload($review, $overrides);
+
+        $this->post($this->decisionUrl($review), $payload)
+            ->assertRedirect(url($this->reviewUrl($review)))
+            ->assertSessionHas('review_error')
+            ->assertSessionMissing('_old_input');
+        $session = json_encode(session()->all());
+        $this->assertStringNotContainsString('member@external.example.test', $session);
+        $this->assertStringNotContainsString('wrong-member@external.example.test', $session);
+        $this->assertStringNotContainsString('archive-original-001', $session);
+        $this->assertStringNotContainsString('private-wrong-reference', $session);
+        $this->assertStringNotContainsString('independent-verification-log-001', $session);
+        $this->get($this->reviewUrl($review))->assertOk()
+            ->assertDontSee('member@external.example.test')
+            ->assertDontSee('wrong-member@external.example.test')
+            ->assertDontSee('archive-original-001')
+            ->assertDontSee('private-wrong-reference')
+            ->assertDontSee('independent-verification-log-001');
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertSame((array) $before, (array) DB::table('external_email_consent_reviews')->sole());
+        $this->assertReviewOnly();
+    }
+
+    public static function invalidVerificationDecisions(): array
+    {
+        return [
+            'not acknowledged' => [['acknowledge' => '0']],
+            'no address supplied' => [['source_email' => '']],
+            'wrong address' => [['source_email' => 'wrong-member@external.example.test']],
+            'wrong source date' => [['source_date' => '1900-01-01']],
+            'invalid calendar source date' => [['source_date' => '2025-02-30']],
+            'wrong original reference' => [['source_reference' => 'private-wrong-reference']],
+            'missing source kind' => [['source_kind' => '']],
+            'unsupported source kind' => [['source_kind' => 'other_unverified']],
+            'missing independent review pointer' => [['review_reference' => '']],
+            'original reference is not independent evidence' => [['review_reference' => 'archive-original-001']],
+            'database id is not independent evidence' => [['review_reference' => '{id}']],
+            'contact id is not independent evidence' => [['review_reference' => '{contact_id}']],
+            'not an individual decision' => [['decision' => 'bulk-verified']],
+        ];
+    }
+
+    public function test_stale_decisions_cannot_be_replayed_and_rejected_or_revoked_records_never_return_to_verified(): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $verify = $this->verificationPayload($review);
+        $this->post($this->decisionUrl($review), $verify)->assertSessionHas('review_success');
+        $first = ExternalEmailConsentReviewEvent::query()->sole();
+        $firstRaw = DB::table('external_email_consent_review_events')->sole();
+
+        $rejection = [
+            'decision' => 'rejected', 'reason' => 'invalidated',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ];
+        // An open form referencing the previous state cannot override new decisions.
+        $this->post($this->decisionUrl($review), $rejection)->assertSessionHas('review_error');
+        $this->assertDatabaseCount('external_email_consent_review_events', 1);
+
+        $rejection['expected_event'] = (string) $first->id;
+        $this->post($this->decisionUrl($review), $rejection)->assertSessionHas('review_success');
+        $second = ExternalEmailConsentReviewEvent::query()->latest('id')->firstOrFail();
+        $this->assertSame('rejected', $second->decision);
+        $this->assertSame('invalidated', $second->reason);
+        $this->assertEvidenceCounts(0, 0, 1, 0);
+        $this->post($this->decisionUrl($review), array_replace($verify, ['expected_event' => (string) $second->id]))
+            ->assertSessionHas('review_error');
+        $this->assertDatabaseCount('external_email_consent_review_events', 2);
+
+        $this->post($this->decisionUrl($review), [
+            'decision' => 'revoked', 'reason' => 'administrative_prevent',
+            'acknowledge' => '1', 'expected_event' => (string) $second->id,
+        ])->assertSessionHas('review_success');
+        $third = ExternalEmailConsentReviewEvent::query()->latest('id')->firstOrFail();
+        $this->assertSame('revoked', $third->decision);
+        $this->assertSame('administrative_prevent', $third->reason);
+        $this->assertEvidenceCounts(0, 0, 0, 1);
+        $this->post($this->decisionUrl($review), array_replace($verify, ['expected_event' => (string) $third->id]))
+            ->assertSessionHas('review_error');
+        $this->assertDatabaseCount('external_email_consent_review_events', 3);
+        $this->assertSame(['verified', 'rejected', 'revoked'], ExternalEmailConsentReviewEvent::query()->orderBy('id')->pluck('decision')->all());
+        $this->assertSame((array) $firstRaw, (array) DB::table('external_email_consent_review_events')->where('id', $first->id)->sole());
+
+        $detail = $this->get($this->reviewUrl($review))->assertOk();
+        $dom = $this->pageDom((string) $detail->getContent());
+        $this->assertSame('revoked', $this->element($dom, '//*[@data-evidence-state]')->getAttribute('data-evidence-state'));
+        $history = [];
+        foreach ($this->elements($dom, '//*[@data-evidence-decision]') as $row) {
+            $history[] = $row->getAttribute('data-evidence-decision');
+        }
+        $this->assertSame(['revoked', 'rejected', 'verified'], $history);
+        $this->assertSame(0, $this->elements($dom, '//form[@action="'.url($this->decisionUrl($review)).'"]')->length);
+        $this->assertReviewOnly();
+    }
+
+    public function test_dashboard_counts_and_displays_each_individual_review_state_without_enabling_sending(): void
+    {
+        $this->admin();
+        $date = now()->subDays(9)->toDateString();
+        $this->upload(self::HEADER
+            ."pending@external.example.test,{$date},archive-pending\n"
+            ."member@external.example.test,{$date},archive-verified\n"
+            ."rejected@external.example.test,{$date},archive-rejected\n"
+            ."revoked@external.example.test,{$date},archive-revoked\n")->assertRedirect();
+        $records = ExternalEmailConsentReview::query()->orderBy('id')->get();
+        $this->assertCount(4, $records);
+        $this->post($this->decisionUrl($records[1]), $this->verificationPayload($records[1]))->assertSessionHas('review_success');
+        $this->post($this->decisionUrl($records[2]), [
+            'decision' => 'rejected', 'reason' => 'not_marketing_consent',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+        $this->post($this->decisionUrl($records[3]), [
+            'decision' => 'revoked', 'reason' => 'administrative_prevent',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+        $this->assertEvidenceCounts(1, 1, 1, 1);
+        $page = $this->get('/admin/email-marketing')->assertOk()
+            ->assertDontSee('@external.example.test')
+            ->assertDontSee('archive-verified')
+            ->assertDontSee('independent-verification-log-001');
+        $dom = $this->pageDom((string) $page->getContent());
+        foreach (['pending', 'verified', 'rejected', 'revoked'] as $i => $state) {
+            $rowPath = '//*[@data-evidence-row="'.$records[$i]->contact_id.'"]';
+            $this->element($dom, $rowPath.'//*[@data-evidence-state="'.$state.'"]');
+        }
+        $this->assertDatabaseCount('external_email_consent_review_events', 3);
+        $this->assertReviewOnly();
+    }
+
+    public function test_pending_records_may_be_rejected_without_creating_or_claiming_positive_consent(): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $this->post($this->decisionUrl($review), [
+            'decision' => 'rejected', 'reason' => 'missing_evidence',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+
+        $event = ExternalEmailConsentReviewEvent::query()->sole();
+        $this->assertSame('rejected', $event->decision);
+        $this->assertSame('missing_evidence', $event->reason);
+        $this->assertNull($event->source_kind);
+        $this->assertNull($event->review_reference);
+        $this->assertEvidenceCounts(0, 0, 1, 0);
+        $this->assertReviewOnly();
+    }
+
+    public function test_recipient_withdrawal_needs_documented_review_pointer_even_before_verification(): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $payload = [
+            'decision' => 'revoked', 'reason' => 'recipient_withdrawal',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ];
+        $this->post($this->decisionUrl($review), $payload)->assertSessionHas('review_error');
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+
+        $payload['review_reference'] = 'withdrawal-log-001';
+        $this->post($this->decisionUrl($review), $payload)->assertSessionHas('review_success');
+        $event = ExternalEmailConsentReviewEvent::query()->sole();
+        $this->assertSame('revoked', $event->decision);
+        $this->assertSame('recipient_withdrawal', $event->reason);
+        $this->assertSame('withdrawal-log-001', $event->review_reference);
+        $this->assertStringNotContainsString('withdrawal-log-001', DB::table('external_email_consent_review_events')->sole()->review_reference);
+        $this->assertEvidenceCounts(0, 0, 0, 1);
+        $this->assertReviewOnly();
+    }
+
+    public function test_original_address_can_be_matched_after_key_rotation_only_with_historical_key(): void
+    {
+        $oldKey = 'base64:'.base64_encode(str_repeat('o', 32));
+        $nextKey = 'base64:'.base64_encode(str_repeat('n', 32));
+        config(['app.key' => $oldKey, 'app.previous_keys' => []]);
+        $this->admin();
+        $review = $this->stageReview();
+        $payload = $this->verificationPayload($review, ['source_email' => 'MEMBER@EXTERNAL.EXAMPLE.TEST']);
+
+        config(['app.key' => $nextKey, 'app.previous_keys' => []]);
+        $this->post($this->decisionUrl($review), $payload)->assertSessionHas('review_error');
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        config(['app.previous_keys' => [$oldKey]]);
+        $this->post($this->decisionUrl($review), $payload)->assertSessionHas('review_success');
+        $this->assertSame('verified', ExternalEmailConsentReviewEvent::query()->sole()->decision);
+        $this->assertReviewOnly();
+    }
+
+    public function test_individual_review_requires_admin_guard_flags_and_csrf_throttle(): void
+    {
+        $admin = $this->admin();
+        $review = $this->stageReview();
+        $payload = $this->verificationPayload($review);
+        $author = User::factory()->create(['role' => 'author']);
+        $this->actingAs($author, 'web');
+        $this->get($this->reviewUrl($review))->assertForbidden();
+        $this->post($this->decisionUrl($review), $payload)->assertForbidden();
+
+        $this->actingAs($admin, 'web');
+        foreach (['email-marketing.enabled', 'email-marketing.evidence_review_enabled'] as $flag) {
+            config([$flag => false]);
+            $this->get($this->reviewUrl($review))->assertNotFound();
+            $this->post($this->decisionUrl($review), $payload)->assertNotFound();
+            config([$flag => true]);
+        }
+
+        $decisionRoute = Route::getRoutes()->getByName('admin.email-marketing.evidence.decide');
+        $this->assertNotNull($decisionRoute);
+        $this->assertNotContains(PreventRequestForgery::class, $decisionRoute->excludedMiddleware());
+        $this->assertTrue(collect($decisionRoute->gatherMiddleware())->contains(fn (string $middleware): bool => str_starts_with($middleware, 'throttle:')));
+        $this->assertSame(['review'], $decisionRoute->parameterNames());
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertReviewOnly();
     }
 
     public function test_evidence_dashboard_has_an_accessible_review_only_form_and_empty_state(): void
@@ -318,6 +716,20 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->admin();
         $date = now()->subDays(3)->toDateString();
         $this->upload(self::HEADER."existing@example.test,{$date},archive-existing\nwithdrawn@example.test,{$date},archive-withdrawn\n")->assertRedirect();
+
+        // A positive individual evidence review, even if it refers to an
+        // existing verified account, is not a recipient opt-in. It must not
+        // reverse a previously withdrawn preference either.
+        $records = ExternalEmailConsentReview::query()->orderBy('id')->get();
+        $this->assertCount(2, $records);
+        foreach ([$new, $withdrawn] as $i => $customer) {
+            $this->post($this->decisionUrl($records[$i]), $this->verificationPayload($records[$i], [
+                'source_email' => $customer->email,
+                'review_reference' => 'independent-account-review-'.($i + 1),
+            ]))->assertSessionHas('review_success');
+        }
+        $this->assertDatabaseCount('external_email_consent_review_events', 2);
+        $this->assertEvidenceCounts(0, 2, 0, 0);
 
         $this->assertNull($service->preferenceFor($new));
         $this->assertFalse($service->eligible($new));

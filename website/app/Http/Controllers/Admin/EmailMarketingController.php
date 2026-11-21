@@ -56,13 +56,26 @@ class EmailMarketingController extends Controller
         // Show review-only evidence alongside existing customer preferences.
         // The evidence table is optional and never contributes to eligibility.
         $evidenceRecords = null;
+        $evidenceReviewReady = false;
+        $evidenceCounts = ['pending' => 0, 'verified' => 0, 'rejected' => 0, 'revoked' => 0];
         if (config('email-marketing.evidence_review_enabled') && Schema::hasTable('external_email_consent_reviews')) {
-            $evidenceRecords = ExternalEmailConsentReview::query()
-                ->select(['id', 'consent_date', 'created_at'])->latest('id')
-                ->paginate(35, ['*'], 'evidence_page')->withQueryString()->fragment('evidence');
+            $evidenceReviewReady = Schema::hasTable('external_email_consent_review_events');
+            $evidenceQuery = ExternalEmailConsentReview::query()->select(['id', 'consent_date', 'created_at'])->latest('id');
+            if ($evidenceReviewReady) {
+                $evidenceQuery->with('latestDecision');
+                $evidenceCounts['pending'] = ExternalEmailConsentReview::query()->doesntHave('decisions')->count();
+                foreach (['verified', 'rejected', 'revoked'] as $decision) {
+                    $evidenceCounts[$decision] = ExternalEmailConsentReview::query()
+                        ->whereHas('latestDecision', fn ($q) => $q->where('decision', $decision))->count();
+                }
+            }
+            $evidenceRecords = $evidenceQuery->paginate(35, ['*'], 'evidence_page')->withQueryString()->fragment('evidence');
+            if (! $evidenceReviewReady) {
+                $evidenceCounts['pending'] = $evidenceRecords->total();
+            }
         }
 
-        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords'))
+        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords', 'evidenceReviewReady', 'evidenceCounts'))
             ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer', 'X-Robots-Tag' => 'noindex, nofollow']);
     }
 
