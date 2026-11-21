@@ -19,6 +19,9 @@ on:
       - 'website/composer.*'
       - 'website/tests/Feature/AdminMcp*.php'
       - '.github/workflows/admin-mcp.yml'
+      - 'scripts/deploy-admin-mcp-20261121.py'
+      - 'scripts/build-admin-mcp-release.py'
+      - 'scripts/admin-mcp-release-20261121.json'
 permissions:
   contents: read
 concurrency:

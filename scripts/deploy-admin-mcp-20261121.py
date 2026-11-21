@@ -52,6 +52,9 @@ def owner_check(owner):
                  '$a->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); '
                  '$u=App\\Models\\User::find((int)$argv[1]); '
                  'if(!$u || !$u->isAdmin()){exit(3);} '
+                 'if(App\\Models\\Setting::get("mcp_admin_enabled","0")==="1"){exit(6);} '
+                 '$existing=App\\Models\\Setting::get("mcp_admin_owner_user_id"); '
+                 'if($existing!==null && (int)$existing!==(int)$u->id){exit(7);} '
                  'echo json_encode(["owner_id"=>$u->id,"owner_name"=>$u->name]);', owner)
     return json.loads(result)
 
@@ -181,14 +184,6 @@ def apply(folder, sha, owner):
             if item['before'] != item['after']:
                 atomic(ROOT/item['path'], (folder/(item['key']+'.after')).read_bytes())
                 written.append(item)
-        # Run only the five new additive migrations, never the outstanding global queue.
-        for path in plan['migration_paths']:
-            subprocess.run([PHP, 'artisan', 'migrate', '--force', '--path='+path], cwd=ROOT, check=True)
-        php('require "vendor/autoload.php"; $a=require "bootstrap/app.php"; '
-            '$a->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); '
-            '$old=App\\Models\\Setting::get("mcp_admin_owner_user_id"); '
-            'if($old!==null && (int)$old!==(int)$argv[1]){exit(5);} '
-            'App\\Models\\Setting::put("mcp_admin_owner_user_id",$argv[1]);', owner)
         # Preserve the live cached configuration and its secrets; add only new keys.
         if caches['config.php'] is not None:
             cache_text = php('require "vendor/autoload.php"; $c=require "bootstrap/cache/config.php"; '
@@ -203,6 +198,14 @@ def apply(folder, sha, owner):
         # Build just the package manifest. Do not flush shared caches or start any jobs.
         php('require "vendor/autoload.php"; '
             '$m=new Illuminate\\Foundation\\PackageManifest(new Illuminate\\Filesystem\\Filesystem,getcwd(),getcwd()."/bootstrap/cache/packages.php"); $m->build();')
+        # Run only the five new additive migrations, never the outstanding global queue.
+        for path in plan['migration_paths']:
+            subprocess.run([PHP, 'artisan', 'migrate', '--force', '--path='+path], cwd=ROOT, check=True)
+        php('require "vendor/autoload.php"; $a=require "bootstrap/app.php"; '
+            '$a->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); '
+            '$old=App\\Models\\Setting::get("mcp_admin_owner_user_id"); '
+            'if($old!==null && (int)$old!==(int)$argv[1]){exit(5);} '
+            'App\\Models\\Setting::put("mcp_admin_owner_user_id",$argv[1]);', owner)
         for item in plan['files']:
             if digest(ROOT/item['path']) != item['after']:
                 raise RuntimeError('Installed hash mismatch')
