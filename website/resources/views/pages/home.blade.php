@@ -260,7 +260,7 @@
         $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
         $atlasTileConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
         $atlasTileMenu = app(\App\Services\ServerMenu::class)->build($atlasTileConfig['vps'] ?? []);
-        $atlasPicker = array_values(array_unique(array_merge([$atlasTileDefault], ['US','TR','DE','FR','NL','IR'])));
+        $atlasPicker = array_values(array_filter(array_unique(array_merge([$atlasTileDefault], ['US','TR','DE','FR','NL','IR'])), fn ($iso) => \App\Services\Customer\IranSalesVisibility::allowsCountry($iso)));
         $atlasNodes = $atlasTileMenu['cloud'];
         @endphp
         @foreach($atlasPicker as $iso)

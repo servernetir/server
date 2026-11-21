@@ -41,7 +41,7 @@
     <td><b>{{ fa_num($r['cpu']) }}</b> <small>vCPU</small></td><td dir="ltr">{{ $r['ram'] }}</td><td dir="ltr">{{ $r['disk'] }}</td><td class="vpsc-traffic">{{ $r['traffic'] }}</td>
     <td class="vpsc-price"><b>{{ $r['monthly_label'] }}</b><small>{{ __('vps-catalog.per_month') }}</small>@if($r['setup_label'])<small>{{ __('vps-catalog.setup', ['price' => $r['setup_label']]) }}</small>@endif</td>
     <td class="vpsc-price">@if($r['hourly'] > 0)<b>{{ $r['hourly_label'] }}</b><small>{{ __('vps-catalog.per_hour') }}</small>@else<span class="vpsc-monthly-only">{{ $r['unavailable_label'] }}</span>@endif</td>
-    <td>@if($hourlyPage && $r['hourly_url'])<a class="btn btn-primary" href="{{ $r['hourly_url'] }}">{{ __('vps-catalog.order_hourly') }}</a>@elseif($r['monthly_url'])<a class="btn {{ $hourlyPage ? 'btn-glass' : 'btn-primary' }}" href="{{ $r['monthly_url'] }}">{{ __('vps-catalog.order_monthly') }}</a>@else<small>{{ __('ui.iran_gate_blocked') }}</small>@endif</td>
+    <td>@if($hourlyPage && $r['hourly_url'])<a class="btn btn-primary" href="{{ $r['hourly_url'] }}">{{ __('vps-catalog.order_hourly') }}</a>@elseif($r['monthly_url'])<a class="btn {{ $hourlyPage ? 'btn-glass' : 'btn-primary' }}" href="{{ $r['monthly_url'] }}">{{ __('vps-catalog.order_monthly') }}</a>@elseif($r['verification_url'] ?? null)<a class="btn btn-primary" href="{{ $r['verification_url'] }}">{{ __('ui.iran_purchase_verify') }}</a>@else<small>{{ __('ui.iran_gate_blocked') }}</small>@endif</td>
   </tr>
   @endforeach
   </tbody></table></div>

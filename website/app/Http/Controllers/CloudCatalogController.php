@@ -454,6 +454,7 @@ class CloudCatalogController extends Controller
     /** /cloud/{location} — صفحهٔ یک مکان با متنِ سئوی یکتا */
     public function location(string $location): View|\Illuminate\Http\RedirectResponse
     {
+        abort_unless(\App\Services\Customer\IranSalesVisibility::allowsCountry($location), 404);
         /*
         | ممیزی ۷، یافتهٔ ۱: ۲۲ صفحهٔ `/cloud/{cc}-{cc}-{type}` (کدِ کشورِ دوبل)
         | کنارِ نسخهٔ تک‌کد، همه self-canonical و همه در sitemap — به‌علاوهٔ
@@ -482,6 +483,7 @@ class CloudCatalogController extends Controller
             ->where('code', $location)
             ->where('is_active', true)
             ->first();
+        abort_if($loc !== null && ! \App\Services\Customer\IranSalesVisibility::allowsCountry($loc->country), 404);
 
         if ($loc !== null && \App\Services\Cloud\CloudCountry::marketingSlug((string) $loc->country) !== null) {
             return redirect()->to(\App\Services\Cloud\CloudCountry::url((string) $loc->country), 301);
@@ -549,6 +551,7 @@ class CloudCatalogController extends Controller
     {
         return CloudLocation::query()
             ->where('is_active', true)
+            ->when(\App\Services\Customer\IranSalesVisibility::restricted(), fn ($query) => $query->where('country', '!=', 'IR'))
             ->orderBy('sort')
             ->orderBy('code')
             ->get()

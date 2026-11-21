@@ -98,7 +98,8 @@ class StoreController extends Controller
             // سختِ سفارش پایین‌تر است — نمایش قابلِ دورزدن است، سفارش نه)
             'countries' => $product->isLicense() ? [] : array_values(array_filter(
                 $product->availableCountries(),
-                fn ($c) => ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
+                fn ($c) => \App\Services\Customer\IranSalesVisibility::allowsCountry($c)
+                    && ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
             )),
             'cycles'    => $product->orderCycles(),
             'isLicense' => $product->isLicense(),

@@ -40,6 +40,12 @@ class SiteController extends Controller
         foreach ($products as $index => $product) {
             unset($product['irt'], $product['eur'], $product['base_eur'], $product['yearly_irt']);
             $products[$index] = $product + ($quotes[$index] ?? ['contact' => true, 'quote' => true]);
+            if (\App\Services\Customer\IranSalesVisibility::restricted()
+                && ($product['link'][1]['slug'] ?? null) === 'iran') {
+                $products[$index]['link'] = $index === 3 ? ['catalog', ['category' => 'dedicated', 'slug' => 'germany']] : ['cloud.index', []];
+                $products[$index]['en']['d'] = $index === 3 ? 'Bare-metal servers in available international locations.' : 'Virtual servers in available international locations with monthly or hourly billing.';
+                $products[$index]['tr']['d'] = $index === 3 ? 'Mevcut uluslararası konumlarda fiziksel sunucular.' : 'Mevcut uluslararası konumlarda aylık veya saatlik sanal sunucular.';
+            }
         }
 
         return view('pages.home', [
@@ -413,7 +419,12 @@ class SiteController extends Controller
         // به گوگل کمک می‌کند صفحاتِ تازه را زودتر بازدید کند. برای صفحاتِ ثابت
         // تاریخِ ساختگی نمی‌دهیم — lastmod دروغ، اعتمادِ خزنده را کم می‌کند.
         $add = function (string $name, string|array $params = [], ?string $lastmod = null) use (&$urls, $locales) {
-            foreach ($locales as $prefix) {
+            foreach ($locales as $locale => $prefix) {
+                if ($locale !== 'fa' && $name === 'catalog' && is_array($params)
+                    && in_array($params['category'] ?? '', ['vps', 'dedicated', 'hosting'], true)
+                    && in_array($params['slug'] ?? '', ['iran', 'iran-infrastructure'], true)) {
+                    continue;
+                }
                 $urls[] = ['loc' => route($prefix.$name, $params), 'lastmod' => $lastmod];
             }
         };

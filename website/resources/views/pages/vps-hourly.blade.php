@@ -372,7 +372,7 @@
   <div class="container">
     <h2 class="hv-cross-t">{{ __('ui.hv_cross_t') }}</h2>
     <div class="hv-cross">
-      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.hv_cross_iran') }}</a>
+      @if(app()->getLocale() === 'fa')<a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.hv_cross_iran') }}</a>@endif
       <a href="{{ $cloudUrl }}">{{ __('ui.hv_cross_all') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'trading']) }}">{{ __('ui.hv_cross_trading') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.hv_cross_iaas') }}</a>

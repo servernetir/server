@@ -36,6 +36,7 @@ class PublicVpsCatalog
         $offers = $iran->merge(CloudDominance::prune($offers->reject(fn ($p) => strtoupper(substr($p->location_code, 0, 2)) === 'IR')));
         $quoteService = app(CloudPublicQuote::class);
         $rows = [];
+        $iranRestricted = null;
         foreach ($offers as $plan) {
             $loc = $locations->get($plan->location_code);
             if (! $loc || $loc->country === 'XX' || $plan->isMetal()
@@ -60,7 +61,8 @@ class PublicVpsCatalog
             $base = lroute('account.cloud.store').'?'.http_build_query([
                 'location' => CloudLocation::canonicalCode($loc->code), 'plan' => $plan->slug,
             ], '', '&', PHP_QUERY_RFC3986);
-            $restricted = $loc->country === 'IR' && IranSalesGate::blocksIranFor(Auth::guard('customer')->user());
+            $restricted = $loc->country === 'IR'
+                && ($iranRestricted ??= IranSalesGate::blocksIranFor(Auth::guard('customer')->user()));
             $rows[] = [
                 'slug' => $plan->slug, 'name' => $plan->public_name,
                 'country' => $loc->country, 'country_label' => $loc->countryLabel(),
@@ -76,6 +78,7 @@ class PublicVpsCatalog
                 'setup_label' => $plan->setupIrt() > 0 ? cloud_price($plan->setupIrt()) : null,
                 'monthly_url' => $restricted ? null : $base.'&cycle=monthly',
                 'hourly_url' => $hourly > 0 && ! $restricted ? $base.'&billing_mode=hourly' : null,
+                'verification_url' => $restricted ? lroute('account.verify') : null,
             ];
         }
         usort($rows, fn ($a, $b) => [$a['monthly'], $a['country'], $a['city'], $a['cpu'], $a['ram_mb'], $a['slug']]

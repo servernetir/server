@@ -170,26 +170,13 @@
   <div class="ad-panel">
     <div class="ad-panel-h">
       <h2>فروشِ محصولاتِ ایران</h2>
-      @if(\App\Services\Customer\IranSalesGate::openToUnverified())
-        <span class="ad-badge" style="background:rgba(251,191,36,.12);color:#fbbf24">باز برای همه</span>
-      @else
         <span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">فقط مشتریِ احرازشده</span>
-      @endif
     </div>
     <p class="set-lead">
-      هاست و سرورِ <b>مستقر در ایران</b> پیش‌فرض فقط به مشتریِ احراز هویت‌شده
-      (شاهکار/کدِ ملی) فروخته می‌شود؛ مشتریِ خارجیِ بی‌KYC نه مکانِ ایران را
-      می‌بیند نه می‌تواند سفارشش را ثبت کند. دامنه‌های ir. از قبل برای همه
-      بسته‌اند. معیارْ احراز است نه زبان — ایرانیِ احرازشده از هر زبانی آزاد است.
+      مشخصات و قیمت هاست و سرورِ <b>مستقر در ایران</b> در نسخهٔ فارسی عمومی است.
+      ثبت سفارش نیازمند احراز هویت معتبر شاهکار است. عرضهٔ ایران در نسخه‌های انگلیسی و ترکی نمایش داده نمی‌شود.
     </p>
 
-    <div style="padding:0 18px 16px">
-      <label class="set-danger">
-        <input type="checkbox" name="iran_sales_open_to_unverified" value="1"
-               @checked(\App\Services\Customer\IranSalesGate::openToUnverified())>
-        فروشِ محصولاتِ ایران به مشتریِ <b>احرازنشده</b> هم باز باشد
-      </label>
-    </div>
   </div>
 
   <div class="ad-panel">

@@ -77,7 +77,11 @@ class ArvanRamQuotaTest extends TestCase
         $this->assertNull(CloudPlan::bestForSlug($plan->slug, true));
 
         $customer = Customer::create(['email' => 'quota@example.test', 'password' => 'test-only', 'status' => 'active', 'locale' => 'fa']);
-        Setting::put('iran_sales_open_to_unverified', '1');
+        \App\Models\CustomerProfile::create(['customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual', 'status' => 'verified', 'email' => $customer->email]);
+        $customer->identityVerification()->create([
+            'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $customer->email),
+            'birth_date' => '1990-01-01', 'mobile' => '09120000000', 'status' => 'verified', 'shahkar_matched' => true,
+        ]);
         $before = [Service::count(), Invoice::count(), CreditEntry::count(), CloudInstance::count()];
         $this->actingAs($customer, 'customer')->post(route('account.cloud.store.place'), [
             'location' => $plan->location_code, 'plan' => $plan->slug,

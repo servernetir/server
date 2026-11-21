@@ -21,7 +21,7 @@ use Tests\TestCase;
  * ═══ چرا (۶ شهریور ۱۴۰۵) ═══
  *
  * کارفرما: «فعلاً هاست/سرورِ ایران فقط به ایرانی‌ها — خارجی‌ها KYC ندارند.»
- * معیار «احراز» است نه زبان؛ پیش‌فرض بسته؛ بازکردن فقط با تیکِ صریحِ تنظیمات.
+ * معیار خرید، تأیید شاهکار است؛ نمایش عمومی کاتالوگ از زبان پیروی می‌کند.
  */
 class IranSalesGateTest extends TestCase
 {
@@ -46,6 +46,13 @@ class IranSalesGateTest extends TestCase
             'status' => $verified ? 'verified' : 'draft',
             'email' => $c->email, 'mobile' => $c->phone,
         ]);
+        if ($verified) {
+            $c->identityVerification()->create([
+                'national_id_enc' => 'synthetic', 'national_id_hash' => hash('sha256', $c->email),
+                'birth_date' => '1990-01-01', 'mobile' => $c->phone,
+                'status' => 'verified', 'shahkar_matched' => true,
+            ]);
+        }
 
         return $c;
     }
@@ -109,11 +116,11 @@ class IranSalesGateTest extends TestCase
     }
 
     /** تیکِ صریحِ مدیر بازش می‌کند */
-    public function test_the_admin_toggle_opens_it(): void
+    public function test_legacy_admin_toggle_cannot_bypass_shahkar(): void
     {
         Setting::put(IranSalesGate::SETTING, '1');
 
-        $this->assertFalse(IranSalesGate::blocks($this->customer(false), 'IR'));
+        $this->assertTrue(IranSalesGate::blocks($this->customer(false), 'IR'));
     }
 
     // ═══════════ سیم‌کشیِ فروشگاه‌ها ═══════════
