@@ -17,7 +17,7 @@ class DocsRepository
         $locale = app()->getLocale();
 
         try {
-            return Cache::remember("docs.tree.{$locale}", 600, function () {
+            return Cache::remember("docs.tree.{$locale}", 600, function () use ($locale) {
                 $sections = config('docs.sections', []);
                 $posts = Post::query()
                     ->where('type', 'kb')->where('status', 'published')
@@ -26,9 +26,10 @@ class DocsRepository
                 $tree = [];
                 foreach ($sections as $key => $meta) {
                     $items = $posts->where('category', $key)
+                        ->filter(fn (Post $p) => $p->translations->contains('locale', $locale))
                         ->map(fn (Post $p) => [
                             'slug'  => $p->slug,
-                            'title' => optional($p->tr())->title ?? $p->slug,
+                            'title' => $p->translations->firstWhere('locale', $locale)->title ?? $p->slug,
                         ])->values()->all();
 
                     if ($items) {
@@ -67,6 +68,8 @@ class DocsRepository
         return [
             'slug'     => $p->slug,
             'title'    => $t?->title ?? $p->slug,
+            'untranslated' => $t === null || $t->locale !== app()->getLocale(),
+            'translated_locales' => $p->translations->pluck('locale')->all(),
             'excerpt'  => $t?->excerpt ?? '',
             // تنزل h1→h2 در بدنه — همان قاعدهٔ BlogRepository (ممیزی ۷، RG-H1-15):
             // H1 مالِ قالب است؛ مولدِ AI گاهی تیترِ بدنه را h1 می‌نویسد.
