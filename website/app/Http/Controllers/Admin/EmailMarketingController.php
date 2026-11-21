@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\EmailMarketingPreference;
+use App\Models\ExternalEmailConsentReview;
 use App\Services\Marketing\EmailMarketingPreferences;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -51,8 +53,17 @@ class EmailMarketingController extends Controller
             }
         }
 
-        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state'))
-            ->header('Cache-Control', 'private, no-store');
+        // Show review-only evidence alongside existing customer preferences.
+        // The evidence table is optional and never contributes to eligibility.
+        $evidenceRecords = null;
+        if (config('email-marketing.evidence_review_enabled') && Schema::hasTable('external_email_consent_reviews')) {
+            $evidenceRecords = ExternalEmailConsentReview::query()
+                ->select(['id', 'consent_date', 'created_at'])->latest('id')
+                ->paginate(35, ['*'], 'evidence_page')->withQueryString()->fragment('evidence');
+        }
+
+        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords'))
+            ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer', 'X-Robots-Tag' => 'noindex, nofollow']);
     }
 
     public function sample(EmailMarketingPreferences $preferences)

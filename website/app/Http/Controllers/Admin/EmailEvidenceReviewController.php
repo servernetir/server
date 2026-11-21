@@ -16,12 +16,14 @@ use Illuminate\Validation\ValidationException;
 /** Receives pointers to pre-existing evidence for review, never grants subscriptions. */
 class EmailEvidenceReviewController extends Controller
 {
-    public function index(EmailMarketingPreferences $preferences)
+    public function index(Request $request, EmailMarketingPreferences $preferences)
     {
         $this->guard($preferences);
-        $records = ExternalEmailConsentReview::query()->select(['id', 'consent_date', 'created_at'])->latest('id')->paginate(35);
+        // Keep old bookmarks and pagination working without a second dashboard.
+        $page = $request->integer('page', 1);
+        $parameters = $page > 1 ? ['evidence_page' => $page] : [];
 
-        return response()->view('admin.email-evidence-review', compact('records'))
+        return redirect()->to(route('admin.email-marketing.index', $parameters).'#evidence')
             ->withHeaders($this->headers());
     }
 
@@ -80,7 +82,7 @@ class EmailEvidenceReviewController extends Controller
             throw $this->fileError('csv_invalid');
         }
 
-        return redirect()->route('admin.email-marketing.evidence.index')->with('evidence_result', $stats);
+        return redirect()->to(route('admin.email-marketing.index').'#evidence')->with('evidence_result', $stats);
     }
 
     private function guard(EmailMarketingPreferences $preferences): void
