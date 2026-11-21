@@ -243,37 +243,27 @@ class OtpService
             return OtpCheck::fail('تعداد تلاش‌ها زیاد شد. کد تازه بخواهید.');
         }
 
-        /*
-        | 🔴 `increment()` برچسبِ `updated_at` را تازه می‌کند — و همان برچسب
-        | لنگرِ خنک‌کنندهٔ ۶۰ ثانیه است.
-        |
-        | نتیجه‌اش این بود که هر کدِ **غلط**، ۶۰ ثانیه به انتظارِ «ارسال دوباره»
-        | اضافه می‌کرد. کاربری که سه بار اشتباه تایپ می‌کرد، از عمرِ سه‌دقیقه‌ایِ
-        | کد چیزی برایش نمی‌مانْد و در عین حال نمی‌توانست کدِ تازه بخواهد —
-        | یعنی دقیقاً وقتی گیر می‌کرد که بیشتر از همیشه به کدِ تازه نیاز داشت.
-        |
-        | `timestamps = false` جلوی این را می‌گیرد؛ شمارنده بالا می‌رود ولی
-        | ساعتِ خنک‌کننده سرِ جای ارسال می‌مانَد.
-        */
-        $challenge->timestamps = false;
-        $challenge->increment('attempts');
-        $challenge->timestamps = true;
-
-        if (! hash_equals($challenge->code_hash, $this->hash($this->digits($code)))) {
-            /*
-            | ⚠️ رسیدن به سقفِ تلاش یعنی این چالش **سوخته** است. اگر منقضی‌اش
-            | نکنیم، `activeChallenge()` هنوز برش می‌دارد و خنک‌کننده می‌گوید
-            | «کدِ قبلی هنوز معتبر است» — یعنی کاربر نه می‌تواند این را وارد
-            | کند و نه کدِ تازه بگیرد. بن‌بستِ کامل.
-            */
-            if ($challenge->attempts >= self::MAX_ATTEMPTS) {
-                $challenge->forceFill(['expires_at' => now()->subSecond()])->save();
-            }
-
-            return OtpCheck::fail('کد وارد شده درست نیست.');
+        // Compare-and-swap keeps the attempt budget and consumption atomic across workers.
+        $matches = hash_equals($challenge->code_hash, $this->hash($this->digits($code)));
+        $now = now();
+        $updates = ['attempts' => DB::raw('attempts + 1')];
+        if ($matches) {
+            $updates['verified_at'] = $now;
+        } elseif ($challenge->attempts + 1 >= self::MAX_ATTEMPTS) {
+            $updates['expires_at'] = $now->copy()->subSecond();
         }
-
-        $challenge->forceFill(['verified_at' => now()])->save();
+        $changed = DB::table('otp_challenges')
+            ->where('id', $challenge->id)
+            ->where('channel', $channel)
+            ->where('attempts', $challenge->attempts)
+            ->where('attempts', '<', self::MAX_ATTEMPTS)
+            ->whereNull('verified_at')
+            ->where('expires_at', '>', $now)
+            ->update($updates);
+        if ($changed !== 1 || ! $matches) {
+            return OtpCheck::fail('کد وارد شده معتبر نیست. دوباره تلاش کنید.');
+        }
+        $challenge->refresh();
 
         return new OtpCheck(true, challenge: $challenge);
     }

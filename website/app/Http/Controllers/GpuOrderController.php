@@ -8,6 +8,7 @@ use App\Services\Cloud\GpuCapacityOrders;
 use App\Services\Cloud\SaladClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -39,7 +40,7 @@ class GpuOrderController extends \App\Http\Controllers\Account\AccountController
             && data_get($previous, 'data.quoted_hourly_irt') === $rate) {
             return redirect(lroute('account.gpu.resume'));
         }
-        $request->session()->put(self::SESSION, [
+        $intent = [
             'expires_at' => now()->addMinutes(30)->timestamp,
             'customer_id' => Auth::guard('customer')->id(),
             'data' => [
@@ -48,17 +49,40 @@ class GpuOrderController extends \App\Http\Controllers\Account\AccountController
                 'billing_mode' => 'hourly', 'cycle' => 'monthly', 'on_credit_out' => 'suspend',
                 'quoted_hourly_irt' => $rate, 'gpu_request_key' => Str::random(40),
             ],
-        ]);
+        ];
+        if (in_array(strtolower($request->getHost()), ['servernet.cloud', 'www.servernet.cloud'], true)) {
+            $handoff = Str::random(48);
+            $intent['requires_confirmation'] = true;
+            Cache::put('gpu-handoff:'.$handoff, $intent, now()->addMinutes(5));
+            $path = parse_url(lroute('account.gpu.resume'), PHP_URL_PATH);
+
+            return redirect()->away('https://console.servernet.cloud'.$path.'?handoff='.$handoff)
+                ->header('Referrer-Policy', 'no-referrer');
+        }
+        $request->session()->put(self::SESSION, $intent);
         return redirect(lroute('account.gpu.resume'));
     }
 
     public function resume(Request $request)
     {
+        if ($request->has('handoff')) {
+            $key = (string) $request->query('handoff');
+            abort_unless(preg_match('/^[a-zA-Z0-9]{48}$/D', $key), 404);
+            $intent = Cache::pull('gpu-handoff:'.$key);
+            abort_unless(is_array($intent) && ($intent['expires_at'] ?? 0) >= now()->timestamp, 410);
+            $intent['customer_id'] = Auth::guard('customer')->id();
+            $intent['requires_confirmation'] = true;
+            $request->session()->put(self::SESSION, $intent);
+
+            return redirect(lroute('account.gpu.resume'))->header('Referrer-Policy', 'no-referrer');
+        }
         $intent = $this->intent($request);
         if ($existing = app(GpuCapacityOrders::class)->replay((int) Auth::guard('customer')->id(), $intent['data']['gpu_request_key'])) {
             return redirect(lroute('account.cloud.show', $existing));
         }
-        return response()->view('account.gpu-resume', $this->shell('servers') + ['intent' => $intent['data']])
+        return response()->view('account.gpu-resume', $this->shell('servers') + [
+            'intent' => $intent['data'], 'requiresConfirmation' => $intent['requires_confirmation'] ?? false,
+        ])
             ->header('Cache-Control', 'private, no-store');
     }
 

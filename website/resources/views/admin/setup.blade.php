@@ -7,6 +7,7 @@
   @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
   <form method="post" action="/admin/setup">
     @csrf
+    <div class="ad-field"><label>کلید راه‌اندازی مدیر</label><input class="ad-input" type="password" name="bootstrap_token" required autocomplete="off"></div>
     <div class="ad-field"><label>نام</label><input class="ad-input" type="text" name="name" required value="{{ old('name') }}"></div>
     <div class="ad-field"><label>ایمیل</label><input class="ad-input" type="email" name="email" dir="ltr" required value="{{ old('email') }}"></div>
     <div class="ad-field"><label>رمز عبور (حداقل ۸ کاراکتر)</label><input class="ad-input" type="password" name="password" required></div>

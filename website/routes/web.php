@@ -983,7 +983,7 @@ Route::get('/system/bale-setup', fn () => response(
 
 Route::post('/system/bale-setup', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token')), 404);
+    abort_if($expected === '' || ! hash_equals($expected, \App\Support\DeploymentToken::fromRequest($r)), 404);
 
     $bot = (string) config('services.bale.token');
     if ($bot === '') {
@@ -1071,7 +1071,8 @@ Route::get('/llms.txt', [SiteController::class, 'llms']);
 
 
 // تولید و انتشار محتوای برنامه‌ریزی‌شده (کران روزانه یا فراخوانی دستی)
-Route::middleware('throttle:6,1')->get('/system/content/{token}', function (string $token) {
+Route::middleware('throttle:6,1')->post('/system/content', function (\Illuminate\Http\Request $request) {
+    $token = \App\Support\DeploymentToken::fromRequest($request);
     $expected = (string) env('DEPLOY_TOKEN', '');
     // بدون DEPLOY_TOKEN در .env این روت اصلاً وجود ندارد — توکن هاردکد یعنی
     // هرکس به مخزن دسترسی دارد می‌تواند مهاجرت و تولید محتوای پولی را اجرا کند.
@@ -1154,7 +1155,7 @@ Route::get('/system/setup', fn () => response(view('system.setup'))
 | پس بی‌خطر است. لازم است چون به SSH سرور دسترسی نداریم و بدون آن نمی‌شود
 | فهمید «کد نرفت» یعنی کلید غلط است یا الگو تعریف نشده.
 */
-Route::middleware('throttle:tools')->get('/system/sms-status', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/sms-status', function () {
     $cfg    = (array) config('services.sms.ippanel');
     $sender = app(\App\Services\Sms\SmsSender::class);
     $active = $sender->name();
@@ -1348,7 +1349,7 @@ Route::middleware('throttle:tools')->get('/system/sms-status', function () {
 | خنک‌شدنِ ۶ساعته) یا کشِ سردِ نرخِ ارز (کرونِ ساعتیِ fx:dollar). این روت
 | همان تفکیک را می‌دهد — الگوی /system/sms-status.
 */
-Route::middleware('throttle:tools')->get('/system/crypto-status', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/crypto-status', function () {
     if (! \Illuminate\Support\Facades\Schema::hasTable('crypto_wallets')) {
         return response()->json(['ready' => false, 'reason' => 'no_tables']);
     }
@@ -1407,7 +1408,8 @@ Route::middleware('throttle:tools')->get('/system/crypto-status', function () {
 |   • آی‌پی خروجیِ سرور — همانی که باید در allowlistِ API اوپن‌پروایدر باشد
 |   • آیا با اعتبارنامهٔ .env احراز هویت می‌شود (code 0) یا رد (196=IP/رمز)
 */
-Route::middleware('throttle:tools')->get('/system/openprovider', function () {
+Route::middleware(['admin', 'throttle:tools'])->match(['GET', 'POST'], '/system/openprovider', function () {
+    abort_if(request()->isMethod('GET') && (request()->boolean('probe') || request()->boolean('mailtest')), 405);
     $client = app(\App\Services\Domain\OpenProviderClient::class);
 
     // آی‌پی خروجی: از چند سرویس، اولین جوابِ معتبر
@@ -1649,7 +1651,7 @@ Route::middleware('throttle:tools')->get('/system/openprovider', function () {
 | کش روی همان دیتابیسی است که این روت قرار است سلامتش را گزارش کند، و
 | وابسته‌کردنِ گزارش به آن همان تلهٔ «ناظری که روی چیزِ تحتِ نظارت نشسته» است.
 */
-Route::middleware('throttle:tools')->get('/system/health', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/health', function () {
     // ⚠️ نامش `$probe` نیست: داخلِ همین بلوک، `$probe` متغیرِ محلیِ سنجشِ
     // رله است و هم‌نامی دو چیزِ متفاوت را شبیهِ هم می‌کند.
     $runProbes = function () {
@@ -1863,7 +1865,7 @@ Route::middleware('throttle:tools')->get('/system/health', function () {
 | بررسی بارگذاری کلاس‌ها روی سرور — تأیید اینکه فایل مدل‌ها واقعاً هستند.
 | بدون این، «Class not found» فقط با ورود واقعی دیده می‌شود.
 */
-Route::middleware('throttle:tools')->get('/system/classcheck', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/classcheck', function () {
     $classes = [
         \App\Models\Invoice::class, \App\Models\InvoiceItem::class, \App\Models\Payment::class,
         \App\Models\CreditEntry::class, \App\Models\BusinessEntry::class, \App\Models\Ticket::class,
@@ -1898,7 +1900,7 @@ Route::middleware('throttle:tools')->get('/system/classcheck', function () {
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
 
-Route::middleware('throttle:tools')->get('/system/tables', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/tables', function () {
     $expected = [
         // فاز اول
         'currencies', 'tax_rates', 'customers', 'customer_profiles',
@@ -1973,7 +1975,7 @@ Route::middleware('throttle:tools')->get('/system/tables', function () {
     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 });
 
-Route::get('/system/db-status', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/db-status', function () {
     $out = ['site_driver' => \Illuminate\Support\Facades\DB::connection()->getDriverName()];
 
     $db   = env('MARIADB_DATABASE');
@@ -2072,7 +2074,7 @@ Route::get('/system/db-status', function () {
 
 Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
     $expected = trim((string) env('DEPLOY_TOKEN', ''));
-    $given    = trim((string) $r->input('token', ''));
+    $given    = trim(\App\Support\DeploymentToken::fromRequest($r));
 
     if ($expected === '') {
         return response()->json([
@@ -2158,7 +2160,7 @@ Route::post('/system/setup', function (\Illuminate\Http\Request $r) {
  * همه‌چیز را می‌سنجیم: جدول‌ها، کامل بودن داده، نوشتن واقعی، و سالم بودن فارسی.
  * فقط بولین برمی‌گرداند تا عمومی بودنش چیزی لو ندهد.
  */
-Route::get('/system/preflight', function () {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/preflight', function () {
     $db = env('MARIADB_DATABASE');
     $user = env('MARIADB_USERNAME');
 
@@ -2230,7 +2232,8 @@ Route::get('/system/preflight', function () {
  *   ?step=check → ?step=migrate → ?step=port → ?step=verify
  * و تنها بعد از verify موفق، .env سوییچ می‌شود.
  */
-Route::middleware('throttle:tools')->get('/system/mariadb/{token}', function (string $token) {
+Route::middleware('throttle:tools')->post('/system/mariadb', function (\Illuminate\Http\Request $request) {
+    $token = \App\Support\DeploymentToken::fromRequest($request);
     $expected = (string) env('DEPLOY_TOKEN', '');
     abort_if($expected === '' || ! hash_equals($expected, $token), 404);
     @set_time_limit(300);
@@ -2282,7 +2285,7 @@ Route::get('/system/migrate', fn () => response(
 
 Route::post('/system/migrate', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    $given    = (string) $r->input('token', '');
+    $given    = \App\Support\DeploymentToken::fromRequest($r);
 
     // بدون DEPLOY_TOKEN این مسیر عملاً وجود ندارد
     abort_if($expected === '' || ! hash_equals($expected, $given), 404);
@@ -2547,7 +2550,7 @@ Route::get('/system/cloud-status', fn () => response(
 
 Route::post('/system/cloud-status', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+    abort_if($expected === '' || ! hash_equals($expected, \App\Support\DeploymentToken::fromRequest($r)), 404);
 
     $S = \Illuminate\Support\Facades\Schema::class;
     $out = [];
@@ -2673,7 +2676,7 @@ Route::get('/system/opcache', fn () => response(
 
 Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+    abort_if($expected === '' || ! hash_equals($expected, \App\Support\DeploymentToken::fromRequest($r)), 404);
 
     // config/route را هم پاک کن تا تغییرِ .env (مثل SESSION_DOMAIN) و روت‌های تازه
     // واقعاً خوانده شوند؛ اگر کش نشده باشند، این‌ها بی‌ضررند.
@@ -2707,7 +2710,7 @@ Route::post('/system/opcache', function (\Illuminate\Http\Request $r) {
 */
 Route::post('/system/errors', function (\Illuminate\Http\Request $r) {
     $expected = (string) env('DEPLOY_TOKEN', '');
-    abort_if($expected === '' || ! hash_equals($expected, (string) $r->input('token', '')), 404);
+    abort_if($expected === '' || ! hash_equals($expected, \App\Support\DeploymentToken::fromRequest($r)), 404);
 
     $rows = collect(\App\Support\ErrorTracker::recent(200, 'error'))
         ->filter(fn ($e) => ($e['type'] ?? '') === 'error')
@@ -2726,7 +2729,7 @@ Route::post('/system/errors', function (\Illuminate\Http\Request $r) {
         200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 })->middleware('throttle:12,1');
 
-Route::get('/system/whoami', function (\Illuminate\Http\Request $r) {
+Route::middleware(['admin', 'throttle:tools'])->get('/system/whoami', function (\Illuminate\Http\Request $r) {
     return response()->json([
         'host'              => $r->getHost(),
         'secure'            => $r->isSecure(),
@@ -2768,7 +2771,7 @@ Route::post('/api/admin/tickets', [\App\Http\Controllers\Api\AdminTicketControll
 
 Route::prefix('admin')->group(function () {
     Route::get('/setup', [AdminAuth::class, 'showSetup']);
-    Route::post('/setup', [AdminAuth::class, 'setup']);
+    Route::post('/setup', [AdminAuth::class, 'setup'])->middleware('throttle:6,1');
     // نام «admin.login» و نه «login» — چون «login» مال ورود مشتری است و اگر
     // هر دو یک نام داشته باشند، route('login') بی‌سروصدا یکی را می‌پوشاند و
     // مشتری به صفحهٔ ورود مدیر هدایت می‌شود. هدایت مهمان‌ها در bootstrap/app.php

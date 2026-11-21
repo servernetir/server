@@ -205,7 +205,7 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
         try {
             $normalised = $this->mobile($mobile);
         } catch (\InvalidArgumentException $e) {
-            $this->fail($template, $e->getMessage());
+            $this->fail($template, 'invalid_mobile');
 
             return false;
         }
@@ -242,7 +242,7 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
 
             return false;
         } catch (\Throwable $e) {
-            $this->fail($template, $e->getMessage());
+            $this->fail($template, $e instanceof RelayDeliveryException ? $e->getMessage() : 'transport_failed');
 
             return false;
         }

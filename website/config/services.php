@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'proxmox' => [
+        'ca_bundle' => env('PROXMOX_CA_BUNDLE'),
+    ],
     // Reseller origin must be confirmed by VPS.TC; no guessed default host.
     // Credentials may instead be stored encrypted in the dedicated admin page.
     'vpstc' => [

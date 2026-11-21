@@ -75,7 +75,7 @@ class KavenegarSender implements SmsSender
                 $params,
             );
         } catch (\Throwable $e) {
-            Log::warning('کاوه‌نگار در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('کاوه‌نگار در دسترس نبود', ['exception' => $e::class]);
 
             return false;
         }
@@ -86,7 +86,7 @@ class KavenegarSender implements SmsSender
         if ($status !== 200) {
             Log::warning('کاوه‌نگار پیامک را رد کرد', [
                 'status'  => $status,
-                'message' => data_get($res->json(), 'return.message'),
+                'message' => 'provider_rejected',
             ]);
 
             return false;

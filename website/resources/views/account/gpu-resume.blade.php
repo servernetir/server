@@ -14,5 +14,7 @@
     </form>
   </div>
 </section>
+@unless($requiresConfirmation ?? false)
 <script>document.getElementById('gpu-resume-form').requestSubmit();</script>
+@endunless
 @endsection

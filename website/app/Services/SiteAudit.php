@@ -188,8 +188,12 @@ class SiteAudit
      */
     private function peekRedirect(string $url, int $timeout = 12): ?string
     {
+        $options = SafeUrl::curlOptionsFor($url);
+        if ($options === null) {
+            return null;
+        }
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_NOBODY         => true,
             CURLOPT_HEADER         => true,
@@ -224,8 +228,12 @@ class SiteAudit
         $this->url = $final;
         $this->host = parse_url($final, PHP_URL_HOST) ?: $this->host;
 
+        $options = SafeUrl::curlOptionsFor($this->url);
+        if ($options === null) {
+            return false;
+        }
         $ch = curl_init($this->url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
             CURLOPT_TIMEOUT        => 20,

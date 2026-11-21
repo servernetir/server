@@ -28,6 +28,9 @@ class GpuPublicOrderTest extends TestCase
         Setting::put('salad_priority', 'high');
         Setting::put('pricing_rate_override', '100000');
         Setting::put('pricing_usd_rate_override', '90000');
+        \Tests\Support\NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000]);
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates());
         CloudLocation::create(['code' => 'global-gpu', 'country' => 'XX', 'is_active' => true]);
         $this->plan = CloudPlan::create(['provider' => 'salad', 'provider_ref' => 'gpu-class-test', 'provider_location' => 'global',
             'location_code' => 'global-gpu', 'slug' => 'gpu-public-test', 'public_name' => 'GTX 1650 (4 GB)',
@@ -91,6 +94,20 @@ class GpuPublicOrderTest extends TestCase
         $this->assertSame($this->plan->hourlyIrt(), $service->hourly_rate_irt);
         $this->post(route('account.gpu.complete'), ['intent_key' => $key])->assertRedirect();
         $this->assertDatabaseCount('services', 1);
+        $this->assertNoPurchase();
+    }
+
+    public function test_main_host_passes_choices_to_a_console_confirmation_without_spending(): void
+    {
+        $response = $this->post('https://servernet.cloud/gpu/order', $this->choices())->assertRedirect();
+        $url = $response->headers->get('Location');
+        $this->assertStringStartsWith('https://console.servernet.cloud/account/gpu/continue?handoff=', $url);
+        $this->assertDatabaseCount('services', 0);
+        $this->assertNoPurchase();
+        $this->actingAs($this->customer, 'customer')->get($url)->assertRedirect();
+        $this->get('https://console.servernet.cloud/account/gpu/continue')->assertOk()
+            ->assertSee('my-notebook')->assertDontSee('requestSubmit()', false);
+        $this->assertDatabaseCount('services', 0);
         $this->assertNoPurchase();
     }
 

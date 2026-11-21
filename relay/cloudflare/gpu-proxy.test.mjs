@@ -44,10 +44,11 @@ async function run({ cookie, upstream, path = '/api/tags', headers: extraHeaders
 test('🔴 panel session and remember-me cookies never reach the tenant container', async () => {
   const { seen } = await run({
     cookie: 'snet_session=ADMIN_SESSION; remember_web_59ba36=ADMIN_REMEMBER; '
-      + 'remember_customer_3dc7=CUST_REMEMBER; XSRF-TOKEN=CSRF; _xsrf=jupyter; username-g-x=jup-login',
+      + 'remember_customer_3dc7=CUST_REMEMBER; __Host-servernet_session=HOST_SESSION; '
+      + '__Host-remember_customer_test=HOST_REMEMBER; XSRF-TOKEN=CSRF; _xsrf=jupyter; username-g-x=jup-login',
   });
   const sent = seen.headers.get('Cookie') || '';
-  for (const secret of ['ADMIN_SESSION', 'ADMIN_REMEMBER', 'CUST_REMEMBER', 'CSRF']) {
+  for (const secret of ['ADMIN_SESSION', 'ADMIN_REMEMBER', 'CUST_REMEMBER', 'HOST_SESSION', 'HOST_REMEMBER', 'CSRF']) {
     assert.ok(!sent.includes(secret), `leaked to the container: ${secret} — got: ${sent}`);
   }
   // ⚠️ نیمهٔ دیگر: کوکی‌های خودِ برنامه باید بمانند، وگرنه ورودِ Jupyter می‌شکند
@@ -174,6 +175,18 @@ test('the gate still refuses a request with no token', async () => {
   }
 });
 
+test('a missing gate secret returns unavailable without forwarding a request', async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response('unexpected'); };
+  try {
+    const response = await worker.fetch(new Request('https://'+HOST+'/'), { GPU_RELAY_SECRET: RELAY_KEY });
+    assert.equal(response.status, 503);
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 const BROWSER_DOCUMENT = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Sec-Fetch-Mode': 'navigate',

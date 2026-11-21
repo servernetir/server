@@ -25,8 +25,8 @@ use Symfony\Component\HttpFoundation\Response;
  *      کنسول. کارفرما خواست همهٔ پنل روی کنسول باشد؛ این تضمین می‌کند حتی
  *      لینک قدیمی هم به جای درست برود.
  *
- * فقط GET ریدایرکت می‌شود — POST (ارسال فرم) نباید ۳۰۱ شود چون بدنه‌اش گم
- * می‌شود. فرم‌ها روی کنسول رندر می‌شوند و مستقیم به کنسول POST می‌کنند.
+ * فرم‌های پنل روی کنسول ارسال می‌شوند. درخواست تغییردهنده به مسیر پنل
+ * روی دامنهٔ سایت رد می‌شود و درخواست خواندنی به کنسول هدایت می‌شود.
  */
 class ConsoleHost
 {
@@ -162,6 +162,10 @@ class ConsoleHost
 
         // ریدایرکت به کنسول فقط روی دامنهٔ واقعی تولید — نه localhost یا
         // محیط تست، وگرنه توسعهٔ محلی هم به کنسول تولید پرت می‌شود
+        if (HostSessionIsolation::applies($request->getHost()) && ! $request->isMethodSafe()
+            && $request->is(self::PANEL)) {
+            abort(404);
+        }
         if ($this->isMainProd($request) && $request->isMethod('GET') && $request->is(self::PANEL)) {
             return redirect()->away(self::CONSOLE.ltrim($request->getRequestUri(), '/'), 301);
         }

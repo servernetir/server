@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // دامنهٔ اصلی، پس باید پیش از هر منطقِ میزبانِ دیگری تعیین تکلیف شود.
         // (`prepend` آخرین صدازده اول اجرا می‌شود.)
         $middleware->prepend(\App\Http\Middleware\LegacyDomain::class);
+        $middleware->prepend(\App\Http\Middleware\HostSessionIsolation::class);
 
         // هدرهای امنیتی روی همه‌ی پاسخ‌ها
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
@@ -97,6 +98,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/admin/tickets',
             // محافظش DEPLOY_TOKEN است، نه نشست؛ فرم بی‌نشست هم باید کار کند
             'system/migrate',
+            'system/content',
+            'system/mariadb',
             // همان منطق — POSTِ توکن‌دارِ migrate/blogseed باید با curl هم اجرا شود
             // (بی‌این، فقط فرمِ خودِ صفحه با نشست کار می‌کرد و ۴۱۹ می‌گرفتی)
             'system/setup',
@@ -147,6 +150,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['bootstrap_token']);
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (!\App\Http\Middleware\IdentityPrivacy::sensitive($request)) return null;
             if ($e instanceof \Illuminate\Auth\AuthenticationException && !$request->is('api/v1/identity*') && !$request->expectsJson()) return null;

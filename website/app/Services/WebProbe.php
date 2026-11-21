@@ -501,8 +501,12 @@ class WebProbe
     protected function curlTimings(string $url): ?array
     {
         $body = 0;
+        $options = SafeUrl::curlOptionsFor($url);
+        if ($options === null) {
+            return null;
+        }
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_CONNECTTIMEOUT => 10,
@@ -541,8 +545,12 @@ class WebProbe
     protected function fetchHeaders(string $url): ?array
     {
         $headers = [];
+        $options = SafeUrl::curlOptionsFor($url);
+        if ($options === null) {
+            return null;
+        }
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 12,
             CURLOPT_CONNECTTIMEOUT => 8,

@@ -1,0 +1,64 @@
+name: Security regression
+
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/**', 'relay/**', 'tools/security/**', '.github/workflows/security-regression.yml']
+  push:
+    branches: [develop]
+    paths: ['website/**', 'relay/**', 'tools/security/**', '.github/workflows/security-regression.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PAO_DISABLE: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install and audit locked dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+          composer check-platform-reqs
+          composer audit --locked
+      - name: Verify session, access, delivery and payment controls
+        working-directory: website
+        run: |
+          python3 ../tools/security/run-offline.py -- php vendor/bin/phpunit \
+            tests/Feature/SessionCookieDomainTest.php \
+            tests/Feature/ConsoleHostTest.php \
+            tests/Feature/AdminAuthOtpTest.php \
+            tests/Feature/TwoFactorAppTest.php \
+            tests/Feature/GoogleAuthTest.php \
+            tests/Feature/OtpLoginTest.php \
+            tests/Feature/GpuPublicOrderTest.php \
+            tests/Feature/CustomerCloudApiTest.php \
+            tests/Feature/OperationalAccessTest.php \
+            tests/Feature/SystemDiagnosticsGuardTest.php \
+            tests/Feature/SecurityControlsTest.php \
+            tests/Feature/CloudProxmoxTest.php \
+            tests/Feature/PaymentCallbackTest.php \
+            tests/Feature/WalletPrimitivesTest.php \
+            tests/Feature/TicketAttachmentTest.php \
+            tests/Feature/N8nSmsRelayTest.php \
+            tests/Feature/ErrorTrackerTest.php \
+            tests/Unit/SafeUrlTest.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify gateway and relay contracts
+        run: python3 tools/security/run-offline.py -- node --test relay/cloudflare/gpu-proxy.test.mjs relay/n8n/*.test.js relay/n8n/*.test.cjs

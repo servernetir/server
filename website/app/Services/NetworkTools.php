@@ -248,6 +248,10 @@ class NetworkTools
             return ['ok' => false, 'error' => 'invalid_domain'];
         }
 
+        $ip = $this->resolveIp($host);
+        if ($ip === null) {
+            return ['ok' => false, 'error' => 'invalid_domain'];
+        }
         $ctx = stream_context_create(['ssl' => [
             'capture_peer_cert'       => true,
             'capture_peer_cert_chain' => true,
@@ -258,7 +262,7 @@ class NetworkTools
         ]]);
 
         $client = @stream_socket_client(
-            'ssl://'.$host.':'.$port,
+            'ssl://'.$ip.':'.$port,
             $errno, $errstr, 10,
             STREAM_CLIENT_CONNECT, $ctx
         );
@@ -872,7 +876,7 @@ class NetworkTools
         $s = explode(':', $s)[0];
 
         if (filter_var($s, FILTER_VALIDATE_IP)) {
-            return $s;
+            return SafeUrl::isPublicIp($s) ? $s : null;
         }
         $host = $this->host($s);
         if ($host === null) {
@@ -882,11 +886,13 @@ class NetworkTools
         $ans = $this->doh(self::RESOLVERS['google']['url'], $host, 'A');
         $a = $ans !== null ? $this->extract($ans, 'A') : [];
         if ($a) {
-            return $a[0]['data'];
+            $ip = $a[0]['data'];
+
+            return SafeUrl::isPublicIp($ip) ? $ip : null;
         }
         $ip = @gethostbyname($host);
 
-        return ($ip && filter_var($ip, FILTER_VALIDATE_IP)) ? $ip : null;
+        return ($ip && SafeUrl::isPublicIp($ip)) ? $ip : null;
     }
 
     /** ساخت نام PTR از IPv4/IPv6 */

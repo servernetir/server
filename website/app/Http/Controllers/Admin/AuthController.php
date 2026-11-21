@@ -8,6 +8,7 @@ use App\Services\Otp\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
@@ -30,6 +31,7 @@ class AuthController extends Controller
         if (User::count() > 0) {
             return redirect('/admin/login');
         }
+        abort_unless(strlen((string) config('auth.admin_bootstrap_token')) >= 32, 404);
 
         return view('admin.setup');
     }
@@ -39,20 +41,28 @@ class AuthController extends Controller
         if (User::count() > 0) {
             return redirect('/admin/login');
         }
+        $expected = (string) config('auth.admin_bootstrap_token');
+        $given = (string) $request->header('X-Admin-Bootstrap-Token', $request->post('bootstrap_token', ''));
+        abort_unless(strlen($expected) >= 32 && hash_equals($expected, $given), 403);
         $data = $request->validate([
             'name'     => 'required|string|max:80',
             'email'    => 'required|email|max:120',
             'password' => 'required|string|min:8|max:100|confirmed',
         ]);
-        $user = User::create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
-            'role'     => 'admin',
-            'password' => Hash::make($data['password']),
-        ]);
-        Auth::login($user);
+        DB::transaction(function () use ($data) {
+            // The unique settings key serializes bootstrap across different web workers.
+            $claimed = DB::table('settings')->insertOrIgnore([
+                'key' => 'admin_bootstrap_claimed', 'value' => '1',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            abort_unless($claimed === 1 && User::count() === 0, 409);
+            User::create([
+                'name' => $data['name'], 'email' => $data['email'],
+                'role' => 'admin', 'password' => Hash::make($data['password']),
+            ]);
+        });
 
-        return redirect('/admin');
+        return redirect('/admin/login');
     }
 
     public function showLogin(): View|RedirectResponse
