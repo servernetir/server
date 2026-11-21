@@ -1,0 +1,98 @@
+name: Dependency and session configuration checks
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/config/app.php'
+      - 'website/config/session.php'
+      - 'website/tests/Unit/SessionSecureDefaultTest.php'
+      - 'website/tests/Feature/SessionCookieDomainTest.php'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/dependency-audit.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/config/app.php'
+      - 'website/config/session.php'
+      - 'website/tests/Unit/SessionSecureDefaultTest.php'
+      - 'website/tests/Feature/SessionCookieDomainTest.php'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/dependency-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-advisories:
+    name: Locked Composer dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up Composer
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+      - name: Audit locked dependencies without installing them
+        working-directory: website
+        run: composer audit --locked --no-interaction --no-plugins --no-scripts --format=summary
+
+  session-defaults:
+    name: Isolated session configuration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without production configuration
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Test configuration defaults and shared cookie behavior offline
+        working-directory: website
+        run: |
+          set -euo pipefail
+          python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
+            tests/Unit/SessionSecureDefaultTest.php tests/Feature/SessionCookieDomainTest.php \
+            --display-warnings --fail-on-warning --colors=never
