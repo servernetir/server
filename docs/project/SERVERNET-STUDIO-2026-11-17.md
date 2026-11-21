@@ -92,3 +92,11 @@ workflow مخزن Studio به‌صورت پیش‌فرض فقط ویندوز م�
 manifest دارای `public_preview: true`، `unsigned_test: true`، `version` سه‌جزئی، `source_sha` چهل‌رقمی hexadecimal و `files` است. کلیدهای مجاز `windows_x64`، `macos_x64` و `macos_arm64` هستند؛ هر ورودی نام دقیق `ServerNet-Studio-UNSIGNED-TEST-<version>-<platform>.<ext>` با suffixهای `win-x64.exe`، `mac-x64.zip` و `mac-arm64.zip`، اندازهٔ واقعی، digest و `native_verified: true` دارد. معماری تأییدنشده در manifest قرار نمی‌گیرد. ورودی نامعتبر، فایل غایب یا symlink انتشار آزمایشی را غیرفعال می‌کند. فایل‌ها هنگام انتشار مستقل hash می‌شوند و برای هر درخواست صفحه دوباره خوانده نمی‌شوند.
 
 نسخهٔ امضاشدهٔ آماده برای هر پلتفرم نسبت به پیش‌نمایش اولویت دارد. پیش‌نمایش‌ها در سه زبان با علامت بدون امضا، نسخه، سورس، checksum و وضعیت آزمون اجرای بومی معرفی می‌شوند. مسیر update feed، manifest رسمی و شرط امضا/notarization تغییر نکرده‌اند.
+
+## راهنمای نصب وب‌اپ — ۲۱ نوامبر
+
+از همان ورودی `https://studio.servernet.cloud/`، صفحات معرفی AI و `/studio/download` در سه زبان و در صورت فعال بودن ورود مرکزی، وب‌اپ را برای استفادهٔ روزمره پیشنهاد می‌کنند؛ راهنمای مستقل `#studio-web-install` برای Chrome و Edge روی Windows/macOS و Safari روی macOS Sonoma 14 یا جدیدتر تعریف شده است. این قابلیت همان تجربهٔ آنلاین مرورگر است، به اینترنت نیاز دارد و هیچ‌یک از مجوزهای بومی دسکتاپ را به کاربر نمی‌دهد. مسیرهای دانلود، manifest پیش‌نمایش، الزامات امضا و update feed دست نخورده‌اند.
+
+منوهای نصب بر اساس راهنمای رسمی [Chrome](https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DDesktop&hl=en)، [Edge](https://support.microsoft.com/en-us/edge/install-manage-or-uninstall-apps-in-microsoft-edge) و [Safari](https://support.apple.com/104996) معرفی شده‌اند. نصب کد وب‌اپ در مخزن/هاست Studio جداست. نصب راهنما در سایت اصلی باید فقط دو Blade و سه فایل ترجمهٔ `studio_download.php` را تغییر دهد؛ بازگشت نیز با همان پنج فایل و پاک‌سازی هدفمند کش نمای مرتبط انجام می‌شود. هیچ تغییر تنظیم، migration یا داده‌ای لازم نیست.
+
+آزمون ایزوله روی پایهٔ `develop@0ed2d4f1177fde712b0ca077efb895e5b3feac7e` با PHP 8.4.24 و SQLite: `tests/Feature/StudioDownloadsTest.php`، ۱۱ آزمون و ۲۴۷ بررسی موفق شامل نمای هر سه زبان، غیرفعال بودن ورود یا نصاب رسمی، عرضهٔ مستقل پیش‌نمایش و اولویت فایل امضاشده. چهار فایل PHP تغییرکرده نیز lint شدند. این شواهد نصب یا پذیرش مرورگر واقعی را اثبات نمی‌کنند.

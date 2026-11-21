@@ -24,8 +24,10 @@
    <h3>{{ __('ai_studio.name') }}</h3>
    <p>{{ __('ai_studio.description') }}</p>
    @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
+    <p>{{ __('studio_download.web_landing') }}</p>
     <div class="ai-actions">
-     <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('ai_studio.open') }}</a>
+     <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('studio_download.install_web') }}</a>
+     <a class="ai-btn" href="{{ lroute('studio.download') }}#studio-web-install">{{ __('studio_download.web_guide') }}</a>
      @php
         $studioPackages = app(\App\Services\Studio\StudioDownloads::class);
         $studioReleaseAvailable = (bool) $studioPackages->release();

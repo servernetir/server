@@ -101,6 +101,44 @@ class StudioDownloadsTest extends TestCase
         $this->get('/ai')->assertOk()->assertDontSee('href="https://studio.servernet.cloud/"', false);
     }
 
+    public function test_recommended_web_app_guidance_is_localized_and_independent_of_native_downloads(): void
+    {
+        config(['studio.downloads_enabled' => false]);
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $download = $this->get($prefix.'/studio/download')->assertOk()
+                ->assertSee('id="studio-web-install"', false)
+                ->assertSee('href="https://studio.servernet.cloud/"', false)
+                ->assertSeeText(trans('studio_download.install_web', [], $locale))
+                ->assertSeeText(trans('studio_download.web_recommended', [], $locale))
+                ->assertSeeText(trans('studio_download.web_limits', [], $locale))
+                ->assertDontSee('downloads/studio/')
+                ->assertDontSee('downloads/studio-preview/');
+            foreach (['chrome', 'edge', 'safari'] as $browser) {
+                foreach (['name', 'os', 'instructions'] as $detail) {
+                    $key = 'studio_download.web_'.$browser.'_'.$detail;
+                    $translation = trans($key, [], $locale);
+                    $this->assertNotSame($key, $translation);
+                    $download->assertSeeText($translation);
+                }
+            }
+            $this->get($prefix.'/ai')->assertOk()
+                ->assertSee('href="https://studio.servernet.cloud/"', false)
+                ->assertSee('href="'.url($prefix.'/studio/download').'#studio-web-install"', false)
+                ->assertSeeText(trans('studio_download.install_web', [], $locale))
+                ->assertSeeText(trans('studio_download.web_landing', [], $locale));
+        }
+
+        config(['studio.enabled' => false]);
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/studio/download')->assertOk()
+                ->assertDontSee('id="studio-web-install"', false)
+                ->assertDontSee('href="https://studio.servernet.cloud/"', false);
+            $this->get($prefix.'/ai')->assertOk()
+                ->assertDontSee('#studio-web-install')
+                ->assertDontSee('href="https://studio.servernet.cloud/"', false);
+        }
+    }
+
     public function test_approved_complete_release_has_only_fixed_servernet_download_urls(): void
     {
         $this->write($this->manifest());

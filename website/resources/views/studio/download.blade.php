@@ -178,8 +178,35 @@ html[data-theme="light"] .studio-download {
   box-shadow: 0 9px 22px #0006;
   font-size: 25px;
 }
-.studio-download .sd-downloads, .studio-download .sd-guide { margin-block-start: clamp(42px, 7vw, 88px); }
-.studio-download .sd-downloads { scroll-margin-block-start: 110px; }
+.studio-download .sd-downloads, .studio-download .sd-guide, .studio-download .sd-web-install { margin-block-start: clamp(42px, 7vw, 88px); }
+.studio-download .sd-downloads, .studio-download .sd-web-install { scroll-margin-block-start: 110px; }
+.studio-download .sd-web-install {
+  padding: clamp(20px, 4vw, 38px);
+  border: 1px solid var(--sd-line);
+  border-radius: var(--sd-radius);
+  background: var(--sd-panel);
+}
+.studio-download .sd-web-install .sd-recommended {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-block-end: 10px;
+  color: var(--sd-accent);
+  font-size: .85rem;
+  font-weight: 700;
+}
+.studio-download .sd-web-intro, .studio-download .sd-web-limits {
+  max-inline-size: 75ch;
+  margin-block-start: 10px;
+  color: var(--sd-muted);
+  line-height: 1.8;
+}
+.studio-download .sd-web-install .sd-actions { margin-block-start: 18px; }
+.studio-download .sd-web-install .sd-steps li h3 { flex-wrap: wrap; }
+.studio-download .sd-web-install .sd-steps li h3::before { content: none; }
+.studio-download .sd-web-os { display: block; margin-block-start: 8px; color: var(--sd-muted); font-size: .78rem; }
+.studio-download .sd-web-limits { font-size: .88rem; }
+.studio-download .sd-web-install .sd-link { color: var(--sd-accent-ink); background: var(--sd-accent); }
 .studio-download .sd-section-head, .studio-download .sd-card-head {
   display: flex;
   align-items: center;
@@ -291,9 +318,10 @@ html[data-theme="light"] .studio-download {
       <div class="sd-actions">
         @if($studioAvailable)
           <a class="sd-link sd-link-web" href="https://studio.servernet.cloud/">
-            <svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>{{ __('studio_download.open_web') }}
+            <svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>{{ __('studio_download.install_web') }}
             <svg class="icon dir" aria-hidden="true"><use href="#i-arrow"/></svg>
           </a>
+          <a class="sd-link sd-link-anchor" href="#studio-web-install">{{ __('studio_download.web_guide') }}</a>
         @endif
         <a class="sd-link sd-link-anchor" href="#studio-installers">
           <svg class="icon" aria-hidden="true"><use href="#i-monitor"/></svg>{{ __('studio_download.view_installers') }}
@@ -320,6 +348,30 @@ html[data-theme="light"] .studio-download {
       <span class="sd-float"><svg class="icon"><use href="#i-message"/></svg></span>
     </div>
   </section>
+
+  @if($studioAvailable)
+    <section id="studio-web-install" class="sd-web-install" aria-labelledby="studio-web-install-title">
+      <span class="sd-recommended"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>{{ __('studio_download.web_recommended') }}</span>
+      <h2 id="studio-web-install-title">{{ __('studio_download.web_title') }}</h2>
+      <p class="sd-web-intro">{{ __('studio_download.web_intro') }}</p>
+      <div class="sd-actions">
+        <a class="sd-link" href="https://studio.servernet.cloud/">
+          <svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>{{ __('studio_download.open_web') }}
+          <svg class="icon dir" aria-hidden="true"><use href="#i-arrow"/></svg>
+        </a>
+      </div>
+      <ul class="sd-steps" role="list">
+        @foreach(['chrome', 'edge', 'safari'] as $browser)
+          <li>
+            <h3>{{ __('studio_download.web_'.$browser.'_name') }}</h3>
+            <span class="sd-web-os" dir="auto">{{ __('studio_download.web_'.$browser.'_os') }}</span>
+            <p>{{ __('studio_download.web_'.$browser.'_instructions') }}</p>
+          </li>
+        @endforeach
+      </ul>
+      <p class="sd-web-limits">{{ __('studio_download.web_limits') }}</p>
+    </section>
+  @endif
 
   <section id="studio-installers" class="sd-downloads" aria-labelledby="studio-installers-title">
     @php
@@ -372,7 +424,7 @@ html[data-theme="light"] .studio-download {
   </section>
 
   <section class="sd-guide" aria-labelledby="studio-guide-title">
-    <h2 id="studio-guide-title">{{ __('studio_download.start') }}</h2>
+    <h2 id="studio-guide-title">{{ __('studio_download.start_native') }}</h2>
     <ol class="sd-steps" role="list">
       @foreach(['install', 'login', 'wallet'] as $step)
         <li><h3>{{ __('studio_download.step_'.$step.'_title') }}</h3><p>{{ __('studio_download.step_'.$step) }}</p></li>
