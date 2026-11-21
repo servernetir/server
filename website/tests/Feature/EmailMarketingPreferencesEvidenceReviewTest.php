@@ -100,15 +100,18 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
     {
         $this->admin();
 
-        $page = $this->get('/admin/email-marketing/evidence')->assertOk()
+        $page = $this->get('/admin/email-marketing')->assertOk()
             ->assertSee(__('email-evidence-review.intro'))
-            ->assertSee(__('email-evidence-review.empty'));
+            ->assertSee(__('email-evidence-review.empty'))
+            ->assertSee(__('email-marketing.admin_intro'));
         $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
         $this->assertSame('no-referrer', $page->headers->get('Referrer-Policy'));
         $this->assertSame('noindex, nofollow', $page->headers->get('X-Robots-Tag'));
         $dom = $this->pageDom((string) $page->getContent());
 
-        $form = $this->element($dom, '//form[@id="evidence-review-upload"]');
+        $this->element($dom, '//*[@id="evidence"]');
+        $this->element($dom, '//form[@action="'.route('admin.email-marketing.stage').'"]');
+        $form = $this->element($dom, '//*[@id="evidence"]//form[@id="evidence-review-upload"]');
         $this->assertSame(route('admin.email-marketing.evidence.stage'), $form->getAttribute('action'));
         $this->assertSame('post', strtolower($form->getAttribute('method')));
         $this->assertSame('multipart/form-data', $form->getAttribute('enctype'));
@@ -133,12 +136,15 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         foreach ($this->elements($dom, '//a[@href]') as $link) {
             $links[] = $link->getAttribute('href');
         }
-        $this->assertContains(route('admin.email-marketing.index'), $links);
+        $this->assertTrue(in_array('#evidence', $links, true)
+            || in_array(route('admin.email-marketing.index').'#evidence', $links, true));
         $this->assertContains(route('admin.email-marketing.evidence.sample'), $links);
 
         $total = $this->element($dom, '//*[@data-evidence-total]');
         $this->assertSame('0', $total->getAttribute('data-evidence-total'));
         $this->assertStringContainsString('0', $total->textContent);
+        $this->assertSame('0', $this->element($dom, '//*[@data-evidence-pending]')->getAttribute('data-evidence-pending'));
+        $this->assertSame('0', $this->element($dom, '//*[@data-evidence-eligible]')->getAttribute('data-evidence-eligible'));
         $this->element($dom, '//*[@data-evidence-empty]');
         $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-row]')->length);
 
@@ -147,6 +153,21 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertStringContainsString('attachment;', $sample->headers->get('Content-Disposition'));
         $this->assertStringContainsString('no-store', $sample->headers->get('Cache-Control'));
         $this->assertSame("\xEF\xBB\xBF".self::HEADER, $sample->getContent());
+        $this->assertDatabaseCount('external_email_consent_reviews', 0);
+        $this->assertReviewOnly();
+    }
+
+    public function test_legacy_evidence_index_redirects_to_the_integrated_section(): void
+    {
+        $this->admin();
+
+        $response = $this->get('/admin/email-marketing/evidence')
+            ->assertRedirect(route('admin.email-marketing.index').'#evidence');
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $response->assertHeader('Referrer-Policy', 'no-referrer');
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $this->get('/admin/email-marketing/evidence?page=2')
+            ->assertRedirect(route('admin.email-marketing.index', ['evidence_page' => 2]).'#evidence');
         $this->assertDatabaseCount('external_email_consent_reviews', 0);
         $this->assertReviewOnly();
     }
@@ -163,7 +184,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertSame("\xEF\xBB\xBF".self::HEADER, $sample->getContent());
 
         $this->upload(self::HEADER."one@external.example.test,{$firstDate},archive-synthetic-one\ntwo@external.example.test,{$secondDate},archive-synthetic-two\n  ONE@EXTERNAL.EXAMPLE.TEST  ,{$secondDate},archive-synthetic-duplicate\n")
-            ->assertRedirect()->assertSessionHas('evidence_result');
+            ->assertRedirect(route('admin.email-marketing.index').'#evidence')->assertSessionHas('evidence_result');
 
         $rows = ExternalEmailConsentReview::query()->orderBy('id')->get();
         $this->assertCount(2, $rows);
@@ -194,7 +215,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertStringNotContainsString('external.example.test', json_encode($summary));
         $this->assertStringNotContainsString('archive-synthetic', json_encode($summary));
 
-        $page = $this->get('/admin/email-marketing/evidence')->assertOk()
+        $page = $this->get('/admin/email-marketing')->assertOk()
             ->assertSee((string) $rows[0]->contact_id)
             ->assertSee((string) $rows[1]->contact_id)
             ->assertSee(__('email-evidence-review.review_only'))
@@ -206,6 +227,8 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $total = $this->element($dom, '//*[@data-evidence-total]');
         $this->assertSame('2', $total->getAttribute('data-evidence-total'));
         $this->assertStringContainsString('2', $total->textContent);
+        $this->assertSame('2', $this->element($dom, '//*[@data-evidence-pending]')->getAttribute('data-evidence-pending'));
+        $this->assertSame('0', $this->element($dom, '//*[@data-evidence-eligible]')->getAttribute('data-evidence-eligible'));
         $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-empty]')->length);
         $recordNodes = $this->elements($dom, '//*[@data-evidence-row]');
         $this->assertSame(2, $recordNodes->length);
@@ -220,6 +243,39 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         }
         $this->assertReviewOnly();
         $this->assertDatabaseCount('customers', $customerCount);
+    }
+
+    public function test_evidence_pagination_is_independent_of_customer_pagination_and_filter(): void
+    {
+        $this->admin();
+        $date = now()->subDays(3)->toDateString();
+        $csv = self::HEADER;
+        for ($i = 1; $i <= 36; $i++) {
+            $csv .= "synthetic-{$i}@external.example.test,{$date},archive-synthetic-{$i}\n";
+        }
+        $this->upload($csv)->assertRedirect(route('admin.email-marketing.index').'#evidence');
+
+        $firstPage = $this->get('/admin/email-marketing?state=pending&page=2&evidence_page=1')->assertOk();
+        $dom = $this->pageDom((string) $firstPage->getContent());
+        $this->assertSame(35, $this->elements($dom, '//*[@data-evidence-row]')->length);
+        $this->assertSame('36', $this->element($dom, '//*[@data-evidence-total]')->getAttribute('data-evidence-total'));
+        $nextLinkFound = false;
+        foreach ($this->elements($dom, '//*[@id="evidence"]//a[@href]') as $link) {
+            parse_str((string) parse_url($link->getAttribute('href'), PHP_URL_QUERY), $query);
+            if (($query['evidence_page'] ?? null) === '2') {
+                $this->assertSame('2', $query['page'] ?? null);
+                $this->assertSame('pending', $query['state'] ?? null);
+                $nextLinkFound = true;
+            }
+        }
+        $this->assertTrue($nextLinkFound);
+
+        $secondPage = $this->get('/admin/email-marketing?state=pending&page=2&evidence_page=2')->assertOk();
+        $dom = $this->pageDom((string) $secondPage->getContent());
+        $this->assertSame(1, $this->elements($dom, '//*[@data-evidence-row]')->length);
+        $this->assertSame('36', $this->element($dom, '//*[@data-evidence-total]')->getAttribute('data-evidence-total'));
+        $this->assertDatabaseCount('external_email_consent_reviews', 36);
+        $this->assertReviewOnly();
     }
 
     public function test_reuploading_a_normalized_address_never_overwrites_evidence_or_changes_its_id(): void
@@ -301,6 +357,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
     {
         $author = User::factory()->create(['role' => 'author']);
         $this->actingAs($author, 'web');
+        $this->get('/admin/email-marketing')->assertForbidden();
         $this->get('/admin/email-marketing/evidence')->assertForbidden();
         $this->get('/admin/email-marketing/evidence/sample')->assertForbidden();
         $this->upload(self::HEADER."member@external.example.test,2025-01-10,archive-synthetic\n")->assertForbidden();
@@ -319,6 +376,15 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->get('/admin/email-marketing/evidence')->assertNotFound();
         $this->get('/admin/email-marketing/evidence/sample')->assertNotFound();
         $this->upload(self::HEADER."member@external.example.test,2025-01-10,archive-synthetic\n")->assertNotFound();
+        if ($flag === 'email-marketing.evidence_review_enabled') {
+            $page = $this->get('/admin/email-marketing')->assertOk();
+            $dom = $this->pageDom((string) $page->getContent());
+            $this->assertSame(0, $this->elements($dom, '//*[@id="evidence"]')->length);
+            $this->assertSame(0, $this->elements($dom, '//form[@id="evidence-review-upload"]')->length);
+            $this->element($dom, '//form[@action="'.route('admin.email-marketing.stage').'"]');
+        } else {
+            $this->get('/admin/email-marketing')->assertNotFound();
+        }
         $this->assertDatabaseCount('external_email_consent_reviews', 0);
         $this->assertReviewOnly();
     }
