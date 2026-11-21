@@ -12,6 +12,38 @@ use Tests\TestCase;
  */
 class WebProbeTest extends TestCase
 {
+    public function test_speed_timings_include_pinned_resolution_and_keep_http_tls_zero(): void
+    {
+        foreach ([0.02, 0.0] as $tls) {
+            $probe = new class($tls) extends WebProbe {
+                public array $receivedOptions = [];
+                public function __construct(private float $tls) { parent::__construct(new NetworkTools); }
+                public function measure(): ?array { return parent::curlTimings('https://example.test'); }
+                protected function timingOptions(string $url): ?array
+                {
+                    usleep(30_000);
+                    return [CURLOPT_RESOLVE => ['example.test:443:8.8.8.8'], CURLOPT_PROXY => ''];
+                }
+                protected function timingTransfer(string $url, array $options): array
+                {
+                    $this->receivedOptions = $options;
+                    return ['size' => 512, 'info' => ['http_code' => 200, 'namelookup_time' => 0.001,
+                        'connect_time' => 0.010, 'appconnect_time' => $this->tls,
+                        'starttransfer_time' => 0.030, 'total_time' => 0.050]];
+                }
+            };
+            $result = $probe->measure();
+            $this->assertGreaterThanOrEqual(30, $result['dns_ms']);
+            $this->assertEqualsWithDelta(9, $result['connect_ms'] - $result['dns_ms'], 1);
+            $this->assertEqualsWithDelta(29, $result['ttfb_ms'] - $result['dns_ms'], 1);
+            $this->assertEqualsWithDelta(49, $result['total_ms'] - $result['dns_ms'], 1);
+            $this->assertSame(['example.test:443:8.8.8.8'], $probe->receivedOptions[CURLOPT_RESOLVE]);
+            $this->assertSame('', $probe->receivedOptions[CURLOPT_PROXY]);
+            $this->assertSame(512, $result['size']);
+            if ($tls === 0.0) { $this->assertSame(0, $result['tls_ms']); }
+        }
+    }
+
     /* ═══════════════ نمره‌دهی هدرهای امنیتی ═══════════════ */
 
     public function test_all_six_headers_score_a_plus(): void

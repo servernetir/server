@@ -28,9 +28,7 @@
  *      برمی‌دارد، کوکی می‌کند و 302 می‌دهد — توکن در نوارِ آدرس نمی‌مانَد و
  *      درخواست‌های بعدیِ صفحه (asset/XHR) از کوکی رد می‌شوند.
  *
- * ⚠️ GATE_SECRET **تعریف‌نشده = دروازه باز** — عمدی، برای استقرارِ تدریجی:
- * اول اپ دیپلوی می‌شود (توکن در پنل می‌نشیند)، بعد راز این‌جا ست می‌شود.
- * برداشتنِ متغیر از Worker همان «کلیدِ اضطراریِ خاموشی» است.
+ * رازِ تنظیم‌نشده به پاسخ 503 می‌انجامد و هیچ اتصال بالادستی ساخته نمی‌شود.
  *
  * ── نصبِ انجام‌شده (۵ شهریور ۱۴۰۵ — از داشبورد؛ برای بازسازی) ────────────
  * ۱) Workers & Pages → Worker به نامِ gpu-proxy با همین کد.
@@ -130,7 +128,7 @@ function readCookie(request, name) {
  *    این‌جا اضافه شود. تست: relay/cloudflare/gpu-proxy.test.mjs
  */
 const PANEL_COOKIE_NAMES = ['snet_session', 'XSRF-TOKEN', 'sn_token'];
-const PANEL_COOKIE_PREFIXES = ['remember_'];
+const PANEL_COOKIE_PREFIXES = ['remember_', '__Host-', '__Secure-'];
 
 function isPanelCookie(name) {
   const n = String(name || '').trim();
@@ -203,6 +201,9 @@ export default {
     }
 
     const secret = env && env.GATE_SECRET;
+    if (!secret) {
+      return new Response('GPU gateway is temporarily unavailable', { status: 503 });
+    }
 
     if (secret) {
       const expected = await hmacHex(secret, m[1]);

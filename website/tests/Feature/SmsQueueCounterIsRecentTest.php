@@ -25,6 +25,12 @@ use Tests\TestCase;
  */
 class SmsQueueCounterIsRecentTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->make(['role' => 'admin']));
+    }
+
     use RefreshDatabase;
 
     private function row(string $status, string $event, string $when): void

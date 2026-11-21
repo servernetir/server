@@ -101,6 +101,13 @@ class ConsoleHostTest extends TestCase
             ->assertRedirect('https://console.servernet.cloud/login');
     }
 
+    public function test_panel_writes_are_rejected_on_the_marketing_host(): void
+    {
+        $this->post('https://servernet.cloud/admin/login', ['email' => 'synthetic@example.test', 'password' => 'synthetic'])
+            ->assertNotFound();
+        $this->post('https://servernet.cloud/account/profile', ['name' => 'synthetic'])->assertNotFound();
+    }
+
     public function test_main_host_redirects_register_to_console(): void
     {
         $this->on('servernet.cloud', '/register')

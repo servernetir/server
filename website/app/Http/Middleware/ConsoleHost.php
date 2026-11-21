@@ -25,8 +25,8 @@ use Symfony\Component\HttpFoundation\Response;
  *      کنسول. کارفرما خواست همهٔ پنل روی کنسول باشد؛ این تضمین می‌کند حتی
  *      لینک قدیمی هم به جای درست برود.
  *
- * فقط GET ریدایرکت می‌شود — POST (ارسال فرم) نباید ۳۰۱ شود چون بدنه‌اش گم
- * می‌شود. فرم‌ها روی کنسول رندر می‌شوند و مستقیم به کنسول POST می‌کنند.
+ * فرم‌های پنل روی کنسول ارسال می‌شوند. درخواست تغییردهنده به مسیر پنل
+ * روی دامنهٔ سایت رد می‌شود و درخواست خواندنی به کنسول هدایت می‌شود.
  */
 class ConsoleHost
 {
@@ -45,6 +45,8 @@ class ConsoleHost
     private const PANEL = [
         'login', 'login/*', 'logout', 'register', 'register/*',
         'account', 'account/*',
+        // Campaign continuation belongs to the same host-only session as login.
+        'm/*',
         'admin', 'admin/*',
         'en/admin/identity-api', 'en/admin/identity-api/*',
         'tr/admin/identity-api', 'tr/admin/identity-api/*',
@@ -58,6 +60,8 @@ class ConsoleHost
         // بازگشت درگاه پرداخت: اگر پرداخت روی کنسول شروع شده، callback هم
         // باید روی کنسول بنشیند وگرنه وسط تسویه به دامنهٔ اصلی پرت می‌شود
         'payment/*',
+        // The private GPU recovery form starts its next intent on this host.
+        'gpu/order', 'en/gpu/order', 'tr/gpu/order',
         // AJAX پنل (وضعیت دامنه و…) نباید ۳۰۱ شود
         'api/*',
         // OpenAI-compatible clients also use the console host. A 301 changes
@@ -81,11 +85,8 @@ class ConsoleHost
      * `servernet.cloud/admin/impersonate/stop` پست می‌کرد: یک کنشِ مدیریتی روی
      * میزبانِ بازاریابی، جایی که هیچ مسیرِ پنلی نباید بنشیند.
      *
-     * امروز نشست بین دو میزبان مشترک است (`SESSION_DOMAIN=.servernet.cloud`)
-     * پس معمولاً کار می‌کند؛ ولی این یک **وابستگیِ نانوشته** به یک تنظیمِ
-     * `.env` است. اگر آن تنظیم روزی برداشته شود، دکمه بی‌صدا به صفحهٔ ورود
-     * می‌رود و مدیر داخلِ حسابِ مشتری گیر می‌افتد — همان خرابی که یک بار
-     * (به علتِ z-index) رخ داد و در کامنتِ همان فایل ثبت است.
+     * نشست تولید اکنون به میزبان محدود است؛ فرم باید مستقیماً به کنسول
+     * ارسال شود تا همان نشست مدیریتی استفاده شود و مدیر در حساب مشتری نماند.
      *
      * ⚠️ روی localhost و تست عمداً مسیرِ نسبی برمی‌گردد، وگرنه دکمهٔ محلی به
      * کنسولِ **پروداکشن** پست می‌کرد.
@@ -162,6 +163,10 @@ class ConsoleHost
 
         // ریدایرکت به کنسول فقط روی دامنهٔ واقعی تولید — نه localhost یا
         // محیط تست، وگرنه توسعهٔ محلی هم به کنسول تولید پرت می‌شود
+        if (HostSessionIsolation::applies($request->getHost()) && ! $request->isMethodSafe()
+            && $request->is(self::PANEL)) {
+            abort(404);
+        }
         if ($this->isMainProd($request) && $request->isMethod('GET') && $request->is(self::PANEL)) {
             return redirect()->away(self::CONSOLE.ltrim($request->getRequestUri(), '/'), 301);
         }

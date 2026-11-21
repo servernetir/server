@@ -173,8 +173,8 @@ class IppanelSender implements SmsSender, SupportsPatterns
         $detail = [
             'http'    => $res->status(),
             'scheme'  => $scheme,
-            'code'    => data_get($json, 'meta.message_code'),
-            'message' => data_get($json, 'meta.message') ?: mb_substr($res->body(), 0, 200),
+            'code'    => is_numeric(data_get($json, 'meta.message_code')) ? (int) data_get($json, 'meta.message_code') : null,
+            'message' => 'provider_rejected',
         ];
 
         Log::warning('آی‌پی‌پنل پیامک را رد کرد', $detail);
@@ -205,10 +205,10 @@ class IppanelSender implements SmsSender, SupportsPatterns
                 ->asJson()
                 ->post(self::BASE.'/api/send', $body);
         } catch (\Throwable $e) {
-            Log::warning('آی‌پی‌پنل در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('آی‌پی‌پنل در دسترس نبود', ['exception' => $e::class]);
             Cache::put('sms:last_error', [
                 'http' => 0, 'scheme' => $scheme, 'code' => 'network',
-                'message' => mb_substr($e->getMessage(), 0, 200),
+                'message' => 'transport_failed',
                 'at' => now()->toIso8601String(),
             ], now()->addDay());
 

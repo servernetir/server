@@ -72,7 +72,7 @@ class N8nRelaySender extends SignedRelaySender
 
     protected function deliver(string $envelope): bool
     {
-        $res = Http::asJson()->acceptJson()->timeout(15)->retry(2, 500)
+        $res = Http::asJson()->acceptJson()->withoutRedirecting()->timeout(15)->retry(2, 500)
             ->post((string) $this->url, ['envelope' => $envelope]);
 
         /*
@@ -85,7 +85,7 @@ class N8nRelaySender extends SignedRelaySender
         | خرابیِ خاموشی که این کلاس برای رفعش نوشته شد.
         */
         if (! $res->successful()) {
-            throw new \RuntimeException('n8n کدِ '.$res->status().' داد: '.mb_substr($res->body(), 0, 200));
+            throw new RelayDeliveryException('http_'.$res->status());
         }
 
         /*
@@ -102,9 +102,10 @@ class N8nRelaySender extends SignedRelaySender
         $status = (string) $res->json('status', '');
 
         if ($status !== 'sent') {
-            throw new \RuntimeException('n8n پاکت را نپذیرفت'
-                .($status !== '' ? " ({$status})" : '').': '
-                .(string) $res->json('reason', 'پاسخِ ناشناخته'));
+            $reason = (string) $res->json('reason', '');
+            $known = ['bad_signature', 'expired', 'replay', 'unknown_template', 'invalid_envelope',
+                'not_configured', 'rate_limited', 'provider_failed'];
+            throw new RelayDeliveryException(in_array($reason, $known, true) ? $reason : 'upstream_rejected');
         }
 
         return true;

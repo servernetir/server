@@ -1,0 +1,116 @@
+name: Security regression
+
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/**', 'relay/**', 'infra/hermes-social/**', 'tools/security/**', '.github/workflows/security-regression.yml']
+  push:
+    branches: [develop]
+    paths: ['website/**', 'relay/**', 'infra/hermes-social/**', 'tools/security/**', '.github/workflows/security-regression.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PAO_DISABLE: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install and audit locked dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+          composer check-platform-reqs
+          composer audit --locked
+      - name: Verify session, access, delivery and payment controls
+        working-directory: website
+        run: |
+          python3 ../tools/security/run-offline.py -- php vendor/bin/phpunit \
+            tests/Feature/SessionCookieDomainTest.php \
+            tests/Feature/ConsoleHostTest.php \
+            tests/Feature/AdminAuthOtpTest.php \
+            tests/Feature/AdminLoginMethodsTest.php \
+            tests/Feature/TwoFactorAppTest.php \
+            tests/Feature/GoogleAuthTest.php \
+            tests/Feature/OtpLoginTest.php \
+            tests/Feature/GpuPublicOrderTest.php \
+            tests/Feature/CustomerCloudApiTest.php \
+            tests/Feature/OperationalAccessTest.php \
+            tests/Feature/SystemDiagnosticsGuardTest.php \
+            tests/Feature/SecurityControlsTest.php \
+            tests/Feature/CloudProxmoxTest.php \
+            tests/Feature/MarketingCampaignEngineTest.php \
+            tests/Feature/PaymentCallbackTest.php \
+            tests/Feature/WalletPrimitivesTest.php \
+            tests/Feature/TicketAttachmentTest.php \
+            tests/Feature/N8nSmsRelayTest.php \
+            tests/Feature/ErrorTrackerTest.php \
+            tests/Feature/WebProbeTest.php \
+            tests/Unit/SafeUrlTest.php \
+            tests/Unit/NetworkToolsSslTest.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify gateway and relay contracts
+        run: python3 tools/security/run-offline.py -- node --test relay/cloudflare/gpu-proxy.test.mjs relay/n8n/*.test.js relay/n8n/*.test.cjs
+
+  social:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install and check locked social dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/security-social-venv"
+          echo "SOCIAL_PYTHON=$RUNNER_TEMP/security-social-venv/bin/python" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/security-social-venv/bin/python" --version
+          "$RUNNER_TEMP/security-social-venv/bin/python" -m pip install --no-input --disable-pip-version-check -r infra/hermes-social/requirements.lock
+          "$RUNNER_TEMP/security-social-venv/bin/python" -m pip check
+      - name: Audit every locked Python package against OSV
+        run: |
+          "$SOCIAL_PYTHON" - <<'PY'
+          import json, re, urllib.request
+          from pathlib import Path
+          queries = []
+          for raw in Path('infra/hermes-social/requirements.lock').read_text().splitlines():
+              line = raw.strip()
+              if not line or line.startswith('#'):
+                  continue
+              if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*==[^\s]+', line):
+                  raise SystemExit('Unsupported lock entry')
+              name, version = line.split('==', 1)
+              queries.append({'package': {'ecosystem': 'PyPI', 'name': name}, 'version': version})
+          if not queries:
+              raise SystemExit('Empty dependency audit')
+          request = urllib.request.Request('https://api.osv.dev/v1/querybatch',
+              data=json.dumps({'queries': queries}).encode(), headers={'Content-Type': 'application/json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              result = json.load(response)
+          results = result.get('results', [])
+          if len(results) != len(queries) or any(item.get('error') for item in results):
+              raise SystemExit('Incomplete dependency audit')
+          found = [{'package': queries[i]['package']['name'], 'ids': [v['id'] for v in item['vulns']]}
+              for i, item in enumerate(results) if item.get('vulns')]
+          print(json.dumps({'packages': len(queries), 'vulnerable_packages': found}))
+          if found:
+              raise SystemExit(1)
+          PY
+      - name: Verify social executor with network sockets blocked
+        env:
+          PYTHONPATH: infra/hermes-social/src
+        run: python3 tools/security/run-offline.py -- "$SOCIAL_PYTHON" -m unittest discover -s infra/hermes-social/tests -v

@@ -25,6 +25,12 @@ use Tests\TestCase;
  */
 class SystemHealthIsCheapTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->make(['role' => 'admin']));
+    }
+
     use RefreshDatabase;
 
     public function test_a_second_hit_makes_no_outbound_calls_at_all(): void

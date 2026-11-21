@@ -42,54 +42,38 @@ class SystemDiagnosticsGuardTest extends TestCase
     }
 
     /** بخشِ فقط‌خواندنی عمومی می‌مانَد — برای عیب‌یابیِ allowlist لازم است */
-    public function test_the_read_only_part_stays_public(): void
+    public function test_read_only_diagnostics_require_an_admin(): void
     {
-        $json = $this->get('/system/openprovider')->assertOk()->json();
-
-        $this->assertArrayHasKey('creds_present', $json);
-        $this->assertFalse($json['admin']);
+        $this->get('/system/openprovider')->assertForbidden();
+        Http::assertNothingSent();
     }
 
     /** 🔴 مهم‌ترین تست: مهمان نمی‌تواند تماسِ واقعی به رجیسترار بزند */
     public function test_a_guest_cannot_trigger_a_registrar_login(): void
     {
-        $json = $this->get('/system/openprovider?probe=1')->assertOk()->json();
-
-        $this->assertSame('skipped', $json['auth'],
-            'مهمان توانست تلاشِ ورود به رجیسترار بزند — همان کاری که حساب را قفل می‌کند');
-        $this->assertNull($json['sample_code']);
-
-        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/auth/login'));
+        $this->get('/system/openprovider?probe=1')->assertForbidden();
+        Http::assertNothingSent();
     }
 
     /** درگاهِ پرداخت هم نباید با یک URL از بیرون تحریک شود */
     public function test_a_guest_cannot_trigger_the_payment_gateway(): void
     {
-        $json = $this->get('/system/openprovider?probe=1')->assertOk()->json();
-
-        $this->assertNull($json['zarinpal_test']);
-        $this->assertNull($json['zarinpal_gw_start']);
-
-        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'zarinpal.com'));
+        $this->get('/system/openprovider?probe=1')->assertForbidden();
+        Http::assertNothingSent();
     }
 
     /** ارسالِ ایمیل هم — وگرنه هر بازدید یک ایمیل و سوختنِ سهمیهٔ SMTP */
     public function test_a_guest_cannot_trigger_a_real_email(): void
     {
         \Illuminate\Support\Facades\Mail::fake();
-
-        $this->get('/system/openprovider?mailtest=1')->assertOk();
-
+        $this->get('/system/openprovider?mailtest=1')->assertForbidden();
         \Illuminate\Support\Facades\Mail::assertNothingSent();
     }
 
     /** نقشهٔ زیرساختِ ایمیل هم عمومی نیست — کارِ جعلِ فرستنده را آسان می‌کند */
     public function test_mail_configuration_is_hidden_from_guests(): void
     {
-        $json = $this->get('/system/openprovider')->assertOk()->json();
-
-        $this->assertIsString($json['mail_env_values']);
-        $this->assertIsString($json['mail_env_keys']);
+        $this->get('/system/openprovider')->assertForbidden();
     }
 
     /** مدیرِ واردشده همچنان همه‌چیز را می‌بیند — ابزار نباید بی‌فایده شود */
@@ -113,6 +97,7 @@ class SystemDiagnosticsGuardTest extends TestCase
      */
     public function test_the_sms_status_route_does_not_blow_up(): void
     {
+        $this->actingAs($this->admin());
         $json = $this->get('/system/sms-status')->assertOk()->json();
 
         foreach (['bot_token_set', 'chat_id_set', 'secret_set'] as $k) {
@@ -131,6 +116,7 @@ class SystemDiagnosticsGuardTest extends TestCase
      */
     public function test_the_relay_secrets_never_appear_in_the_response(): void
     {
+        $this->actingAs($this->admin());
         config([
             'services.sms.bale_relay.bot_token' => '1234567:AA-SECRET-BOT-TOKEN',
             'services.sms.bale_relay.chat_id'   => '-1009876543210',

@@ -4,6 +4,7 @@
 */
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+const php = process.env.PHP_BINARY || (process.platform === 'win32' ? 'C:/php/php.exe' : 'php');
 
 const SECRET = 'test-shared-secret';
 const CHAT = '6170924327';
@@ -14,7 +15,7 @@ const code = fs.readFileSync(__dirname + '/verify-and-map-template.js', 'utf8');
 // n8n بدنهٔ Code node را داخلِ یک تابع می‌گذارد، پس `return` سطحِ بالا مجاز است
 const run = new Function('$json', code);
 
-const envelope = execFileSync('C:/php/php.exe', [__dirname + '/make-envelope.php', SECRET], { encoding: 'utf8' });
+const envelope = execFileSync(php, [__dirname + '/make-envelope.php', SECRET], { encoding: 'utf8' });
 
 const cfg = {
   baleReceiverBotToken: 'RECV', allowedRelayChatId: CHAT, allowedSenderBotId: SENDER,
@@ -83,7 +84,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
 
 // ── ۶) پاکتِ کهنه (خارج از پنجرهٔ ۱۸۰ ثانیه) ──
 {
-  const old = execFileSync('C:/php/php.exe', ['-r',
+  const old = execFileSync(php, ['-r',
     '$p=["version"=>1,"template"=>"otp","mobile"=>"+989142223343","params"=>["code"=>"1"],"request_id"=>"x","issued_at"=>time()-9999];' +
     '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
     '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +
@@ -94,7 +95,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
 
 // ── ۷) الگوی ناشناخته ──
 {
-  const unk = execFileSync('C:/php/php.exe', ['-r',
+  const unk = execFileSync(php, ['-r',
     '$p=["version"=>1,"template"=>"no_such","mobile"=>"+989142223343","params"=>["code"=>"1"],"request_id"=>"x","issued_at"=>time()];' +
     '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
     '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +
@@ -133,7 +134,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
 
 // ── ۹) متغیرِ جاافتاده ──
 {
-  const miss = execFileSync('C:/php/php.exe', ['-r',
+  const miss = execFileSync(php, ['-r',
     '$p=["version"=>1,"template"=>"invoice","mobile"=>"+989142223343","params"=>["number"=>"۱۲۳"],"request_id"=>"x","issued_at"=>time()];' +
     '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
     '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +
@@ -144,7 +145,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
 
 // ── ۱۰) پیامِ فارسیِ واقعی با ارقامِ فارسی در متغیر ──
 {
-  const fa = execFileSync('C:/php/php.exe', ['-r',
+  const fa = execFileSync(php, ['-r',
     '$p=["version"=>1,"template"=>"invoice","mobile"=>"+989142223343","params"=>["number"=>"SN-۱۰۴۸۲۹","amount"=>"۲٬۵۰۰٬۰۰۰"],"request_id"=>"x","issued_at"=>time()];' +
     '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
     '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +
@@ -163,7 +164,7 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
  *    می‌کند و پیامک بی‌صدا نمی‌رود.
  */
 {
-  const del = execFileSync('C:/php/php.exe', ['-r',
+  const del = execFileSync(php, ['-r',
     '$p=["version"=>1,"template"=>"otp_service_delete","mobile"=>"+989142223343","params"=>["code"=>"483920"],"request_id"=>"x","issued_at"=>time()];' +
     '$j=json_encode($p,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' +
     '$b=rtrim(strtr(base64_encode($j),"+/","-_"),"=");' +

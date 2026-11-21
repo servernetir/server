@@ -500,9 +500,40 @@ class WebProbe
     /** زمان‌سنجی کامل curl برای ابزار سرعت */
     protected function curlTimings(string $url): ?array
     {
+        $started = hrtime(true);
+        $options = $this->timingOptions($url);
+        $dnsSeconds = (hrtime(true) - $started) / 1_000_000_000;
+        if ($options === null) {
+            return null;
+        }
+        $transfer = $this->timingTransfer($url, $options);
+        $info = $transfer['info'];
+        $status = (int) ($info['http_code'] ?? 0);
+        if ($status === 0) {
+            return null;
+        }
+        $ms = fn (string $key) => ! isset($info[$key]) ? null
+            : ($key === 'appconnect_time' && $info[$key] == 0 ? 0
+                : (int) round(($info[$key] + $dnsSeconds) * 1000));
+
+        return [
+            'status' => $status, 'dns_ms' => $ms('namelookup_time'),
+            'connect_ms' => $ms('connect_time'), 'tls_ms' => $ms('appconnect_time'),
+            'ttfb_ms' => $ms('starttransfer_time'), 'total_ms' => $ms('total_time'),
+            'size' => $transfer['size'],
+        ];
+    }
+
+    protected function timingOptions(string $url): ?array
+    {
+        return SafeUrl::curlOptionsFor($url);
+    }
+
+    protected function timingTransfer(string $url, array $options): array
+    {
         $body = 0;
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_CONNECTTIMEOUT => 10,
@@ -519,30 +550,19 @@ class WebProbe
         $info = curl_getinfo($ch);
         curl_close($ch);
 
-        $status = (int) ($info['http_code'] ?? 0);
-        if ($status === 0) {
-            return null;
-        }
-
-        $ms = fn (string $key) => isset($info[$key]) ? (int) round($info[$key] * 1000) : null;
-
-        return [
-            'status'     => $status,
-            'dns_ms'     => $ms('namelookup_time'),
-            'connect_ms' => $ms('connect_time'),
-            'tls_ms'     => $ms('appconnect_time'),
-            'ttfb_ms'    => $ms('starttransfer_time'),
-            'total_ms'   => $ms('total_time'),
-            'size'       => $body,
-        ];
+        return ['info' => $info, 'size' => $body];
     }
 
     /** هدرهای پاسخ (کلید حروف‌کوچک). بدنه بعد از اولین بایت‌ها قطع می‌شود. */
     protected function fetchHeaders(string $url): ?array
     {
         $headers = [];
+        $options = SafeUrl::curlOptionsFor($url);
+        if ($options === null) {
+            return null;
+        }
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 12,
             CURLOPT_CONNECTTIMEOUT => 8,

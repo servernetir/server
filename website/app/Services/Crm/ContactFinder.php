@@ -145,8 +145,12 @@ class ContactFinder
 
     private function fetch(string $url): string
     {
+        $options = SafeUrl::curlOptionsFor($url);
+        if ($options === null) {
+            return '';
+        }
         $ch = curl_init($url);
-        curl_setopt_array($ch, SafeUrl::curlOptions() + [
+        curl_setopt_array($ch, $options + [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_CONNECTTIMEOUT => 8,
@@ -165,8 +169,12 @@ class ContactFinder
 
         // یک پرشِ ریدایرکت را دستی دنبال می‌کنیم (خودکارش با نگهبانِ SSRF جور نیست)
         if (in_array($code, [301, 302, 303, 307, 308], true) && $loc !== '' && SafeUrl::allowed($loc)) {
+            $options = SafeUrl::curlOptionsFor($loc);
+            if ($options === null) {
+                return '';
+            }
             $ch = curl_init($loc);
-            curl_setopt_array($ch, SafeUrl::curlOptions() + [
+            curl_setopt_array($ch, $options + [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 15,
                 CURLOPT_CONNECTTIMEOUT => 8,

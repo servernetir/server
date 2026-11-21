@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\OtpMail;
 use App\Models\BusinessEntry;
 use App\Models\CreditEntry;
 use App\Models\Customer;
@@ -29,6 +30,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -518,6 +520,69 @@ class MarketingCampaignEngineTest extends TestCase
         $this->actingAs($c, 'customer')->get('/account/offers/'.$g->id.'/open')->assertRedirect('/account/cloud-store');
         $this->actingAs($c, 'customer')->get('/account/offers/'.$g->id.'/open')->assertRedirect();
         $this->assertDatabaseCount('marketing_events', 1);
+        $this->assertDatabaseCount('marketing_redemptions', 0);
+    }
+
+    public function test_marketing_host_tracking_moves_to_console_before_saving_a_continuation(): void
+    {
+        $customer = $this->customer();
+        $grant = $this->grant($this->campaign(), $customer);
+        $path = '/m/'.$grant->track_token.'?utm_source=fixture';
+
+        $this->get('https://servernet.cloud'.$path)
+            ->assertRedirect('https://console.servernet.cloud'.$path)
+            ->assertSessionMissing('url.intended');
+        $this->assertDatabaseCount('marketing_events', 0);
+        $this->assertDatabaseCount('marketing_redemptions', 0);
+    }
+
+    public function test_console_tracking_preserves_the_grant_through_real_otp_login(): void
+    {
+        Mail::fake();
+        $customer = $this->customer();
+        $grant = $this->grant($this->campaign(), $customer);
+        $target = 'https://console.servernet.cloud/account/offers/'.$grant->id.'/open';
+
+        $response = $this->get('https://console.servernet.cloud/m/'.$grant->track_token)
+            ->assertRedirect('https://console.servernet.cloud/login')
+            ->assertSessionHas('url.intended', $target);
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === '__Host-servernet_session');
+        $this->assertNotNull($cookie);
+        $this->assertNull($cookie->getDomain());
+        $this->assertTrue($cookie->isSecure());
+
+        $this->post('https://console.servernet.cloud/login', [
+            'method' => 'email', 'identifier' => $customer->email,
+        ])->assertRedirect('https://console.servernet.cloud/login/code');
+        $code = null;
+        Mail::assertSent(OtpMail::class, function (OtpMail $mail) use (&$code) {
+            $code = $mail->code;
+
+            return true;
+        });
+        $this->assertNotNull($code);
+        $this->post('https://console.servernet.cloud/login/verify', ['code' => $code])
+            ->assertRedirect($target);
+        $this->assertAuthenticatedAs($customer, 'customer');
+        $this->get($target)->assertRedirect('/account/cloud-store')
+            ->assertSessionHas('marketing_coupon', $grant->code);
+        $this->assertDatabaseCount('marketing_events', 1);
+        $this->assertDatabaseCount('marketing_redemptions', 0);
+    }
+
+    public function test_console_tracking_still_denies_another_customers_grant(): void
+    {
+        $owner = $this->customer();
+        $grant = $this->grant($this->campaign(), $owner);
+        $other = $this->customer();
+        $target = '/account/offers/'.$grant->id.'/open';
+
+        $this->actingAs($other, 'customer')->get('https://console.servernet.cloud/m/'.$grant->track_token)
+            ->assertRedirect($target);
+        $this->get('https://console.servernet.cloud'.$target)
+            ->assertNotFound()->assertSessionMissing('marketing_coupon');
+        $this->assertDatabaseCount('marketing_events', 0);
         $this->assertDatabaseCount('marketing_redemptions', 0);
     }
 
