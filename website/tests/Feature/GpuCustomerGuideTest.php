@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\Setting;
+use App\Services\Cloud\HourlyGpuStart;
+use Illuminate\Support\Facades\Http;
 
 /**
  * راهنمای استفادهٔ مشتری + دامنهٔ برندشده — خطِ GPU در پنل.
@@ -101,6 +103,67 @@ class GpuCustomerGuideTest extends CloudProvisionTest
         $this->assertStringContainsString('X-SN-Token: '.$tok, $html, 'فرمانِ curl بی‌توکن، 401 می‌گیرد.');
         $this->assertStringContainsString('/docs?sn_token='.$tok, $html, 'مرورگر بی‌توکنِ ورود به مستندات نمی‌رسد.');
         $this->assertStringContainsString(__('ui.cs_gpu_gate_token'), $html);
+        $this->assertStringContainsString(__('ui.cs_gpu_protected_address'), $html);
+    }
+
+    public function test_stopped_gpu_keeps_its_address_but_not_the_open_application_link(): void
+    {
+        Setting::putSecret('salad_gateway_secret', 'fake-test-only');
+        Setting::put('salad_branded_domain', 'servernet.cloud');
+        [$service, $instance] = $this->gpuService('gpu-jupyter', ['status' => 'off']);
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+        $this->assertStringContainsString('https://g-abc123-def456.servernet.cloud', $html);
+        $this->assertStringContainsString(__('ui.cs_gpu_access_off'), $html);
+        $this->assertStringNotContainsString('?sn_token='.$instance->accessToken(), $html);
+        $this->assertStringContainsString('name="action" value="on"', $html);
+        $this->assertStringNotContainsString('data-gpu-restart-cancel', $html);
+    }
+
+    public function test_off_gpu_with_a_pending_restart_offers_confirmed_normal_stop_instead_of_duplicate_start(): void
+    {
+        Http::fake();
+        [$service, $instance] = $this->gpuService('gpu-jupyter', ['status' => 'off']);
+        $service->update(['billing_mode' => 'hourly', 'hourly_rate_irt' => 1000,
+            'hold_reserve_irt' => 1000, 'provision_meta' => ['hourly_restart' => [
+                'amount_irt' => 1000, 'claimed_at' => now()->toISOString(),
+            ]]]);
+        $html = (string) $this->actingAs($service->customer, 'customer')
+            ->get(route('account.cloud.show', $service))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-gpu-restart-pending', $html);
+        $this->assertStringContainsString(__('ui.cs_gpu_restart_pending'), $html);
+        $this->assertStringContainsString(__('ui.cs_gpu_restart_pending_access'), $html);
+        $this->assertStringNotContainsString(__('ui.cs_gpu_access_off'), $html);
+        $this->assertStringContainsString('action="'.lroute('account.cloud.power', $service).'"', $html);
+        $this->assertStringContainsString('data-confirm="'.e(__('ui.cs_gpu_restart_pending_confirm')).'"', $html);
+        $this->assertMatchesRegularExpression('/<form[^>]*data-gpu-restart-cancel[^>]*>.*?name="_token"[^>]*>.*?name="action" value="off".*?<\/form>/s', $html);
+        $this->assertStringNotContainsString('name="action" value="on"', $html);
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame('off', $instance->fresh()->status);
+        Http::assertNotSent(fn ($request) => preg_match('~/(start|stop)$~', $request->url()) === 1);
+    }
+
+    public function test_pending_restart_control_requires_owner_active_hourly_and_off_status(): void
+    {
+        Http::fake();
+        [$service, $instance] = $this->gpuService('gpu-jupyter', ['status' => 'off']);
+        $service->update(['billing_mode' => 'hourly', 'hourly_rate_irt' => 1000,
+            'hold_reserve_irt' => 1000, 'provision_meta' => ['hourly_restart' => [
+                'amount_irt' => 1000, 'claimed_at' => now()->toISOString(),
+            ]]]);
+        $url = route('account.cloud.show', $service);
+        $this->actingAs($this->customer(), 'customer')->get($url)->assertNotFound();
+        $this->actingAs($service->customer, 'customer');
+        $service->update(['status' => 'suspended']);
+        $this->get($url)->assertOk()->assertDontSee('data-gpu-restart-cancel', false);
+        $service->update(['status' => 'active', 'billing_mode' => 'cycle']);
+        $this->get($url)->assertOk()->assertDontSee('data-gpu-restart-cancel', false);
+        $service->update(['billing_mode' => 'hourly']);
+        $instance->update(['status' => 'running']);
+        $this->get($url)->assertOk()->assertDontSee('data-gpu-restart-cancel', false);
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        Http::assertNotSent(fn ($request) => preg_match('~/(start|stop)$~', $request->url()) === 1);
     }
 
     /** بی‌راز، هیچ ردی از توکن نیست — سرویس‌های موجود نمی‌شکنند */

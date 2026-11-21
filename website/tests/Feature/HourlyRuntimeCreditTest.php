@@ -52,7 +52,8 @@ class HourlyRuntimeCreditTest extends TestCase
                 ]] : []]);
             }
             return Http::response(['current_state' => ['status' => $this->liveStatus === 'off'
-                ? 'stopped' : $this->liveStatus, 'description' => '']]);
+                ? 'stopped' : $this->liveStatus, 'description' => ''],
+                'networking' => ['dns' => 'runtime-test.salad.cloud']]);
         });
         Mail::fake();
         HourlyHold::flush();

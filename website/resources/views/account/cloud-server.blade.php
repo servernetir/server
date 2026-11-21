@@ -48,6 +48,15 @@
   $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
   $deliveryIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $inst);
+  // An unresolved restart may hold a reservation even while status is off.
+  // Surface the normal guarded Stop for an already delivered active service;
+  // never clear the reservation in the view.
+  $pendingGpuRestart = $ready && $inst->isGpuApp()
+      && $inst->provider === 'salad' && $inst->status === 'off'
+      && $service->status === 'active' && $service->provision_status === 'done'
+      && $service->isHourly() && (bool) $service->cloudPlan?->is_interruptible
+      && filled($inst->provider_ref) && in_array('off', $powerActions ?? [], true)
+      && \App\Services\Cloud\HourlyGpuStart::pending($service) > 0;
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
@@ -104,6 +113,7 @@
     'gpu_phase_downloading_pct' => __('ui.cs_gpu_phase_downloading_pct'),
     'gpu_phase_creating'    => __('ui.cs_gpu_phase_creating'),
     'gpu_phase_starting'    => __('ui.cs_gpu_phase_starting'),
+    'gpu_phase_gateway'     => __('ui.cs_gpu_phase_gateway'),
     'gpu_elapsed'           => __('ui.cs_gpu_elapsed'),
   ];
 @endphp
@@ -295,7 +305,12 @@
         <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
       </div>
 
-      @if($gpuUrl)
+      @if($gpuUrl && $inst->status !== 'running')
+        <p class="cb-warn" style="margin-top:12px">{{ __($pendingGpuRestart ? 'ui.cs_gpu_restart_pending_access' : 'ui.cs_gpu_access_off') }}</p>
+      @elseif($gpuUrl)
+        @if($gpuTok)
+          <p class="cb-foot">{{ __('ui.cs_gpu_protected_address') }}</p>
+        @endif
         <div class="cs-ssh" style="margin-top:12px">
           <small>{{ __('ui.cs_gpu_use_h') }}</small>
           @if($inst->image_key === 'gpu-ollama')
@@ -505,8 +520,18 @@
       <p class="dm-note warn">{{ __('ui.cs_lightnode_stop_first') }}</p>
     @endif
 
+    @if($pendingGpuRestart)
+      <p class="dm-note warn" data-gpu-restart-pending>{{ __('ui.cs_gpu_restart_pending') }}</p>
+    @endif
+
     <div class="pnl-acts">
-      @if($inst->status !== 'running' && in_array('on', $powerActions ?? [], true))
+      @if($pendingGpuRestart)
+        <form method="post" action="{{ lroute('account.cloud.power', $service) }}"
+              data-confirm="{{ __('ui.cs_gpu_restart_pending_confirm') }}" data-confirm-danger data-gpu-restart-cancel>
+          @csrf<input type="hidden" name="action" value="off">
+          <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_gpu_restart_pending_stop') }}</button>
+        </form>
+      @elseif($inst->status !== 'running' && in_array('on', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="on">
           <button class="pnl-btn"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_on') }}</button>
@@ -1049,6 +1074,7 @@
 
   var statusUrl = {{ Illuminate\Support\Js::from(lroute('account.cloud.status', $service)) }};
   var building  = {{ $ready ? 'false' : 'true' }};
+  var initialGpuStatus = {{ Illuminate\Support\Js::from($gpuLine ? $inst?->status : null) }};
   var steps     = document.getElementById('cb-steps');
 
   /* ── نوارِ مرحله‌ها ──
@@ -1160,6 +1186,12 @@
            غیرِ building (از جمله `unknown`ِ حاصلِ `activating`) صفحه را بازخوانی
            می‌کرد و مشتری چیدمانِ تحویل‌شده را با IPِ خالی می‌دید. */
         if (building && d.ready === true) {
+          window.location.reload();
+          return;
+        }
+        // Do not leave the active application links visible after a confirmed
+        // stop or access-readiness change, or hide them after a restart.
+        if (initialGpuStatus && d.ok === true && d.status && d.status !== initialGpuStatus) {
           window.location.reload();
           return;
         }

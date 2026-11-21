@@ -207,7 +207,7 @@ jobs:
       - name: Run core incident and public page regressions
         run: |
           set -euo pipefail
-          selected="$INCIDENT_CORE_FILTER"
+          selected="$INCIDENT_CORE_FILTER|test_a_running_machine_has_no_build_detail|test_readiness_is_checked_beyond_the_first_instance_with_an_ip|test_ready_replica_with_invalid_gateway_dns_is_not_ready|test_the_guide_carries_the_token_when_the_gate_is_armed|test_stopped_gpu_keeps_its_address_but_not_the_open_application_link|test_off_gpu_with_a_pending_restart_offers_confirmed_normal_stop_instead_of_duplicate_start|test_pending_restart_control_requires_owner_active_hourly_and_off_status"
           # This fixture deliberately creates a minimal settings table and requires SQLite.
           if [ "$DB_CONNECTION" = mysql ]; then
             selected="$(printf '%s' "$selected" | sed 's/|InternalLinkAssetResolutionTest//')"

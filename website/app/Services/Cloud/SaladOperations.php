@@ -5,6 +5,7 @@ namespace App\Services\Cloud;
 use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
+use App\Support\ErrorTracker;
 
 /**
  * تکهٔ دومِ درایورِ Salad — کاتالوگ، ساخت، وضعیت، فهرست، روشن/خاموش، حذف.
@@ -15,6 +16,14 @@ use App\Services\ExchangeRate;
  */
 trait SaladOperations
 {
+    /** A DNS value in the control-plane response is not an access test. */
+    private function gatewayHostname(array $group): ?string
+    {
+        $host = strtolower(trim((string) data_get($group, 'networking.dns', '')));
+
+        return preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,59}[a-z0-9])?\.salad\.cloud\z/', $host) ? $host : null;
+    }
+
     /** Known binary compatibility limits, checked before checkout and allocation. */
     public static function imageSupportsGpu(string $image, string $gpu): bool
     {
@@ -859,7 +868,7 @@ trait SaladOperations
                 'ready' => false, 'stopped' => $group['status'] === 404, 'state' => 'unknown'];
         }
         $state = strtolower((string) data_get($group['body'], 'current_state.status', ''));
-        $hostname = (string) data_get($group['body'], 'networking.dns', '');
+        $hostname = $this->gatewayHostname($group['body'] ?? []);
         $nodes = $this->req('GET', $this->proj('/'.rawurlencode($ref).'/instances'));
         $nodes['ok'] = $nodes['ok'] && is_array(data_get($nodes['body'], 'instances'));
         $ready = false;
@@ -869,9 +878,14 @@ trait SaladOperations
                     && ($node['started'] ?? false) === true && ($node['ready'] ?? false) === true);
             }
         }
+        $providerReady = $state === 'running' && $ready;
+        $gatewayReady = $providerReady && $hostname !== null;
+        if ($providerReady && ! $gatewayReady) {
+            ErrorTracker::noteOnce('provision', 'GPU control-plane gateway DNS is unavailable or invalid: '.$ref, 900, includeRequestContext: false);
+        }
         return ['ok' => $nodes['ok'] || $state === 'failed', 'exists' => true, 'state' => $state,
-            'hostname' => $hostname ?: null,
-            'ready' => $state === 'running' && $ready && $hostname !== '',
+            'hostname' => $hostname,
+            'ready' => $gatewayReady,
             'stopped' => $state === 'stopped' && $nodes['ok'] && count($this->items($nodes['body'])) === 0];
     }
 
@@ -957,6 +971,7 @@ trait SaladOperations
             }
         }
 
+        $hostname = $this->gatewayHostname($r['body'] ?? []);
         // Group "running" only means deployment finished, not that traffic is safe.
         if ($status === 'running' && ! $ready) {
             $status = 'building';
@@ -964,7 +979,13 @@ trait SaladOperations
                 $nodeState = 'starting';
             }
         } elseif ($status === 'running') {
-            $nodeState = 'running';
+            if ($hostname === null) {
+                ErrorTracker::noteOnce('provision', 'GPU control-plane gateway DNS is unavailable or invalid: '.$ref, 900, includeRequestContext: false);
+                $status = 'building';
+                $nodeState = 'gateway';
+            } else {
+                $nodeState = 'running';
+            }
         }
 
         return [
@@ -983,7 +1004,7 @@ trait SaladOperations
             | می‌گوید گره در چه مرحله‌ای است. قاعدهٔ «عددِ من‌درآوردی ممنوع»
             | سرِ جایش است — هر چه این‌جا نیست، صفحه هم نشان نمی‌دهد.
             */
-            'build'   => $this->buildDetail(
+            'build'   => $status === 'running' ? null : $this->buildDetail(
                 (string) data_get($r['body'], 'current_state.description', ''),
                 $nodeState,
                 $nodePct,
@@ -992,7 +1013,7 @@ trait SaladOperations
             | نشانیِ دروازه — این همان چیزی است که مشتری واقعاً با آن کار
             | می‌کند (نه IP). سینکِ وضعیت آن را در hostname نمونه می‌نشاند.
             */
-            'hostname' => (string) data_get($r['body'], 'networking.dns', '') ?: null,
+            'hostname' => $hostname,
             'traffic_used_gb' => null,
             'raw'     => is_array($r['body']) ? $r['body'] : [],
         ];
@@ -1005,6 +1026,9 @@ trait SaladOperations
      */
     private function buildDetail(string $description, ?string $nodeState, ?int $nodePct = null): ?array
     {
+        if ($nodeState === 'gateway') {
+            return ['phase' => 'gateway', 'pull_pct' => null];
+        }
         /*
         | «Pulling, 24% complete» — درصدِ واقعیِ آماده‌سازیِ ایمیج در زیرساخت.
         | ⚠️ تا وقتی این متن هست، هنوز هیچ گره‌ای تخصیص نگرفته؛ فازِ گره‌ها

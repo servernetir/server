@@ -75,6 +75,7 @@ class CloudFairHourlyMeteringTest extends TestCase
                     'status' => $this->saladStatus === 'off' ? 'stopped' : $this->saladStatus,
                     'description' => '',
                 ],
+                'networking' => ['dns' => 'metering-test.salad.cloud'],
             ], 200);
         });                            // هیچ تماسِ بیرونی، در هیچ مسیری
     }

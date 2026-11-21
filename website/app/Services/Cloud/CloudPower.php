@@ -5,6 +5,7 @@ namespace App\Services\Cloud;
 use App\Models\ActivityLog;
 use App\Models\CloudInstance;
 use App\Models\Service;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
@@ -32,7 +33,7 @@ class CloudPower
     {
         $expectedCustomer = $service->customer_id;
         $lock = Cache::lock('cloud-power:'.$service->id, 300);
-        if (! $lock->get()) { return $this->fail('operation_in_progress', __('ui.cx_not_ready'), 409); }
+        if (! $lock->get()) { return $this->fail('operation_in_progress', __('ui.cx_power_busy'), 409); }
         try {
             $service->refresh();
             if ($service->customer_id !== $expectedCustomer) { return $this->fail('not_found', __('customer-api.not_found'), 404); }
@@ -48,6 +49,7 @@ class CloudPower
                     ? $q->where('state', 'processing')->where('created_at', '>=', now()->subMinutes(5))
                     : $q->whereIn('state', ['processing', 'uncertain']))
                 ->when($operationId, fn ($q) => $q->where('id', '!=', $operationId))->exists()) {
+                $this->noteDenial($service, 'reconciliation_required');
                 return $this->fail('reconciliation_required', __('customer-api.reconcile'), 409);
             }
             $instance = CloudInstance::where('service_id', $service->id)->first();
@@ -66,7 +68,8 @@ class CloudPower
                 try { $live = $driver->serverStatus((string) $instance->provider_ref); }
                 catch (\Throwable $e) { report($e); $live = ['ok' => false]; }
                 if (! ($live['ok'] ?? false) || ! in_array($live['status'] ?? '', ['running', 'off'], true)) {
-                    return $this->fail('status_unavailable', __('ui.cx_not_ready'), 503);
+                    $this->noteDenial($service, 'status_unavailable');
+                    return $this->fail('status_unavailable', __('ui.cx_power_status_unconfirmed'), 503);
                 }
                 $service->refresh(); $instance->refresh();
                 if ($service->customer_id !== $expectedCustomer || [$instance->id, $instance->provider, $instance->provider_ref] !== $identity) { return $this->fail('not_found', __('customer-api.not_found'), 404); }
@@ -82,7 +85,10 @@ class CloudPower
             $claimed = null;
             if ($action === 'on' && $this->clock->applies($service)) {
                 $start = app(HourlyGpuStart::class)->claim($service);
-                if ($start['pending'] ?? false) { return $this->fail('operation_in_progress', __('ui.cx_not_ready'), 409); }
+                if ($start['pending'] ?? false) {
+                    $this->noteDenial($service, 'restart_pending');
+                    return $this->fail('operation_in_progress', __('ui.cx_power_restart_pending'), 409);
+                }
                 if (isset($start['minimum'])) {
                     return $this->fail('insufficient_credit', __('ui.cx_e_hourly_credit', [
                         'hours' => fa_num(1), 'min' => cloud_price($start['minimum']), 'bal' => cloud_price($start['available']),
@@ -92,7 +98,7 @@ class CloudPower
             }
             if (! Service::whereKey($service->id)->where('customer_id', $expectedCustomer)->exists()
                 || ! CloudInstance::whereKey($instance->id)->where('service_id', $service->id)->where('provider_ref', $instance->provider_ref)->exists()) {
-                return $this->fail('resource_changed', __('ui.cx_not_ready'), 409);
+                return $this->fail('resource_changed', __('ui.cx_power_resource_changed'), 409);
             }
             Cache::forget('cloud-st:'.$instance->id);
             try {
@@ -148,5 +154,22 @@ class CloudPower
     private function fail(string $error, string $message, int $status): array
     {
         return ['ok' => false, 'error' => $error, 'message' => $message, 'http_status' => $status];
+    }
+
+    /**
+     * Log only fixed operational reason codes after the service ownership check.
+     * No provider response, request/referrer, wallet, customer or lock data.
+     */
+    private function noteDenial(Service $service, string $reason): void
+    {
+        try {
+            ErrorTracker::noteOnce('cloud_power',
+                'Cloud power operation blocked for service #'.$service->id.' ('.$reason.')',
+                900, ['service_id' => (int) $service->id, 'reason' => $reason],
+                includeRequestContext: false);
+        } catch (\Throwable) {
+            // Logging is best-effort and may never change a protected denial.
+            return;
+        }
     }
 }
