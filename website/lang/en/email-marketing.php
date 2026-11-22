@@ -3,7 +3,7 @@
 return [
     'title' => 'Email subscription management',
     'account_title' => 'Marketing email preferences',
-    'admin_intro' => 'Review consent for verified customer accounts. This module sends no emails and is independent of transactional messages.',
+    'admin_intro' => 'Registered customers follow the default subscription policy; preference and suppression history is kept here.',
     'metric_all' => 'Recorded preferences',
     'metric_pending' => 'Awaiting consent',
     'metric_granted' => 'Recorded consent',

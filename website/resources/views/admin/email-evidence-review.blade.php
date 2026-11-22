@@ -111,7 +111,7 @@
       @endforeach
     @endif
     <div class="er-stat">
-      <div><dt>{{ __('email-evidence-review.eligible_records') }}</dt><dd data-evidence-eligible="0">0</dd><small>{{ __('email-evidence-review.eligible_note') }}</small></div>
+      <div><dt>{{ __('email-evidence-review.eligible_records') }}</dt><dd data-evidence-eligible="{{ $campaignSummary['external_ready'] ?? 0 }}">{{ number_format($campaignSummary['external_ready'] ?? 0) }}</dd><small>{{ __('email-evidence-review.eligible_note') }}</small></div>
       <span class="er-stat-icon neutral"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="m8 8 8 8m0-8-8 8"/></svg></span>
     </div>
   </dl>
@@ -191,13 +191,13 @@
           <div role="status" class="er-alert"><p>{{ session('document_success') }}</p></div>
         @endif
         @if($documentAvailable > 0)
-          <form id="evidence-document-group" name="evidence-document-group" class="er-form" method="post" action="{{ route('admin.email-marketing.evidence.documents') }}" autocomplete="off">
+          <form id="evidence-document-group" name="evidence-document-group" class="er-form" method="post" action="{{ route('admin.email-marketing.bulk-approve') }}" autocomplete="off">
             @csrf
             <input type="hidden" name="expected_count" value="{{ $documentAvailable }}">
             <fieldset class="er-document-options">
               <legend>{{ __('email-evidence-review.document_selection') }}</legend>
-              <label class="er-document-option"><input type="radio" name="selection" value="selected" checked required><span>{{ __('email-evidence-review.document_selected') }}</span></label>
-              <label class="er-document-option"><input type="radio" name="selection" value="all_pending" @disabled($documentAvailable > 1000)><span>{{ __('email-evidence-review.document_all_pending', ['count' => number_format($documentAvailable)]) }}</span></label>
+              <label class="er-document-option"><input type="radio" name="selection" value="selected" @checked($documentAvailable > 1000) required><span>{{ __('email-evidence-review.document_selected') }}</span></label>
+              <label class="er-document-option"><input type="radio" name="selection" value="all_pending" @checked($documentAvailable <= 1000) @disabled($documentAvailable > 1000)><span>{{ __('email-evidence-review.document_all_pending', ['count' => number_format($documentAvailable)]) }}</span></label>
               @if($documentAvailable > 1000)
                 <p>{{ __('email-evidence-review.document_limit') }}</p>
               @endif
@@ -224,15 +224,14 @@
             <th scope="col">{{ __('email-evidence-review.consent_date') }}</th>
             <th scope="col">{{ __('email-evidence-review.imported_at') }}</th>
             <th scope="col">{{ __('email-evidence-review.state') }}</th>
-            @if($documentReady)<th scope="col">{{ __('email-evidence-review.document_group') }}</th>@endif
             @if($reviewReady)<th scope="col">{{ __('email-evidence-review.review_action') }}</th>@endif
           </tr></thead>
           <tbody>
             @foreach($records as $record)
               @php
                 $decision = $reviewReady ? ($record->latestDecision?->decision ?? 'pending') : 'pending';
-                $documentItem = $documentReady ? $record->sharedDocumentItem : null;
-                $canLinkDocument = $documentReady && $record->latestDecision === null && $documentItem === null && $documentAvailable > 0;
+                $documentItem = null;
+                $canLinkDocument = $documentReady && $record->latestDecision === null && $documentAvailable > 0;
               @endphp
               <tr data-evidence-row="{{ $record->contact_id }}">
                 @if($documentReady)
@@ -242,9 +241,6 @@
                 <td><span dir="ltr">{{ $record->consent_date->format('Y-m-d') }}</span></td>
                 <td>{{ sdate($record->created_at) }}</td>
                 <td><span class="er-pill {{ $decision }}" data-evidence-state="{{ $decision }}">{{ $decision === 'pending' ? __('email-evidence-review.review_only') : __('email-evidence-review.state_'.$decision) }}</span></td>
-                @if($documentReady)
-                  <td>@if($documentItem)<span class="er-document-marker" data-evidence-document-batch="{{ $documentItem->batch_id }}">{{ __('email-evidence-review.document_batch', ['id' => $documentItem->batch_id]) }}</span>@else — @endif</td>
-                @endif
                 @if($reviewReady)
                   <td><a data-evidence-review-link class="btn btn-glass er-review-link" href="{{ route('admin.email-marketing.evidence.review', ['review' => $record->id]) }}">{{ __('email-evidence-review.review_action') }}</a></td>
                 @endif

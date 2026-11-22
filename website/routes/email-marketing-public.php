@@ -11,3 +11,10 @@ Route::get('/email-marketing/unsubscribe/{token}', [EmailUnsubscribeController::
 Route::post('/email-marketing/unsubscribe/{token}', [EmailUnsubscribeController::class, 'store'])
     ->where('token', $tokenPattern)->middleware('throttle:30,1')
     ->withoutMiddleware([PreventRequestForgery::class])->name('email-marketing.unsubscribe.submit');
+
+// Durable campaign withdrawals preserve all legacy unsubscribe capabilities.
+Route::get('/email-marketing/unsubscribe/campaign/{token}', [\App\Http\Controllers\EmailCampaignUnsubscribeController::class, 'show'])
+    ->where('token', $tokenPattern)->middleware('throttle:30,1')->name('email-marketing.campaign-unsubscribe');
+Route::post('/email-marketing/unsubscribe/campaign/{token}', [\App\Http\Controllers\EmailCampaignUnsubscribeController::class, 'withdraw'])
+    ->where('token', $tokenPattern)->middleware('throttle:30,1')
+    ->withoutMiddleware([PreventRequestForgery::class])->name('email-marketing.campaign-unsubscribe.submit');

@@ -85,21 +85,24 @@ class EmailMarketingPreferencesRoutesTest extends TestCase
         $this->assertSame(0, EmailMarketingPreference::count());
     }
 
-    public function test_account_requires_explicit_consent_and_rejects_unverified_or_impersonated_grants(): void
+    public function test_removed_account_page_redirects_and_old_posts_cannot_change_preferences(): void
     {
         $verified = $this->customer('verified@example.test');
         $unverified = $this->customer('unverified@example.test', false);
         $service = app(EmailMarketingPreferences::class);
-        $this->actingAs($verified, 'customer')->post('/account/email-preferences', ['action' => 'subscribe'])
-            ->assertSessionHasErrors('consent');
+        foreach (['' => '', '/en' => 'en.', '/tr' => 'tr.'] as $pathPrefix => $routePrefix) {
+            $this->actingAs($verified, 'customer')->get($pathPrefix.'/account/email-preferences')
+                ->assertRedirectToRoute($routePrefix.'account.profile');
+            $this->get($pathPrefix.'/account/profile')->assertOk()->assertDontSee('/account/email-preferences', false);
+            $this->post($pathPrefix.'/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])
+                ->assertGone();
+            $this->post($pathPrefix.'/account/email-preferences', ['action' => 'unsubscribe'])->assertGone();
+        }
         $this->actingAs($unverified, 'customer')->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])
-            ->assertSessionHasErrors('action');
-        $this->actingAs($verified, 'customer')->withSession(['impersonator_id' => 123])
-            ->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])
-            ->assertSessionHasErrors('action');
-        $this->post('/account/email-preferences', ['action' => 'unsubscribe'])->assertSessionHasErrors('action');
-        $this->assertFalse($service->eligible($verified));
-        $this->assertFalse($service->eligible($unverified));
+            ->assertGone();
+        $this->assertNull($service->preferenceFor($verified));
+        $this->assertNull($service->preferenceFor($unverified));
+        $this->assertDatabaseCount('email_marketing_preference_events', 0);
         Mail::assertNothingSent();
     }
 
@@ -107,8 +110,8 @@ class EmailMarketingPreferencesRoutesTest extends TestCase
     {
         $customer = $this->customer('subscriber@example.test');
         $service = app(EmailMarketingPreferences::class);
-        $this->actingAs($customer, 'customer')->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])
-            ->assertRedirect();
+        $this->actingAs($customer, 'customer');
+        $service->setConsent($customer, true);
         $this->assertTrue($service->eligible($customer));
         $token = $service->unsubscribeToken($service->preferenceFor($customer));
         Auth::guard('customer')->logout();
@@ -137,11 +140,12 @@ class EmailMarketingPreferencesRoutesTest extends TestCase
     public function test_email_change_clears_previous_verification_and_blocks_new_grant(): void
     {
         $customer = $this->customer('old@example.test');
-        $this->actingAs($customer, 'customer')->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])->assertRedirect();
+        $this->actingAs($customer, 'customer');
+        app(EmailMarketingPreferences::class)->setConsent($customer, true);
         $customer->forceFill(['email' => 'new@example.test', 'email_verified_at' => now()])->save();
         $this->assertNull($customer->fresh()->email_verified_at);
         $this->assertFalse(app(EmailMarketingPreferences::class)->eligible($customer));
-        $this->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])->assertSessionHasErrors('action');
+        $this->post('/account/email-preferences', ['action' => 'subscribe', 'consent' => '1'])->assertGone();
         Mail::assertNothingSent();
     }
 

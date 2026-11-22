@@ -5,8 +5,9 @@ use App\Http\Controllers\Admin\EmailEvidenceReviewController;
 use App\Http\Controllers\Admin\EmailEvidenceDecisionController;
 use App\Http\Controllers\Admin\EmailEvidenceDocumentController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\EmailMarketingCampaignController;
 
-// Loaded only inside the existing auth:web + admin group. No campaign/sending routes.
+// Loaded only inside the existing auth:web + admin group; POST actions retain CSRF protection.
 Route::get('/email-marketing', [EmailMarketingController::class, 'index'])->name('admin.email-marketing.index');
 Route::get('/email-marketing/sample', [EmailMarketingController::class, 'sample'])->name('admin.email-marketing.sample');
 Route::post('/email-marketing/stage', [EmailMarketingController::class, 'stage'])
@@ -25,3 +26,12 @@ Route::get('/email-marketing/evidence/{review}/review', [EmailEvidenceDecisionCo
     ->whereNumber('review')->name('admin.email-marketing.evidence.review');
 Route::post('/email-marketing/evidence/{review}/decision', [EmailEvidenceDecisionController::class, 'decide'])
     ->whereNumber('review')->middleware('throttle:10,1')->name('admin.email-marketing.evidence.decide');
+
+Route::post('/email-marketing/bulk-approve', [EmailMarketingCampaignController::class, 'approve'])
+    ->middleware('throttle:3,1')->name('admin.email-marketing.bulk-approve');
+Route::post('/email-marketing/recipients/import', [EmailMarketingCampaignController::class, 'import'])
+    ->middleware('throttle:3,1')->name('admin.email-marketing.recipients.import');
+Route::post('/email-marketing/campaigns', [EmailMarketingCampaignController::class, 'store'])
+    ->middleware('throttle:5,1')->name('admin.email-marketing.campaigns.store');
+Route::post('/email-marketing/campaigns/{campaign}/send', [EmailMarketingCampaignController::class, 'send'])
+    ->whereNumber('campaign')->middleware('throttle:3,1')->name('admin.email-marketing.campaigns.send');
