@@ -1,0 +1,383 @@
+<!doctype html><html lang="en" dir="ltr"><head><meta name="robots" content="noindex,nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ServerNet · Glass carousel preview</title><link rel="stylesheet" href="https://servernet.cloud/assets/css/site.css"><link rel="stylesheet" href="https://servernet.cloud/assets/css/atlas.css"><style>/* ServerNet homepage: infrastructure first, consumer Studio second. */
+.sn-hero-carousel{position:relative;isolation:isolate;overflow:hidden;--hero-duration:7000ms;--studio-ink:var(--sn-ink,#edf5ff);--studio-copy:var(--sn-copy,#a9b6ca);--studio-edge:rgba(111,188,233,.19)}
+.sn-hero-slides{display:grid;position:relative}
+.sn-hero-slides>[data-hero-slide]{grid-area:1/1;min-width:0;align-self:stretch;transition:opacity .75s cubic-bezier(.22,1,.36,1),transform .95s cubic-bezier(.22,1,.36,1),filter .7s,visibility 0s .8s}
+.sn-hero-slides>[data-hero-slide="studio"]{opacity:0;visibility:hidden;pointer-events:none;transform:translate3d(2%,0,0) scale(.985);filter:blur(9px)}
+.sn-hero-carousel[data-carousel-ready] [data-hero-slide]{opacity:0;visibility:hidden;pointer-events:none;transform:translate3d(-2%,0,0) scale(.985);filter:blur(9px)}
+.sn-hero-carousel[data-carousel-ready] [data-hero-slide].is-active{opacity:1;visibility:visible;pointer-events:auto;transform:none;filter:none;transition-delay:0s}
+html[dir="rtl"] .sn-hero-carousel[data-carousel-ready] [data-hero-slide]:not(.is-active){transform:translate3d(2%,0,0) scale(.985)}
+.sn-hero-carousel::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:linear-gradient(108deg,transparent 28%,rgba(101,196,240,.025) 42%,rgba(149,226,255,.14) 49%,rgba(42,177,226,.035) 56%,transparent 70%);transform:translateX(-110%) skewX(-12deg)}
+.sn-hero-carousel.is-transitioning::after{animation:sn-hero-glass-wipe 1.05s cubic-bezier(.25,.6,.2,1) both}
+.sn-hero-controls{display:none;position:relative;z-index:6;align-items:center;gap:22px;min-height:68px;padding-block:10px 18px!important}
+[data-carousel-ready] .sn-hero-controls{display:flex}
+.sn-hero-selectors{display:flex;align-items:center;gap:30px;flex-wrap:wrap}
+.sn-hero-selectors>button{display:flex;align-items:center;gap:11px;background:none;border:0;padding:10px 0;font-family:inherit;font-size:.875rem;font-weight:500;line-height:1.5;color:var(--sn-copy);cursor:pointer;min-height:44px}
+.sn-hero-compact{display:none}
+.sn-hero-selectors>button[aria-pressed="true"]{color:var(--sn-ink)}
+.sn-hero-progress{width:28px;height:2px;display:block;background:rgba(116,167,198,.25);overflow:hidden;transition:width .35s}
+.sn-hero-progress i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#3198ef,#36d9e5);transform-origin:left;transform:scaleX(0)}
+.sn-hero-selectors>button[aria-pressed="true"] .sn-hero-progress{width:64px}
+.sn-hero-selectors>button[aria-pressed="true"] .sn-hero-progress i{transform:scaleX(1)}
+.is-playing .sn-hero-selectors>button[aria-pressed="true"] .sn-hero-progress i{animation:sn-hero-progress var(--hero-duration) linear both}
+.sn-hero-autoplay{margin-inline-start:auto;width:42px;height:42px;display:grid;place-items:center;flex-shrink:0;border:1px solid var(--studio-edge);background:rgba(48,122,167,.045);color:var(--sn-copy);border-radius:50%;cursor:pointer}
+.sn-hero-autoplay>.icon{grid-area:1/1;width:17px;height:17px}.sn-hero-play-icon{display:none;fill:currentColor;stroke:none}
+.sn-hero-autoplay[aria-pressed="true"] .sn-hero-play-icon{display:block}.sn-hero-autoplay[aria-pressed="true"] .sn-hero-pause-icon{display:none}
+.sn-hero-announcement{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+.sn-hero-nojs{padding-block:20px;color:var(--sn-copy)}.sn-hero-nojs p{max-width:650px;line-height:1.9;margin-bottom:15px}
+.sn-hero-carousel :is(a,button):focus-visible{outline:2px solid #54d7eb;outline-offset:5px}
+.sn-studio-hero{display:flex;align-items:center;position:relative;padding:68px 0 60px;color:var(--studio-ink);overflow:hidden;background:radial-gradient(ellipse at 24% 45%,rgba(12,114,174,.075),transparent 52%)}
+.sn-studio-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(35px,5vw,100px);width:100%}
+.sn-studio-copy{min-width:0;position:relative;z-index:2;padding-block:20px}
+.sn-studio-brand{display:flex;align-items:center;gap:11px;color:#70d7ef;font-size:1.0625rem;font-weight:600;margin-bottom:26px}.sn-studio-brand>.icon{width:21px;height:21px}
+.sn-studio-new{font-size:.75rem;font-weight:500;padding:3px 9px;border:1px solid rgba(47,196,222,.25);color:#7bdae8;border-radius:6px;background:rgba(37,184,212,.07);margin-inline-start:3px}
+.sn-studio-copy h2{font-size:clamp(35px,3.5vw,58px);line-height:1.48;letter-spacing:-.035em;font-weight:700;color:var(--sn-ink);margin:0 0 23px;text-wrap:balance}
+.sn-studio-copy h2>span{display:block;background:linear-gradient(105deg,#429cf3,#3ed5e2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sn-studio-lead{font-size:1.0625rem;line-height:2;max-width:565px;margin:0 0 24px;color:var(--studio-copy)}
+.sn-studio-use-cases{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;padding:0;margin:0 0 31px}
+.sn-studio-use-cases li{display:flex;align-items:flex-start;gap:8px;color:#b9c9dc;font-size:.875rem;line-height:1.85;min-width:0}
+.sn-studio-use-cases .icon{width:16px;height:16px;flex-shrink:0;margin-top:4px;color:#3bc7dc}
+.sn-studio-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.sn-studio-actions .btn{font-size:.9375rem;min-height:50px;padding-inline:23px;border-radius:11px}
+.sn-studio-launch .icon{width:19px;height:19px}
+.sn-studio-billing{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:.8125rem;line-height:1.9;margin:21px 0 0;color:var(--sn-copy)}
+.sn-studio-scene{min-width:0;position:relative;max-width:680px;width:100%;justify-self:center;padding:44px 24px;perspective:1300px}
+.sn-studio-scene::before{content:"";position:absolute;inset:8% -7%;z-index:-1;background:radial-gradient(ellipse at 53% 55%,rgba(25,139,207,.19),rgba(22,107,161,.045) 49%,transparent 70%);filter:blur(25px);pointer-events:none}
+.sn-studio-orbit{position:absolute;inset:5% -3%;border:1px solid rgba(66,170,225,.13);border-radius:45%;transform:rotate(-27deg);pointer-events:none}
+.sn-studio-orbit::after{content:"";position:absolute;inset:8%;border:1px solid rgba(75,174,213,.065);border-radius:45%;transform:rotate(18deg)}
+.sn-studio-glass{position:relative;border:1px solid rgba(128,201,238,.28);border-radius:22px;background:linear-gradient(135deg,rgba(88,148,188,.14),rgba(29,55,83,.18) 45%,rgba(7,18,32,.66));box-shadow:0 30px 75px rgba(0,0,0,.32),inset 0 1px 0 rgba(200,235,255,.1),0 0 55px rgba(17,122,185,.05);backdrop-filter:blur(26px);transform:rotateY(-6deg) rotateZ(1.5deg);overflow:hidden}
+html[dir="rtl"] .sn-studio-glass{transform:rotateY(6deg) rotateZ(-1.5deg)}
+.sn-studio-glass-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 22px;color:#92a9c2;font-size:.75rem;border-bottom:1px solid rgba(137,197,228,.1)}
+.sn-studio-glass-brand{display:flex;align-items:center;gap:5px;color:#e8f2fc;font-size:1rem;letter-spacing:-.025em}.sn-studio-glass-brand>b{color:#6acde9;font-weight:500}.sn-studio-glass-brand .icon{width:20px;height:20px;color:#67d4eb;margin-inline-end:5px}
+.sn-studio-modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:15px 17px 13px}
+.sn-studio-modes button{min-width:0;min-height:41px;display:flex;justify-content:center;align-items:center;gap:7px;border:1px solid transparent;border-radius:9px;background:transparent;color:#94aac2;font-family:inherit;font-size:.875rem;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.sn-studio-modes .icon{width:16px;height:16px;flex-shrink:0}
+.sn-studio-modes button[aria-pressed="true"]{color:#b2f0fb;border-color:rgba(89,194,231,.24);background:linear-gradient(120deg,rgba(53,145,205,.2),rgba(45,149,171,.09));box-shadow:inset 0 1px 0 #b5edff0d}
+.sn-studio-modes button:hover{background:rgba(73,151,196,.12);color:#def7fc}
+.sn-studio-panel[hidden],.sn-studio-modes button[hidden]{display:none!important}
+.sn-studio-panel{padding:0 16px;animation:sn-studio-panel-in .3s ease}
+.sn-studio-output,.sn-studio-chat,.sn-studio-audio{position:relative;border:1px solid rgba(118,180,214,.13);border-radius:12px;overflow:hidden;aspect-ratio:1.65;background:#091727}
+.sn-studio-output img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 54%}
+.sn-studio-output::after{content:"";position:absolute;inset:50% 0 0;background:linear-gradient(transparent,#02101c99);pointer-events:none}
+.sn-studio-output-label{position:absolute;bottom:17px;inset-inline-start:17px;z-index:1;color:#e9f9ff;font-size:.8125rem;letter-spacing:.015em}
+.sn-studio-output-video img{transform:scale(1.06)}.sn-studio-video-label{position:absolute;top:17px;inset-inline-start:17px;z-index:1;display:flex;align-items:center;gap:8px;background:#0615249c;border:1px solid #a3e4ff2b;padding:7px 10px;border-radius:8px;color:#d9f5ff;font-size:.8125rem}.sn-studio-video-label>.icon{width:17px;height:17px}
+.sn-studio-motion-line{position:absolute;bottom:0;inset-inline:0;height:2px;background:linear-gradient(90deg,#4a9cf0,#42d3e0);z-index:2}
+.sn-studio-prompt{display:flex;align-items:center;gap:11px;min-height:72px;margin-top:13px;padding:13px 15px;border:1px solid rgba(114,184,222,.18);border-radius:11px;background:rgba(16,35,54,.5);color:#c5d6e7}
+.sn-studio-prompt>.icon{flex-shrink:0;color:#52bddc;width:19px;height:19px}.sn-studio-prompt p{margin:0;font-size:.8125rem;line-height:1.85}.sn-studio-prompt-mark{margin-inline-start:auto;color:#7bb4ce;font:300 20px/1 sans-serif}
+.sn-studio-glass-foot{display:flex;justify-content:space-between;gap:12px;padding:16px 21px 18px;font-size:.6875rem;color:#66849e;line-height:1.6}
+.sn-studio-chat{display:flex;flex-direction:column;justify-content:center;gap:20px;padding:25px;background:radial-gradient(ellipse at 90% 0,rgba(40,123,172,.18),transparent 75%),#0a1929}
+.sn-studio-chat-kicker{color:#7aa6c5;font-size:.8125rem}.sn-studio-question{align-self:flex-end;max-width:90%;padding:12px 15px;border:1px solid rgba(111,178,216,.15);border-radius:12px 12px 3px 12px;background:#21435e4d;font-size:.875rem;line-height:1.8;color:#c6dfed;margin:0}
+.sn-studio-answer{display:flex;align-items:flex-start;gap:13px}.sn-studio-answer>.icon{color:#4fc9e0;flex-shrink:0;width:23px;height:23px;margin-top:3px}.sn-studio-answer p{font-size:.875rem;color:#e0eaf3;line-height:1.95;margin:0}.sn-studio-text-lines{display:flex;flex-direction:column;gap:8px;padding-inline-start:36px}.sn-studio-text-lines i{display:block;height:3px;border-radius:5px;background:#78b5ce1b}.sn-studio-text-lines i:nth-child(2){width:83%}.sn-studio-text-lines i:last-child{width:58%}
+.sn-studio-audio{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:25px;background:radial-gradient(ellipse at 50% 0,rgba(31,140,189,.2),transparent 80%),#0a1929}
+.sn-studio-microphone{width:51px;height:51px;display:grid;place-items:center;border:1px solid #79c7e52e;border-radius:17px;background:linear-gradient(135deg,#307baf26,#30c7d417);box-shadow:0 0 35px #2589bb12;color:#76d7e6}.sn-studio-microphone>.icon{width:24px;height:24px}.sn-studio-audio h3{font-size:1.0625rem;font-weight:500;color:#dbf0f8;margin:0}.sn-studio-audio p{font-size:.8125rem;line-height:1.8;text-align:center;color:#93b5ca;margin:0}
+.sn-studio-wave{height:64px;display:flex;justify-content:center;align-items:center;gap:5px;direction:ltr;width:90%}.sn-studio-wave i{height:var(--wave);width:5px;background:linear-gradient(#5cdfde,#3484d5);border-radius:5px;transform:scaleY(.6)}
+.is-active .sn-studio-wave i{animation:sn-studio-wave 1.8s ease-in-out var(--delay) infinite alternate}
+.sn-studio-float{position:absolute;z-index:2;display:flex;align-items:center;gap:12px;padding:16px 20px;border:1px solid rgba(113,195,231,.28);border-radius:13px;background:linear-gradient(135deg,rgba(23,55,78,.9),rgba(11,29,47,.85));backdrop-filter:blur(18px);box-shadow:0 15px 40px #0004,inset 0 1px 0 #c7f4ff08;color:#c2deec;font-size:.8125rem}
+.sn-studio-float>.icon{color:#5ccde1;width:21px;height:21px}.sn-studio-float-top{top:18px;inset-inline-end:0;transform:rotate(4deg)}.sn-studio-float-bottom{bottom:13px;inset-inline-start:0;transform:rotate(-3deg)}.sn-studio-float-spark{margin-inline-start:12px;color:#58cfdc;font-size:1.125rem}
+.sn-studio-hero.is-active .sn-studio-copy>*{animation:sn-studio-copy-in .85s cubic-bezier(.2,1,.3,1) both}
+.sn-studio-hero.is-active .sn-studio-copy h2{animation-delay:.07s}.sn-studio-hero.is-active .sn-studio-lead{animation-delay:.14s}.sn-studio-hero.is-active .sn-studio-use-cases{animation-delay:.2s}.sn-studio-hero.is-active .sn-studio-actions{animation-delay:.26s}.sn-studio-hero.is-active .sn-studio-billing{animation-delay:.32s}
+.sn-studio-hero.is-active .sn-studio-scene{animation:sn-studio-scene-in 1.15s cubic-bezier(.2,1,.3,1) .08s both}
+html[data-theme="light"] .sn-hero-carousel{--studio-edge:rgba(39,102,147,.2)}
+html[data-theme="light"] .sn-studio-hero{background:radial-gradient(ellipse at 24% 45%,rgba(44,160,205,.08),transparent 52%)}
+html[data-theme="light"] .sn-studio-brand{color:#177eaa}html[data-theme="light"] .sn-studio-new{color:#157996;background:#2fb8c70a}html[data-theme="light"] .sn-studio-copy h2>span{background-image:linear-gradient(105deg,#286acf,#008f9d)}html[data-theme="light"] .sn-studio-use-cases li{color:#486378}html[data-theme="light"] .sn-studio-use-cases .icon{color:#168998}
+html[data-theme="light"] .sn-studio-glass{background:linear-gradient(135deg,rgba(239,250,255,.7),rgba(203,232,247,.55));border-color:#6da4c44d;box-shadow:0 30px 70px #47758b21,inset 0 1px 0 #fff}
+html[data-theme="light"] .sn-studio-glass-head{border-color:#508ab322;color:#52758a}html[data-theme="light"] .sn-studio-glass-brand{color:#1f435b}html[data-theme="light"] .sn-studio-glass-brand>b,html[data-theme="light"] .sn-studio-glass-brand .icon{color:#128aac}
+html[data-theme="light"] .sn-studio-modes button{color:#55768b}html[data-theme="light"] .sn-studio-modes button[aria-pressed="true"]{color:#096d8f;border-color:#3e9eb844;background:#38a1d518}
+html[data-theme="light"] .sn-studio-prompt{color:#36566e;background:#f4fcff8c;border-color:#4385ab29}html[data-theme="light"] .sn-studio-prompt>.icon{color:#168aae}
+html[data-theme="light"] .sn-studio-glass-foot{color:#5c7d94}html[data-theme="light"] .sn-studio-float{color:#31566e;background:linear-gradient(135deg,#f6fcfff0,#dcecf6db);border-color:#7fb3c456;box-shadow:0 15px 40px #547f9419}
+@keyframes sn-hero-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes sn-hero-glass-wipe{0%{opacity:0;transform:translateX(-110%) skewX(-12deg)}20%{opacity:1}80%{opacity:.8}100%{opacity:0;transform:translateX(110%) skewX(-12deg)}}
+@keyframes sn-studio-copy-in{from{opacity:0;transform:translate3d(0,17px,0);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}@keyframes sn-studio-scene-in{from{opacity:0;transform:translate3d(0,22px,0) scale(.97)}to{opacity:1;transform:none}}
+@keyframes sn-studio-panel-in{from{opacity:.5;transform:translateY(5px)}to{opacity:1;transform:none}}@keyframes sn-studio-wave{from{transform:scaleY(.5)}to{transform:scaleY(1)}}
+@media(min-width:1500px){.sn-studio-scene{max-width:740px}.sn-studio-glass-head{padding:22px 25px}.sn-studio-panel{padding-inline:20px}.sn-studio-prompt{min-height:76px}.sn-studio-copy h2{font-size:58px}}
+@media(max-width:1100px){.sn-studio-layout{gap:30px}.sn-studio-copy h2{font-size:40px}.sn-studio-scene{padding-inline:7px}.sn-studio-float{padding:12px 15px;font-size:.75rem}.sn-studio-glass-head{padding:16px;font-size:.6875rem}.sn-studio-use-cases{grid-template-columns:minmax(0,1fr);gap:7px}.sn-studio-chat{padding:17px;gap:12px}.sn-studio-answer p{font-size:.8125rem;line-height:1.8}.sn-studio-text-lines{gap:6px}.sn-studio-audio{padding:17px;gap:10px}.sn-studio-wave{height:48px}}
+@media(max-width:820px){.sn-studio-hero{padding:43px 0 32px}.sn-studio-layout{grid-template-columns:minmax(0,1fr);gap:15px}.sn-studio-copy{max-width:650px;width:100%;justify-self:center;text-align:center;padding:0}.sn-studio-brand{justify-content:center;margin-bottom:20px}.sn-studio-copy h2{font-size:43px;margin-bottom:18px}.sn-studio-lead{margin-inline:auto;font-size:1rem}.sn-studio-use-cases{grid-template-columns:repeat(2,minmax(0,1fr));max-width:510px;margin-inline:auto;text-align:start;gap:10px 20px}.sn-studio-actions,.sn-studio-billing{justify-content:center}.sn-studio-scene{max-width:530px;padding:40px 20px}.sn-studio-float{padding:13px 16px}.sn-studio-glass-head{padding:18px}.sn-studio-chat{padding:25px;gap:18px}.sn-studio-answer p{font-size:.875rem}.sn-studio-audio{padding:23px;gap:12px}.sn-studio-wave{height:64px}.sn-hero-controls{padding-block:8px 17px!important;gap:12px}.sn-hero-selectors{gap:22px}}
+@media(max-width:540px){.sn-studio-hero{padding-top:32px}.sn-studio-brand{font-size:.9375rem;gap:8px;margin-bottom:17px}.sn-studio-brand>.icon{width:18px;height:18px}.sn-studio-copy h2{font-size:31px;line-height:1.55;letter-spacing:-.03em}.sn-studio-lead{font-size:.9375rem;line-height:1.95;margin-bottom:20px}.sn-studio-use-cases{gap:8px 13px;margin-bottom:24px}.sn-studio-use-cases li{font-size:.8125rem;gap:6px}.sn-studio-use-cases .icon{width:14px;height:14px}.sn-studio-actions .btn{font-size:.875rem;padding-inline:16px;min-height:48px}.sn-studio-billing{font-size:.75rem;gap:3px 7px;margin-top:16px}.sn-studio-scene{padding:22px 4px 18px}.sn-studio-float{display:none}.sn-studio-orbit{inset:3% -2%}.sn-studio-glass{border-radius:16px;transform:none!important}.sn-studio-glass-head{padding:16px 13px;font-size:.625rem;gap:7px}.sn-studio-glass-brand{font-size:.875rem}.sn-studio-glass-brand .icon{width:16px;height:16px;margin-inline-end:2px}.sn-studio-modes{gap:4px;padding:10px}.sn-studio-modes button{font-size:.8125rem;min-height:40px;gap:5px}.sn-studio-modes .icon{width:14px;height:14px}.sn-studio-panel{padding-inline:10px}.sn-studio-output,.sn-studio-chat,.sn-studio-audio{aspect-ratio:1.55;border-radius:9px}.sn-studio-prompt{padding:10px;gap:8px;min-height:72px;margin-top:10px}.sn-studio-prompt p{font-size:.75rem}.sn-studio-prompt>.icon{width:16px;height:16px}.sn-studio-glass-foot{padding:13px;font-size:.625rem}.sn-studio-output-label{font-size:.75rem;inset-inline-start:12px;bottom:12px}.sn-studio-video-label{font-size:.6875rem;top:12px;inset-inline-start:12px}.sn-studio-chat{padding:17px;gap:12px}.sn-studio-chat-kicker{font-size:.75rem}.sn-studio-question{font-size:.75rem;padding:8px 10px}.sn-studio-answer{gap:8px}.sn-studio-answer p{font-size:.75rem;line-height:1.85}.sn-studio-answer>.icon{width:17px;height:17px}.sn-studio-text-lines{display:none}.sn-studio-audio{padding:15px;gap:9px}.sn-studio-microphone{width:38px;height:38px;border-radius:12px}.sn-studio-microphone>.icon{width:20px;height:20px}.sn-studio-audio h3{font-size:.9375rem}.sn-studio-audio p{font-size:.75rem}.sn-studio-wave{height:42px;gap:4px}.sn-studio-wave i{width:4px}.sn-hero-controls{min-height:64px;gap:10px}.sn-hero-selectors{gap:17px;flex-wrap:nowrap}.sn-hero-selectors>button{font-size:.75rem;gap:7px}.sn-hero-selectors>button[aria-pressed="true"] .sn-hero-progress{width:32px}.sn-hero-progress{width:14px}.sn-hero-autoplay{height:36px;width:36px}.sn-hero-autoplay>.icon{width:15px;height:15px}}
+@media(max-width:380px){.sn-studio-use-cases{grid-template-columns:1fr;max-width:265px}.sn-studio-modes .icon{display:none}.sn-studio-glass-brand{font-size:.8125rem}.sn-studio-glass-head>span:last-child{font-size:.5625rem}.sn-hero-selectors{gap:10px}.sn-hero-selectors>button{font-size:.6875rem;gap:5px}.sn-hero-selectors>button[aria-pressed="true"] .sn-hero-progress{width:24px}.sn-hero-controls{gap:6px}.sn-studio-copy h2{font-size:29px}}
+@media(prefers-reduced-motion:reduce){.sn-hero-carousel *,.sn-hero-carousel::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+@media(max-width:540px){.sn-hero-compact{display:inline}.sn-hero-wide{display:none}.sn-hero-selectors>button{font-size:.875rem}.sn-studio-lead{font-size:1rem}.sn-studio-modes button{font-size:.875rem}.sn-studio-glass-head>span:last-child{font-size:.75rem;max-width:100px;text-align:end}.sn-studio-glass-foot{font-size:.75rem}}
+@keyframes sn-studio-camera{from{transform:scale(1.03) translateX(-1%)}to{transform:scale(1.12) translateX(1%)}}
+@media(prefers-reduced-motion:no-preference){.is-active .sn-studio-output-video img{animation:sn-studio-camera 9s ease-in-out infinite alternate}}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M10.6 6.2A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17.9 17.9 0 0 1-2.9 3.9M6.6 6.6A17.8 17.8 0 0 0 2 12s3.6 7 10 7a9.8 9.8 0 0 0 4.6-1.1"/><path d="M14.1 14.1a3 3 0 1 1-4.2-4.2"/><line x1="3" y1="3" x2="21" y2="21"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></symbol>
+    <symbol id="i-hdd" viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C9.5 3 12 8 12 8s2.5-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+    <symbol id="i-factory" viewBox="0 0 24 24"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 24 24"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></symbol>
+    <symbol id="i-layout" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-headset" viewBox="0 0 24 24"><path d="M3 14v-3a9 9 0 0 1 18 0v3"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+    <symbol id="i-umbrella" viewBox="0 0 24 24"><path d="M22 12a10.06 10.06 0 0 0-20 0Z"/><path d="M12 12v8a2 2 0 0 0 4 0"/><path d="M12 2v1"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect x="1" y="6" width="15" height="12" rx="2"/></symbol>
+    <symbol id="i-smartphone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="m15.5 7.5 3 3L22 7l-3-3"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-lifebuoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.83 8.83a2 2 0 0 0 2.83 0l7.17-7.17a2 2 0 0 0 0-2.83Z"/><circle cx="7" cy="7" r="1"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  </defs>
+</svg>
+<main id="main" style="padding-top:0"><div class="sn-atlas sn-home">
+<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="carousel" aria-label="ServerNet infrastructure and AI Studio" data-interval="7000">
+<div class="sn-hero-slides">
+<section class="hero sn-hero"  id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="ServerNet infrastructure" >
+  <div class="container">
+    <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
+    <div class="sn-hero-grid">
+    <div class="sn-hero-copy">
+    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>Your next chapter starts here</span><h1>The safe home for your online dreams, <span class="grad">on infrastructure that never blinks.</span></h1></div>
+      <p class="lead"><span class="sn-lead-line">Cloud hosting to start, dedicated and GPU infrastructure</span><span class="sn-lead-line"> for enterprises and AI teams — on infrastructure that never runs short.</span></p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#pricing"><span>View Plans</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-glass" href="#enterprise">Enterprise Solutions</a>
+      </div>
+      <div class="hero-rotator"><span class="dot"></span><span class="rot-txt" id="hero-rot">Virtual servers deployed in under 90 seconds</span></div>
+      <a class="sn-discover" href="#products"><span class="sn-discover-line"></span>Explore our services<svg class="icon"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="sn-atlas-display"><img style="width:100%;display:block" src="https://servernet.cloud/assets/img/atlas-earth.svg" alt=""></div>
+    </div>
+  </div>
+</section>
+<section class="sn-studio-hero" id="studio" data-studio-home data-hero-slide="studio" aria-labelledby="studio-title" aria-hidden="true" inert>
+  <div class="container sn-studio-layout">
+    <div class="sn-studio-copy">
+      <div class="sn-studio-brand"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><span dir="ltr">ServerNet Studio</span><span class="sn-studio-new">New</span></div>
+      <h2 id="studio-title">Everyday tasks.<span>Extraordinary ideas.</span></h2>
+      <p class="sn-studio-lead">Write, translate and find your next idea. Create images, video and audio. AI for work, learning and creativity, together in ServerNet Studio.</p>
+      <ul class="sn-studio-use-cases" aria-label="Ways to use Studio">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Emails, captions and polished content</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Translations and text summaries</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Images, video and voice</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Learning, brainstorming and code</li>
+              </ul>
+      <div class="sn-studio-actions">
+        <a class="btn btn-primary sn-studio-launch" href="https://studio.servernet.cloud/">Start with Studio<svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg></a>
+        <a class="btn btn-glass sn-studio-install" href="/en/studio/download#studio-web-install">Install the Studio web app</a>
+      </div>
+      <p class="sn-studio-billing">Your existing ServerNet account<span aria-hidden="true">·</span>Model usage billed to your wallet</p>
+    </div>
+    <div class="sn-studio-scene">
+      <div class="sn-studio-orbit" aria-hidden="true"></div>
+      <div class="sn-studio-glass">
+        <div class="sn-studio-glass-head"><span class="sn-studio-glass-brand" dir="ltr"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg>ServerNet <b>Studio</b></span><span>One idea. More possibilities.</span></div>
+        <div class="sn-studio-modes" data-studio-modes aria-label="Ways to use Studio">
+                    <button type="button" data-studio-mode="chat" aria-controls="studio-panel-chat" aria-pressed="false" hidden><svg class="icon" aria-hidden="true"><use href="#i-message"/></svg>Write</button>
+                    <button type="button" data-studio-mode="image" aria-controls="studio-panel-image" aria-pressed="true" hidden><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg>Images</button>
+                    <button type="button" data-studio-mode="video" aria-controls="studio-panel-video" aria-pressed="false" hidden><svg class="icon" aria-hidden="true"><use href="#i-video"/></svg>Video</button>
+                    <button type="button" data-studio-mode="audio" aria-controls="studio-panel-audio" aria-pressed="false" hidden><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>Audio</button>
+                  </div>
+        <div class="sn-studio-panels">
+                    <div class="sn-studio-panel" id="studio-panel-chat" data-studio-panel="chat"  hidden >
+                        <div class="sn-studio-chat">
+              <span class="sn-studio-chat-kicker">Get past the blank page</span>
+              <p class="sn-studio-question">Write a short, friendly caption for my coffee shop.</p>
+              <div class="sn-studio-answer"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><p>Sometimes all you need is a quiet moment and the aroma of fresh coffee. Your next cup is waiting right here.</p></div>
+              <div class="sn-studio-text-lines" aria-hidden="true"><i></i><i></i><i></i></div>
+            </div>
+                        <div class="sn-studio-prompt"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><p>Write a short, friendly caption for my coffee shop.</p><span class="sn-studio-prompt-mark" aria-hidden="true">+</span></div>
+          </div>
+                    <div class="sn-studio-panel" id="studio-panel-image" data-studio-panel="image" >
+                        <div class="sn-studio-output sn-studio-output-image">
+              <img src="studio-coffee-campaign.webp" width="1536" height="1024" alt="Example coffee campaign photograph with blue and cyan studio lighting" loading="lazy" decoding="async">
+                            <span class="sn-studio-output-label">Create a look for your brand</span>
+            </div>
+                        <div class="sn-studio-prompt"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><p>Create a professional campaign photo for my coffee shop.</p><span class="sn-studio-prompt-mark" aria-hidden="true">+</span></div>
+          </div>
+                    <div class="sn-studio-panel" id="studio-panel-video" data-studio-panel="video"  hidden >
+                        <div class="sn-studio-output sn-studio-output-video">
+              <img src="studio-coffee-campaign.webp" width="1536" height="1024" alt="Example coffee campaign photograph with blue and cyan studio lighting" loading="lazy" decoding="async">
+              <span class="sn-studio-motion-line" aria-hidden="true"></span><span class="sn-studio-video-label"><svg class="icon" aria-hidden="true"><use href="#i-video"/></svg>Set your idea in motion</span>              <span class="sn-studio-output-label">Set your idea in motion</span>
+            </div>
+                        <div class="sn-studio-prompt"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><p>I need a short video to introduce my coffee shop.</p><span class="sn-studio-prompt-mark" aria-hidden="true">+</span></div>
+          </div>
+                    <div class="sn-studio-panel" id="studio-panel-audio" data-studio-panel="audio"  hidden >
+                        <div class="sn-studio-audio">
+              <span class="sn-studio-microphone"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
+              <h3>Let your words be heard</h3>
+              <div class="sn-studio-wave" aria-hidden="true"><i style="--wave:20%;--delay:0ms"></i><i style="--wave:36%;--delay:-75ms"></i><i style="--wave:60%;--delay:-150ms"></i><i style="--wave:28%;--delay:-225ms"></i><i style="--wave:72%;--delay:-300ms"></i><i style="--wave:90%;--delay:-375ms"></i><i style="--wave:46%;--delay:-450ms"></i><i style="--wave:78%;--delay:-525ms"></i><i style="--wave:100%;--delay:-600ms"></i><i style="--wave:54%;--delay:-675ms"></i><i style="--wave:84%;--delay:-750ms"></i><i style="--wave:66%;--delay:-825ms"></i><i style="--wave:95%;--delay:-900ms"></i><i style="--wave:58%;--delay:-975ms"></i><i style="--wave:80%;--delay:-1050ms"></i><i style="--wave:42%;--delay:-1125ms"></i><i style="--wave:88%;--delay:-1200ms"></i><i style="--wave:64%;--delay:-1275ms"></i><i style="--wave:32%;--delay:-1350ms"></i><i style="--wave:70%;--delay:-1425ms"></i><i style="--wave:48%;--delay:-1500ms"></i><i style="--wave:24%;--delay:-1575ms"></i><i style="--wave:58%;--delay:-1650ms"></i><i style="--wave:34%;--delay:-1725ms"></i></div>
+              <p>“A fresh start, with the aroma of coffee. Welcome.”</p>
+            </div>
+                        <div class="sn-studio-prompt"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><p>Read this in a warm, natural voice.</p><span class="sn-studio-prompt-mark" aria-hidden="true">+</span></div>
+          </div>
+                  </div>
+        <div class="sn-studio-glass-foot"><span>Illustrative example</span><span dir="ltr">studio.servernet.cloud</span></div>
+      </div>
+      <div class="sn-studio-float sn-studio-float-top" aria-hidden="true"><svg class="icon"><use href="#i-message"/></svg><span>Words. Languages. Ideas.</span></div>
+      <div class="sn-studio-float sn-studio-float-bottom" aria-hidden="true"><svg class="icon"><use href="#i-image"/></svg><span>From an idea to your next creation</span><span class="sn-studio-float-spark">✦</span></div>
+    </div>
+  </div>
+</section>
+
+</div>
+<div class="container sn-hero-controls">
+  <div class="sn-hero-selectors" role="group" aria-label="Choose an introduction">
+    <button type="button" data-hero-target="infrastructure" aria-controls="hero-infrastructure" aria-label="ServerNet infrastructure" aria-pressed="true"><span class="sn-hero-progress" aria-hidden="true"><i></i></span><span class="sn-hero-wide">ServerNet infrastructure</span><span class="sn-hero-compact">Cloud</span></button>
+    <button type="button" data-hero-target="studio" aria-controls="studio" aria-label="ServerNet Studio" aria-pressed="false"><span class="sn-hero-progress" aria-hidden="true"><i></i></span><span class="sn-hero-wide" dir="ltr">ServerNet Studio</span><span class="sn-hero-compact" dir="ltr">Studio</span></button>
+  </div>
+  <button type="button" class="sn-hero-autoplay" data-hero-autoplay aria-label="Pause automatic slides" data-pause-label="Pause automatic slides" data-play-label="Start automatic slides" aria-pressed="false"><svg class="icon sn-hero-pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon sn-hero-play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 10 7-10 7Z"/></svg></button>
+  <p class="sn-hero-announcement" aria-live="polite" aria-atomic="true" data-hero-announcement></p>
+</div>
+<noscript><div class="container sn-hero-nojs"><p>Write, translate and find your next idea. Create images, video and audio. AI for work, learning and creativity, together in ServerNet Studio.</p><a class="btn btn-primary" href="https://studio.servernet.cloud/">Start with Studio</a></div></noscript>
+
+</div>
+</div></main><script>(function () {
+  'use strict';
+  document.querySelectorAll('[data-hero-carousel]').forEach(function (root) {
+    if (root.dataset.carouselReady) return;
+    var slides = Array.from(root.querySelectorAll('[data-hero-slide]'));
+    var selectors = Array.from(root.querySelectorAll('[data-hero-target]'));
+    var toggle = root.querySelector('[data-hero-autoplay]');
+    var announcement = root.querySelector('[data-hero-announcement]');
+    if (slides.length !== 2 || selectors.length !== 2 || !toggle) return;
+    var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches: false};
+    var interval = Math.max(5000, Number(root.dataset.interval) || 7000);
+    var active = 0, timer = null, transition = null;
+    var explicitPause = motion.matches, focused = false, hovered = false, inView = true;
+    root.style.setProperty('--hero-duration', interval + 'ms');
+    root.dataset.carouselReady = 'true';
+
+    function stopTimer() {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      root.classList.remove('is-playing');
+    }
+    function schedule() {
+      stopTimer();
+      var paused = explicitPause || focused || hovered || !inView || document.hidden;
+      toggle.setAttribute('aria-pressed', String(explicitPause));
+      toggle.setAttribute('aria-label', toggle.dataset[explicitPause ? 'playLabel' : 'pauseLabel']);
+      if (paused) return;
+      root.classList.add('is-playing');
+      timer = window.setTimeout(function () { show((active + 1) % slides.length, false); }, interval);
+    }
+    function show(index, manual) {
+      active = index;
+      slides.forEach(function (slide, i) {
+        var selected = i === active;
+        slide.classList.toggle('is-active', selected);
+        slide.setAttribute('aria-hidden', String(!selected));
+        slide.inert = !selected;
+      });
+      selectors.forEach(function (button, i) { button.setAttribute('aria-pressed', String(i === active)); });
+      if (manual && announcement) announcement.textContent = selectors[active].getAttribute('aria-label') || selectors[active].textContent.trim();
+      root.classList.remove('is-transitioning');
+      if (transition !== null) window.clearTimeout(transition);
+      if (!motion.matches) {
+        // Restart the short light sweep only on a slide change.
+        void root.offsetWidth;
+        root.classList.add('is-transitioning');
+        transition = window.setTimeout(function () { root.classList.remove('is-transitioning'); }, 1100);
+      }
+      schedule();
+    }
+    selectors.forEach(function (button, index) {
+      button.addEventListener('click', function () {
+        explicitPause = true;
+        show(index, true);
+      });
+    });
+    toggle.addEventListener('click', function () {
+      explicitPause = !explicitPause;
+      if (!explicitPause) { focused = false; hovered = false; }
+      schedule();
+    });
+    root.addEventListener('focusin', function (event) { focused = event.target !== toggle; schedule(); });
+    root.addEventListener('focusout', function (event) {
+      if (!root.contains(event.relatedTarget)) { focused = false; schedule(); }
+    });
+    root.addEventListener('click', function (event) {
+      if (event.target.closest('[data-studio-mode], [data-sn-region]')) { explicitPause = true; schedule(); }
+    });
+    root.addEventListener('pointerdown', function (event) {
+      if (event.target.closest('[data-sn-globe]')) { explicitPause = true; schedule(); }
+    });
+    [root.querySelector('.sn-hero-controls'), root.querySelector('[data-studio-modes]')].forEach(function (area) {
+      if (!area) return;
+      area.addEventListener('pointerenter', function () { hovered = true; schedule(); });
+      area.addEventListener('pointerleave', function () { hovered = false; schedule(); });
+    });
+    document.addEventListener('visibilitychange', schedule);
+    if (motion.addEventListener) motion.addEventListener('change', function () {
+      if (motion.matches) explicitPause = true;
+      schedule();
+    });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        inView = entries[0].isIntersecting;
+        schedule();
+      }, {threshold: 0}).observe(root);
+    }
+    // The infrastructure is always the first frame, including repeat visits.
+    slides.forEach(function (slide, index) {
+      slide.classList.toggle('is-active', index === 0);
+      slide.setAttribute('aria-hidden', String(index !== 0));
+      slide.inert = index !== 0;
+    });
+    schedule();
+  });
+
+  document.querySelectorAll('[data-studio-home]').forEach(function (root) {
+    if (root.dataset.previewReady) return;
+    var modes = Array.from(root.querySelectorAll('[data-studio-mode]'));
+    var panels = Array.from(root.querySelectorAll('[data-studio-panel]'));
+    if (!modes.length || modes.length !== panels.length) return;
+    root.dataset.previewReady = 'true';
+    modes.forEach(function (button) {
+      button.hidden = false;
+      button.addEventListener('click', function () {
+        var selected = button.dataset.studioMode;
+        modes.forEach(function (mode) { mode.setAttribute('aria-pressed', String(mode === button)); });
+        panels.forEach(function (panel) { panel.hidden = panel.dataset.studioPanel !== selected; });
+      });
+    });
+  });
+}());
+</script></body></html>

@@ -4,14 +4,18 @@
 @section('content')
 @php
   $loc = app()->getLocale();
+  $studioCarouselAvailable = app(\App\Services\Studio\StudioAuthorization::class)->configured();
   $atlasLead = __('ui.hero_lead');
   $atlasLeadBreak = match($loc) { 'en'=>' for enterprises', 'tr'=>' özel sunucu', default=>' برای سازمان‌ها' };
   $atlasLeadParts = explode($atlasLeadBreak, $atlasLead, 2);
   $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
 @endphp
 <div class="sn-atlas sn-home">
-@include('partials.studio-home')
-<section class="hero sn-hero">
+@if($studioCarouselAvailable)
+<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="{{ __('studio_carousel.carousel_role') }}" aria-label="{{ __('studio_carousel.carousel_label') }}" data-interval="7000">
+<div class="sn-hero-slides">
+@endif
+<section class="hero sn-hero" @if($studioCarouselAvailable) id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="{{ __('studio_carousel.slide_infrastructure') }}" @endif>
   <div class="container">
     <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
     <div class="sn-hero-grid">
@@ -29,6 +33,12 @@
     </div>
   </div>
 </section>
+@if($studioCarouselAvailable)
+@include('partials.studio-carousel')
+</div>
+@include('partials.studio-carousel-controls')
+</div>
+@endif
 <div class="sn-proof-rail">
   <div class="container sn-proof-grid">
     <div><b>{{ fa_num('15') }}<span>+</span></b><span>{{ __('ui.stat_years') }}</span></div>
