@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Marketing\EmailMarketingCampaigns;
+use App\Services\Marketing\MissingEmailRecipientNames;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -90,6 +91,8 @@ class EmailMarketingCampaignController extends Controller
         try {
             $count = $campaigns->queue((int) $campaign, (int) Auth::guard('web')->id());
             return $this->result('queued', ['count' => $count]);
+        } catch (MissingEmailRecipientNames $e) {
+            return $this->result('missing_names', ['count' => $e->count]);
         } catch (DomainException) {
             return $this->result('error');
         }
@@ -106,6 +109,6 @@ class EmailMarketingCampaignController extends Controller
     {
         return redirect()->to(route('admin.email-marketing.index').'#campaigns')
             ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer', 'X-Robots-Tag' => 'noindex, nofollow'])
-            ->with($key === 'error' ? 'campaign_error' : 'campaign_success', __('email-campaigns.'.$key, $values));
+            ->with(in_array($key, ['error', 'missing_names'], true) ? 'campaign_error' : 'campaign_success', __('email-campaigns.'.$key, $values));
     }
 }

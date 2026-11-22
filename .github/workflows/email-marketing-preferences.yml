@@ -5,6 +5,8 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Services/Marketing/EmailMarketing*.php'
+      - 'website/app/Services/Marketing/EmailCampaignTemplate.php'
+      - 'website/app/Services/Marketing/MissingEmailRecipientNames.php'
       - 'website/app/Models/EmailMarketing*.php'
       - 'website/app/Console/Commands/EmailMarketingSend.php'
       - 'website/app/Models/ExternalEmailConsentReview*.php'
@@ -16,6 +18,7 @@ on:
       - 'website/config/email-marketing.php'
       - 'website/config/pagecache.php'
       - 'website/database/migrations/*email_marketing*.php'
+      - 'website/database/migrations/*email_campaign_personalization.php'
       - 'website/database/migrations/*external_email_consent_review*.php'
       - 'website/database/migrations/*external_email_consent_document*.php'
       - 'website/lang/**/email-marketing*.php'
@@ -25,6 +28,7 @@ on:
       - 'website/routes/**'
       - 'website/bootstrap/**'
       - 'website/tests/Feature/EmailMarketing*Test.php'
+      - 'website/tests/Unit/EmailCampaignTemplateTest.php'
       - 'website/composer.*'
       - 'scripts/run-php-tests-offline.py'
       - '.github/workflows/email-marketing-preferences.yml'
@@ -32,6 +36,8 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Services/Marketing/EmailMarketing*.php'
+      - 'website/app/Services/Marketing/EmailCampaignTemplate.php'
+      - 'website/app/Services/Marketing/MissingEmailRecipientNames.php'
       - 'website/app/Models/EmailMarketing*.php'
       - 'website/app/Console/Commands/EmailMarketingSend.php'
       - 'website/app/Models/ExternalEmailConsentReview*.php'
@@ -43,6 +49,7 @@ on:
       - 'website/config/email-marketing.php'
       - 'website/config/pagecache.php'
       - 'website/database/migrations/*email_marketing*.php'
+      - 'website/database/migrations/*email_campaign_personalization.php'
       - 'website/database/migrations/*external_email_consent_review*.php'
       - 'website/database/migrations/*external_email_consent_document*.php'
       - 'website/lang/**/email-marketing*.php'
@@ -52,6 +59,7 @@ on:
       - 'website/routes/**'
       - 'website/bootstrap/**'
       - 'website/tests/Feature/EmailMarketing*Test.php'
+      - 'website/tests/Unit/EmailCampaignTemplateTest.php'
       - 'website/composer.*'
       - 'scripts/run-php-tests-offline.py'
       - '.github/workflows/email-marketing-preferences.yml'
@@ -126,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
-            --filter='EmailMarketing' --display-warnings --fail-on-warning --colors=never
+            --filter='EmailMarketing|EmailCampaignTemplate' --display-warnings --fail-on-warning --colors=never
       - name: Check same constraints against disposable MariaDB
         if: matrix.database == 'mariadb'
         working-directory: website
@@ -141,4 +149,4 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.email-marketing-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .email-marketing-ci.xml --filter='EmailMarketing' --display-warnings --fail-on-warning --colors=never
+          php vendor/bin/phpunit -c .email-marketing-ci.xml --filter='EmailMarketing|EmailCampaignTemplate' --display-warnings --fail-on-warning --colors=never

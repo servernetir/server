@@ -24,3 +24,5 @@ The composer stores an escaped plain-text draft and shows a preview. A separate 
 The scoped installer `scripts/deploy-email-marketing-20261122.php` fetches exact files from a pinned merged commit, verifies source and live precondition hashes, saves private backups and runs only the new additive migration creating three email tables. It preserves unrelated live changes in AccountController and the scheduler using exact transforms, invalidates only changed Blade templates, and verifies installed hashes.
 
 File rollback restores only this release's unchanged installed files. New tables and consent/delivery history are retained; no schema drop or data rollback is part of production recovery. The installer does not create/queue a campaign or send messages. Production acceptance is recorded separately after installation.
+
+Personalized sending: [encrypted names, literal placeholders and the information mailbox sender](EMAIL-MARKETING-PERSONALIZATION-2026-11-22.md).
