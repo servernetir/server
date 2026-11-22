@@ -16,6 +16,9 @@ import urllib.request
 FCGI_SHA = '57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62'
 FPM_DIRECTORY = Path('/opt/cpanel/ea-php84/root/usr/var/run/php-fpm')
 DOCROOT = Path('/home/servernetcloud/public_html')
+# Independently observed pools that returned this app's pinned manifest/version.
+APP_POOL_NAMES = frozenset({'3ffa4f278119ec5120a31e1ef1eac06de0ef0509.sock',
+    'c5afd7e99f461c16a42fb1afd4083c7c8c61e2d3.sock'})
 
 
 def owned_socket(path, uid):
@@ -34,10 +37,10 @@ def observe_pools():
     paths = set()
     for row in Path('/proc/net/unix').read_text().splitlines():
         parts = row.split()
-        if parts and owned_socket(parts[-1], os.getuid()):
+        if parts and Path(parts[-1]).name in APP_POOL_NAMES and owned_socket(parts[-1], os.getuid()):
             paths.add(Path(parts[-1]))
-    if not paths:
-        raise RuntimeError('no_observed_same_account_fpm_socket')
+    if {path.name for path in paths} != APP_POOL_NAMES:
+        raise RuntimeError('no_observed_or_missing_verified_application_fpm_pool')
     return sorted(paths)
 
 
