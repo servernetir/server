@@ -643,7 +643,7 @@ class CloudSaladGpuTest extends TestCase
 
         Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
 
-        $chosen = SaladClient::APPS['gpu-ollama']['ref'];
+        $chosen = app(SaladClient::class)->apps()['gpu-ollama']['ref'];
 
         $r = app(CloudManager::class)->driver('salad')->createServer([
             'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090', 'image_ref' => $chosen,
@@ -744,7 +744,7 @@ class CloudSaladGpuTest extends TestCase
         ]);
 
         Http::assertSent(fn ($req) => data_get($req->data(),
-            'container.environment_variables.OLLAMA_HOST') === '::');
+            'container.environment_variables.OLLAMA_HOST') === '[::]:11434');
     }
 
     /**
@@ -988,4 +988,43 @@ class CloudSaladGpuTest extends TestCase
             $this->assertFalse(\App\Services\Cloud\SaladClient::isAmdGpuClass($n), $n);
         }
     }
+    public function test_saved_legacy_ollama_orders_get_the_official_image_and_startup_contract(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+
+        $result = app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => 'saladtechnologies/ollama:0.24.0',
+        ]);
+
+        $this->assertTrue($result['ok'], $result['message']);
+        Http::assertSent(function ($req) {
+            $body = $req->data();
+            $command = data_get($body, 'container.command', []);
+            return $req->method() === 'POST'
+                && data_get($body, 'container.image') === 'ollama/ollama:0.40.17'
+                && data_get($body, 'networking.port') === 11434
+                && data_get($body, 'container.environment_variables.OLLAMA_HOST') === '[::]:11434'
+                && array_slice($command, 0, 2) === ['/bin/sh', '-c']
+                && str_contains($command[2] ?? '', 'exec ollama serve')
+                && str_contains($command[2] ?? '', 'ollama run -- "$OLLAMA_MODEL_NAME"')
+                && data_get($body, 'readiness_probe.exec.command') === ['test', '-f', '/tmp/ollama_model_ready'];
+        });
+        Http::assertNotSent(fn ($req) => $req->method() === 'PATCH');
+    }
+
+    public function test_legacy_recipe_orders_also_receive_the_approved_image(): void
+    {
+        $this->configure();
+        $this->seedPlan();
+        Http::fake(['api.salad.com/*' => Http::response(['name' => 'sn-svc-9'], 200)]);
+        app(SaladClient::class)->createServer([
+            'name' => 'sn-svc-9', 'plan_ref' => 'gc-4090',
+            'image_ref' => 'saladtechnologies/ollama-llama3.1-recipe:1.0.0',
+        ]);
+        Http::assertSent(fn ($req) => data_get($req->data(), 'container.image') === 'ollama/ollama:0.40.17');
+    }
+
 }
