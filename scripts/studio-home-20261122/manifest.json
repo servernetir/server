@@ -1,0 +1,85 @@
+{
+  "files": [
+    {
+      "source": "website/resources/views/partials/studio-home.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-home.blade.php",
+      "before": null,
+      "after": "21f7a3b115a8a85cde27d24b997d23c695692de5be961d585605dbbd65eba71c"
+    },
+    {
+      "source": "website/lang/fa/studio_home.php",
+      "destination": "servernet_app/lang/fa/studio_home.php",
+      "before": null,
+      "after": "9140d31a43f8938269ba544cc51249dede6258c6241b334103b75dfbb12e0fcd"
+    },
+    {
+      "source": "website/lang/en/studio_home.php",
+      "destination": "servernet_app/lang/en/studio_home.php",
+      "before": null,
+      "after": "e6b4491e12eb34509227cebdda379a1123455252d058a11c452e8883f8629442"
+    },
+    {
+      "source": "website/lang/tr/studio_home.php",
+      "destination": "servernet_app/lang/tr/studio_home.php",
+      "before": null,
+      "after": "473afd62e217268d3f559fbabf6db615c089eca1798bdbc10e6684456e5dcae7"
+    },
+    {
+      "source": "website/public/assets/css/studio-home.css",
+      "destination": "servernet_app/public/assets/css/studio-home.css",
+      "before": null,
+      "after": "797e32098711235f4ffb43340faf54d863f7091b76199727dce32ca6bf9c51f7"
+    },
+    {
+      "source": "website/public/assets/css/studio-home.css",
+      "destination": "public_html/assets/css/studio-home.css",
+      "before": null,
+      "after": "797e32098711235f4ffb43340faf54d863f7091b76199727dce32ca6bf9c51f7"
+    },
+    {
+      "source": "website/public/assets/js/studio-home.js",
+      "destination": "servernet_app/public/assets/js/studio-home.js",
+      "before": null,
+      "after": "9bb8b8d2ac15f678dfe7bbf3b1cef3fd1d00c9f41b1dd4af0fe68ea62cb6052e"
+    },
+    {
+      "source": "website/public/assets/js/studio-home.js",
+      "destination": "public_html/assets/js/studio-home.js",
+      "before": null,
+      "after": "9bb8b8d2ac15f678dfe7bbf3b1cef3fd1d00c9f41b1dd4af0fe68ea62cb6052e"
+    },
+    {
+      "source": "website/public/assets/img/studio-imagination.svg",
+      "destination": "servernet_app/public/assets/img/studio-imagination.svg",
+      "before": null,
+      "after": "759a92cf80c6339eb18b79b8ce6932c8b265c1fa57395bdd4b9698d6da569295"
+    },
+    {
+      "source": "website/public/assets/img/studio-imagination.svg",
+      "destination": "public_html/assets/img/studio-imagination.svg",
+      "before": null,
+      "after": "759a92cf80c6339eb18b79b8ce6932c8b265c1fa57395bdd4b9698d6da569295"
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "before": "5d89dba73d1d44084f5be8619949f796e38209e5dcab0cb811a355bf188fc053",
+      "after": "9b26ce36bbe841b6107d8f6fd7999877c12e589838058a64364052d5d63b0173",
+      "patch_home": true
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/studio-home-20261122/activate.php",
+      "sha256": "e5a3db05062d0206bcae3d85455840921d1eace17c90bf185e9795f12700c1f1"
+    }
+  }
+}

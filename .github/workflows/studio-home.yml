@@ -1,0 +1,51 @@
+name: Studio homepage presentation
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/resources/views/pages/home.blade.php', 'website/resources/views/partials/studio-home.blade.php', 'website/public/assets/*/studio-*', 'website/lang/*/studio_home.php', 'website/tests/Fixtures/StudioHomePreview.php', 'website/tests/js/studio-home.test.cjs', 'website/tests/Feature/StudioHomeHeroTest.php', 'scripts/studio-home-20261122/**', '.github/workflows/studio-home.yml']
+permissions:
+  contents: read
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked test dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          npm ci --prefix tests/js --ignore-scripts
+      - name: Check actual homepage rendering and local preview interactions
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l tests/Fixtures/StudioHomePreview.php
+          for locale in fa en tr; do php -l "lang/$locale/studio_home.php"; done
+          php artisan test tests/Feature/StudioHomeHeroTest.php tests/Feature/StudioDownloadsTest.php tests/Feature/HomePricingPresentationTest.php
+          node --check public/assets/js/studio-home.js
+          for locale in fa en tr; do php tests/Fixtures/StudioHomePreview.php "$locale" /tmp/studio-home-preview; done
+          STUDIO_HOME_FIXTURES=/tmp/studio-home-preview node --test tests/js/studio-home.test.cjs
+      - name: Check limited release preservation and rollback guards
+        run: |
+          php -l scripts/studio-home-20261122/activate.php
+          python3 scripts/studio-home-20261122/test_release.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: studio-home-preview
+          path: /tmp/studio-home-preview
+          retention-days: 7

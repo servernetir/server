@@ -10,6 +10,7 @@
   $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
 @endphp
 <div class="sn-atlas sn-home">
+@include('partials.studio-home')
 <section class="hero sn-hero">
   <div class="container">
     <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
