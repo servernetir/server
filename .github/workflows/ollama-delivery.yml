@@ -40,4 +40,7 @@ jobs:
           php -l app/Services/Cloud/SaladOllamaImage.php
           php -l app/Services/Cloud/SaladOperations.php
           php vendor/bin/phpunit tests/Feature/SaladOllamaImageTest.php tests/Feature/SaladOllamaRepairTest.php tests/Feature/CloudSaladGpuTest.php tests/Feature/GpuStoreSeparationTest.php --fail-on-warning
+          php -l ../scripts/ollama-official-20261122/catalog.php
+          php -l ../scripts/ollama-official-20261122/activate.php
+          python3 -m py_compile ../scripts/ollama-official-20261122/release.py ../scripts/ollama-official-20261122/activate.py
           python3 ../scripts/ollama-official-20261122/test_startup.py
