@@ -1,0 +1,132 @@
+{
+  "files": [
+    {
+      "destination": "servernet_app/resources/views/partials/studio-carousel.blade.php",
+      "before": null,
+      "source": "website/resources/views/partials/studio-carousel.blade.php",
+      "after": "d393550d8f1249de6ff76b93755d93f7352052f85a6d6540e5404b3e980490eb"
+    },
+    {
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "before": null,
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "after": "27a797c04c91684eca95921246b4afbf4774a583eb48aa5e0199389bd6a17823"
+    },
+    {
+      "destination": "servernet_app/lang/fa/studio_carousel.php",
+      "before": null,
+      "source": "website/lang/fa/studio_carousel.php",
+      "after": "a3185b8c11b7783c2ff1bdb81517282f38eba5ea279e54e26ced25e132029d9f"
+    },
+    {
+      "destination": "servernet_app/lang/en/studio_carousel.php",
+      "before": null,
+      "source": "website/lang/en/studio_carousel.php",
+      "after": "f68de5adeb307609fe388857a10593714bfe66f9a63b2b7e7a514050c498ea39"
+    },
+    {
+      "destination": "servernet_app/lang/tr/studio_carousel.php",
+      "before": null,
+      "source": "website/lang/tr/studio_carousel.php",
+      "after": "1fe538393eb1a647098cddc180120df5acb9735d535b6c60a5498ab50c148f08"
+    },
+    {
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "before": null,
+      "source": "website/public/assets/css/studio-carousel.css",
+      "after": "46528357db1562de306727b7bb68b986ca3490aa43fc62454651215132df1376"
+    },
+    {
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "before": null,
+      "source": "website/public/assets/css/studio-carousel.css",
+      "after": "46528357db1562de306727b7bb68b986ca3490aa43fc62454651215132df1376"
+    },
+    {
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "before": null,
+      "source": "website/public/assets/js/studio-carousel.js",
+      "after": "658d15afd5bf3aeb06e9b46cddc5dfe95634fe180eb63dfdc0e8327b44c97042"
+    },
+    {
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "before": null,
+      "source": "website/public/assets/js/studio-carousel.js",
+      "after": "658d15afd5bf3aeb06e9b46cddc5dfe95634fe180eb63dfdc0e8327b44c97042"
+    },
+    {
+      "destination": "servernet_app/public/assets/img/studio-coffee-campaign.webp",
+      "before": null,
+      "source": "website/public/assets/img/studio-coffee-campaign.webp",
+      "after": "b1c82519c349acbfdbdcec3919d0aed414c7dadc1ffd7d392290a92ce0f6821b"
+    },
+    {
+      "destination": "public_html/assets/img/studio-coffee-campaign.webp",
+      "before": null,
+      "source": "website/public/assets/img/studio-coffee-campaign.webp",
+      "after": "b1c82519c349acbfdbdcec3919d0aed414c7dadc1ffd7d392290a92ce0f6821b"
+    },
+    {
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "before": "9b26ce36bbe841b6107d8f6fd7999877c12e589838058a64364052d5d63b0173",
+      "source": "website/resources/views/pages/home.blade.php",
+      "after": "c1993378b336c57291b1bd968529724c9d8802249bd6ddc73be493cccfa1de28",
+      "patch_home": true
+    }
+  ],
+  "home_edits": [
+    [
+      "  $loc = app()->getLocale();\n",
+      "  $loc = app()->getLocale();\n  $studioCarouselAvailable = app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured();\n"
+    ],
+    [
+      "@include('partials.studio-home')\n<section class=\"hero sn-hero\">\n",
+      "@if($studioCarouselAvailable)\n<div class=\"sn-hero-carousel\" data-hero-carousel role=\"region\" aria-roledescription=\"{{ __('studio_carousel.carousel_role') }}\" aria-label=\"{{ __('studio_carousel.carousel_label') }}\" data-interval=\"7000\">\n<div class=\"sn-hero-slides\">\n@endif\n<section class=\"hero sn-hero\" @if($studioCarouselAvailable) id=\"hero-infrastructure\" data-hero-slide=\"infrastructure\" aria-label=\"{{ __('studio_carousel.slide_infrastructure') }}\" @endif>\n"
+    ],
+    [
+      "</section>\n<div class=\"sn-proof-rail\">",
+      "</section>\n@if($studioCarouselAvailable)\n@include('partials.studio-carousel')\n</div>\n@include('partials.studio-carousel-controls')\n</div>\n@endif\n<div class=\"sn-proof-rail\">"
+    ]
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/studio-carousel-20261122/activate.php",
+      "sha256": "4b8902b3603d7d2609ed05b3fca162c01440508a82ce701d04c6df266fe95c11"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/studio-carousel-20261122/review.html",
+      "sha256": "529365bdaa1b5e9a8ec88e065c9936d1cd74441cb476c6cd1ee29fb1a509ac51"
+    },
+    {
+      "name": "preview-fa.html",
+      "source": "docs/project/studio-carousel-2026-11-22/preview-fa.html",
+      "sha256": "4dcb31936abd19468a3d13b3e4403d536f55e2ab8e2222c3446688aaeb89867d"
+    },
+    {
+      "name": "preview-en.html",
+      "source": "docs/project/studio-carousel-2026-11-22/preview-en.html",
+      "sha256": "c3db0d9b1c89ec5cf9494603ccd12b27a60877a29ae7baa643c76d384eef061c"
+    },
+    {
+      "name": "preview-tr.html",
+      "source": "docs/project/studio-carousel-2026-11-22/preview-tr.html",
+      "sha256": "0ef770fa65f5b7aa2ad4a9d7a6d9d25eaa40453a6245fc3c2f0a6e5fa5a45852"
+    },
+    {
+      "name": "studio-coffee-campaign.webp",
+      "source": "website/public/assets/img/studio-coffee-campaign.webp",
+      "sha256": "b1c82519c349acbfdbdcec3919d0aed414c7dadc1ffd7d392290a92ce0f6821b"
+    }
+  ]
+}
