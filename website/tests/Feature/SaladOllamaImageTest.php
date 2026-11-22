@@ -52,20 +52,31 @@ class SaladOllamaImageTest extends TestCase
         $this->assertSame('ollama/ollama', SaladOllamaImage::repoOf('ollama/ollama@sha256:abc'));
     }
 
-    private function stable(string $version = '0.41.0', array $release = [], array $image = []): void
+    private bool $stableFakeRegistered = false;
+    private array $releaseFixture = [];
+    private array $imageFixture = [];
+    private int $releaseStatus = 200;
+
+    private function stable(string $version = '0.41.0', array $release = [], array $image = [], int $status = 200): void
     {
-        Http::preventStrayRequests();
-        Http::fake([
-            SaladOllamaImage::RELEASE_URL => Http::response(array_replace([
-                'tag_name' => 'v'.$version, 'draft' => false, 'prerelease' => false,
-            ], $release)),
-            SaladOllamaImage::TAG_URL.'*' => Http::response(array_replace([
-                'name' => $version, 'tag_status' => 'active', 'images' => [[
-                    'os' => 'linux', 'architecture' => 'amd64', 'status' => 'active',
-                    'digest' => 'sha256:'.str_repeat('a', 64),
-                ]],
-            ], $image)),
-        ]);
+        $this->releaseFixture = array_replace(['tag_name' => 'v'.$version, 'draft' => false, 'prerelease' => false], $release);
+        $this->imageFixture = array_replace(['name' => $version, 'tag_status' => 'active', 'images' => [[
+            'os' => 'linux', 'architecture' => 'amd64', 'status' => 'active', 'digest' => 'sha256:'.str_repeat('a', 64),
+        ]]], $image);
+        $this->releaseStatus = $status;
+        if (! $this->stableFakeRegistered) {
+            Http::preventStrayRequests();
+            Http::fake(function ($request) {
+                if ($request->url() === SaladOllamaImage::RELEASE_URL) {
+                    return Http::response($this->releaseFixture, $this->releaseStatus);
+                }
+                if (str_starts_with($request->url(), SaladOllamaImage::TAG_URL)) {
+                    return Http::response($this->imageFixture);
+                }
+                return Http::response([], 599);
+            });
+            $this->stableFakeRegistered = true;
+        }
     }
 
     private function catalog(): CloudImage
@@ -114,7 +125,7 @@ class SaladOllamaImageTest extends TestCase
             $this->assertFalse($service->discoverStable()['ok']);
             $this->assertSame($before, $service->ref());
         }
-        Http::fake([SaladOllamaImage::RELEASE_URL => Http::response([], 503)]);
+        $this->stable(status: 503);
         $this->assertFalse($service->discoverStable()['ok']);
         $this->assertSame($before, $service->ref());
     }
