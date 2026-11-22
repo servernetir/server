@@ -92,4 +92,35 @@ class ReleaseTest(unittest.TestCase):
         with patch.object(module.Path,'read_text',return_value='header'),patch.object(module,'owned_socket',return_value=False):
             with self.assertRaisesRegex(RuntimeError,'no_observed'):module.observe_pools()
 
+    def test_primary_matches_docroot_is_http_denied_and_is_cleaned_up(self):
+        from unittest.mock import patch
+        spec=importlib.util.spec_from_file_location('mcp_primary',Path(__file__).parent/'mcp-auto-approval-20261122/activate.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);module.DOCROOT=root/'public';module.DOCROOT.mkdir()
+            tools=root/'tools';tools.mkdir();(tools/'activate.php').write_bytes(b'<?php echo "test";')
+            with patch.object(module,'require_http_denied') as probe:
+                with module.temporary_primary(tools) as (primary,name):
+                    self.assertEqual(module.DOCROOT/str(name).lstrip('/'),primary)
+                    self.assertEqual(b'Require all denied\n',(primary.parent/'.htaccess').read_bytes())
+                    self.assertEqual(0o600,primary.stat().st_mode & 0o777)
+                    probe.assert_called_once_with(name)
+                self.assertFalse(primary.parent.exists())
+            with patch.object(module,'require_http_denied',side_effect=RuntimeError('denial failed')):
+                with self.assertRaisesRegex(RuntimeError,'denial failed'):
+                    with module.temporary_primary(tools):self.fail('Unsafe primary was yielded')
+            self.assertEqual([],list(module.DOCROOT.iterdir()))
+
+    def test_primary_http_probe_requires_denial_for_both_hosts(self):
+        from unittest.mock import patch, MagicMock
+        spec=importlib.util.spec_from_file_location('mcp_probe',Path(__file__).parent/'mcp-auto-approval-20261122/activate.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        response=MagicMock();response.__enter__.return_value.status=403
+        with patch.object(module.urllib.request,'urlopen',return_value=response) as request:
+            module.require_http_denied('/temporary/activate.php')
+            self.assertEqual(2,request.call_count)
+        response.__enter__.return_value.status=200
+        with patch.object(module.urllib.request,'urlopen',return_value=response):
+            with self.assertRaisesRegex(RuntimeError,'http_not_denied'):module.require_http_denied('/temporary/activate.php')
+
 if __name__=='__main__':unittest.main()
