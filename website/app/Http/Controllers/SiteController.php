@@ -670,6 +670,9 @@ class SiteController extends Controller
         }
         foreach (config('catalog') as $category => $products) {
             foreach (array_keys($products) as $slug) {
+                if ($category === 'vps' && $slug === 'gpu') {
+                    continue; // The legacy alias redirects to the canonical GPU route added above.
+                }
                 $country = $category === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug((string) $slug) : null;
                 if ($country !== null && ! isset($globallyAvailableVpsCountries[$country])) {
                     continue; // Do not reintroduce an unavailable country through legacy config.

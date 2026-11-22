@@ -29,6 +29,16 @@ $source = file_get_contents($argv[1]);
 $guard = "if (PHP_SAPI !== 'cli')";
 if (!is_string($source) || substr_count($source, $guard) !== 1) { exit(91); }
 eval(substr($source, 5, strpos($source, $guard) - 5));
+$mathRoot = dirname($argv[2], 4).'/vendor/brick/math/src/';
+// Load only the real decimal package. Application autoload/bootstrap canaries
+// remain untouched, and the entire fixture process still runs without network.
+spl_autoload_register(static function (string $class) use ($mathRoot): void {
+    $prefix = 'Brick\\Math\\';
+    if (str_starts_with($class, $prefix)) {
+        $file = $mathRoot.str_replace('\\', '/', substr($class, strlen($prefix))).'.php';
+        if (is_file($file)) require_once $file;
+    }
+});
 require $argv[2]; // The ACTUAL restored validator; never a fake financial validator.
 class FixtureStatement {
     public function __construct(private mixed $value) {}

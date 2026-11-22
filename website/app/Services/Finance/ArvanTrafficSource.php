@@ -3,6 +3,8 @@
 namespace App\Services\Finance;
 
 use App\Models\Setting;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -122,6 +124,20 @@ final class ArvanTrafficSource
         return (int) $value;
     }
 
+    /** Other supplier products can have fractional-rial discounts. Compare them exactly, never round. */
+    private static function decimal(mixed $value): BigDecimal
+    {
+        if (! is_string($value) || ! preg_match('/^\d{1,13}(?:\.\d{1,6})?$/D', $value)) {
+            throw new RuntimeException('Invalid decimal IRR supplier amount');
+        }
+        $amount = BigDecimal::of($value);
+        if ($amount->isGreaterThan('1000000000000')) {
+            throw new RuntimeException('Invalid decimal IRR supplier amount');
+        }
+
+        return $amount;
+    }
+
     /** Validate every parent and component, including non-traffic products, before charging any owner. */
     public function validate(array $snapshot): array
     {
@@ -133,33 +149,41 @@ final class ArvanTrafficSource
                 throw new RuntimeException('Invalid traffic bill currency, cycle or row count');
             }
             $seenCycles[$cycle['id']] = true;
-            $prices = $discounts = $gifts = 0;
+            $prices = $discounts = $gifts = BigDecimal::zero();
+            $summaryDiscounts = BigDecimal::zero();
             $seenItems = [];
             foreach ($report['rows'] as $row) {
-                $price = $discount = $gift = 0;
+                $price = $discount = $gift = BigDecimal::zero();
                 foreach ($row['items'] as $item) {
                     $id = $item['itemId'] ?? null;
                     if (! is_string($id) || $id === '') {
                         throw new RuntimeException('Duplicate or missing supplier component');
                     }
-                    $p = self::integer($item['price']);
-                    $d = self::integer($item['discount']);
-                    $g = self::integer($item['usedGift']);
+                    // Customer traffic settlement still requires integral IRR.
+                    // Fractions in disk/CDN totals must not change that contract.
+                    if (($item['metric'] ?? '') === 'cc_internet') {
+                        foreach (['price', 'discount', 'usedGift'] as $field) {
+                            self::integer($item[$field]);
+                        }
+                    }
+                    $p = self::decimal($item['price']);
+                    $d = self::decimal($item['discount']);
+                    $g = self::decimal($item['usedGift']);
                     // Supplier sometimes repeats the SAME zero-cost tenant outbound item in a zero-cost parent.
                     // Preserve the raw source and parent checks; this item is never a customer charge or volume.
                     $freeSend = ($item['metric'] ?? '') === 'cc_internet_send'
                         && ($row['scope'] ?? '') === 'tenant' && ($row['productName'] ?? '') === 'iaas'
-                        && $p === 0 && $d === 0 && $g === 0
-                        && self::integer($row['totalPrice']) === 0 && self::integer($row['totalDiscount']) === 0
-                        && self::integer($row['totalUsedGift']) === 0 && self::integer($row['netPrice']) === 0;
+                        && $p->isZero() && $d->isZero() && $g->isZero()
+                        && self::decimal($row['totalPrice'])->isZero() && self::decimal($row['totalDiscount'])->isZero()
+                        && self::decimal($row['totalUsedGift'])->isZero() && self::decimal($row['netPrice'])->isZero();
                     // Exact repeated zero-cost CDN components under different
                     // zero-cost parents cannot change the IaaS bill.
                     // Paid duplicates, changed payloads, other products and IaaS internet remain rejected.
                     $freeCdn = ($row['productName'] ?? '') === 'cdn'
                         && str_starts_with((string) ($item['metric'] ?? ''), 'cdn_')
-                        && $p === 0 && $d === 0 && $g === 0
-                        && self::integer($row['totalPrice']) === 0 && self::integer($row['totalDiscount']) === 0
-                        && self::integer($row['totalUsedGift']) === 0 && self::integer($row['netPrice']) === 0;
+                        && $p->isZero() && $d->isZero() && $g->isZero()
+                        && self::decimal($row['totalPrice'])->isZero() && self::decimal($row['totalDiscount'])->isZero()
+                        && self::decimal($row['totalUsedGift'])->isZero() && self::decimal($row['netPrice'])->isZero();
                     $repeatableZero = $freeSend || $freeCdn;
                     $fingerprint = hash('sha256', json_encode($freeCdn ? ['free_cdn', $this->canonicalCycle($item)] : [
                         $row['scope'] ?? null, $row['productName'] ?? null, $row['region'] ?? null,
@@ -170,24 +194,31 @@ final class ArvanTrafficSource
                         throw new RuntimeException('Duplicate or missing supplier component');
                     }
                     $seenItems[$id] = ['repeatable_zero' => $repeatableZero, 'fingerprint' => $fingerprint];
-                    if ($d + $g > $p) {
+                    if ($d->plus($g)->isGreaterThan($p)) {
                         throw new RuntimeException('Supplier discount exceeds price');
                     }
-                    $price += $p;
-                    $discount += $d;
-                    $gift += $g;
+                    $price = $price->plus($p);
+                    $discount = $discount->plus($d);
+                    $gift = $gift->plus($g);
                 }
-                if ($price !== self::integer($row['totalPrice']) || $discount !== self::integer($row['totalDiscount'])
-                    || $gift !== self::integer($row['totalUsedGift']) || $price - $discount - $gift !== self::integer($row['netPrice'])) {
+                if (! $price->isEqualTo(self::decimal($row['totalPrice'])) || ! $discount->isEqualTo(self::decimal($row['totalDiscount']))
+                    || ! $gift->isEqualTo(self::decimal($row['totalUsedGift']))
+                    || ! $price->minus($discount)->minus($gift)->isEqualTo(self::decimal($row['netPrice']))) {
                     throw new RuntimeException('Supplier parent/component totals differ');
                 }
-                $prices += $price;
-                $discounts += $discount;
-                $gifts += $gift;
+                $prices = $prices->plus($price);
+                $discounts = $discounts->plus($discount);
+                // The supplier's cycle summary can sum each parent's whole-IRR
+                // discount while detail rows retain fractional disk discounts.
+                // Traffic amounts above remain strictly integral and unchanged.
+                $summaryDiscounts = $summaryDiscounts->plus($discount->toScale(0, RoundingMode::Down));
+                $gifts = $gifts->plus($gift);
             }
-            if ($prices !== self::integer($cycle['totalItemsPrice']) || $discounts !== self::integer($cycle['totalItemsDiscount'])
-                || $gifts !== self::integer($cycle['totalUsedGift'])
-                || $prices - $discounts - $gifts + self::integer($cycle['totalVatPrice']) !== self::integer($cycle['totalPrice'])) {
+            $reportedDiscount = self::decimal($cycle['totalItemsDiscount']);
+            if (! $prices->isEqualTo(self::decimal($cycle['totalItemsPrice']))
+                || (! $discounts->isEqualTo($reportedDiscount) && ! $summaryDiscounts->isEqualTo($reportedDiscount))
+                || ! $gifts->isEqualTo(self::decimal($cycle['totalUsedGift']))
+                || ! $prices->minus($reportedDiscount)->minus($gifts)->plus(self::decimal($cycle['totalVatPrice']))->isEqualTo(self::decimal($cycle['totalPrice']))) {
                 throw new RuntimeException('Supplier cycle totals differ');
             }
         }

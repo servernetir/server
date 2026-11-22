@@ -41,7 +41,8 @@ class CatalogController extends Controller
         abort_if(in_array($category, ['vps', 'dedicated', 'hosting'], true)
             && in_array($slug, ['iran', 'iran-infrastructure'], true)
             && \App\Services\Customer\IranSalesVisibility::restricted(), 404);
-        if ($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true)) {
+        if (($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true))
+            || ($category === 'vps' && $slug === 'gpu')) {
             return redirect()->to(lroute('gpu'), 301);
         }
 

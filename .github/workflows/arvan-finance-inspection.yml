@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/arvan-monitoring/finance-inspection/**'
       - 'website/app/Services/Finance/ArvanTrafficSource.php'
+      - 'website/composer.json'
+      - 'website/composer.lock'
       - '.github/workflows/arvan-finance-inspection.yml'
 
 permissions:
@@ -29,6 +31,8 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
+      - name: Install locked dependencies before network isolation
+        run: composer install --working-dir=website --no-interaction --prefer-dist --no-dev --no-scripts --no-plugins --no-progress
       - name: Run evidence fixtures without a network interface
         run: |
           set -euo pipefail

@@ -21,6 +21,20 @@ class CountrySitemapEligibilityTest extends TestCase
         $this->seedCatalogPricing();
     }
 
+    public function test_gpu_sitemaps_advertise_the_canonical_page_and_preserve_the_legacy_redirect(): void
+    {
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        $section = $this->get('/sitemaps/products.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/vps/gpu')->assertStatus(301)->assertRedirect($prefix.'/gpu');
+            foreach ([$xml, $section] as $map) {
+                $this->assertSame(0, substr_count($map, '<loc>'.url($prefix.'/vps/gpu').'</loc>'));
+                $this->assertSame(1, substr_count($map, '<loc>'.url($prefix.'/gpu').'</loc>'));
+            }
+        }
+        Http::assertNothingSent();
+    }
+
     public function test_an_empty_configured_country_is_noindex_and_not_reintroduced_by_the_generic_catalogue(): void
     {
         $this->offer('at-vienna', 'AT');

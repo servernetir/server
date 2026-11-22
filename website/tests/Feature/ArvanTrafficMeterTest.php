@@ -508,6 +508,77 @@ class ArvanTrafficMeterTest extends TestCase
         Http::assertNothingSent();
     }
 
+    private function withFractionalDiskDiscount(): array
+    {
+        $snapshot = $this->snapshot();
+        $snapshot['reports'][0]['rows'][] = [
+            'instanceId' => 'synthetic-disk', 'scope' => 'instance', 'region' => 'ir-test', 'productName' => 'iaas',
+            'totalPrice' => '100', 'totalDiscount' => '0.5', 'totalUsedGift' => '0', 'netPrice' => '99.5',
+            'items' => [['itemId' => 'synthetic-disk-discount', 'metric' => 'cc_disk_eco',
+                'price' => '100', 'discount' => '0.5', 'usedGift' => '0']],
+        ];
+        $snapshot['reports'][0]['total_items'] = 2;
+        $snapshot['reports'][0]['cycle']['totalItemsPrice'] = '70100';
+        $snapshot['reports'][0]['cycle']['totalItemsDiscount'] = '0.5';
+        $snapshot['reports'][0]['cycle']['totalPrice'] = '70099.5';
+
+        return $snapshot;
+    }
+
+    public function test_fractional_disk_discount_does_not_block_or_change_integer_traffic_settlement(): void
+    {
+        $this->fixture();
+        $snapshot = $this->withFractionalDiskDiscount();
+        $result = app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(6930, $result['total_irt']);
+        $this->assertSame(1, Invoice::first()->items()->count());
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_supplier_summary_can_sum_whole_irr_disk_discounts_without_changing_traffic_charges(): void
+    {
+        $this->fixture();
+        $snapshot = $this->withFractionalDiskDiscount();
+        $snapshot['reports'][0]['cycle']['totalItemsDiscount'] = '0';
+        $snapshot['reports'][0]['cycle']['totalPrice'] = '70100';
+        $this->assertSame(6930, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, Invoice::first()->items()->count());
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_fractional_mismatch_and_fractional_traffic_still_fail_before_any_write(): void
+    {
+        [, , $state] = $this->fixture();
+        foreach (['rounded_parent', 'rounded_cycle', 'overstated_summary_discount', 'fractional_traffic', 'float', 'negative', 'exponent', 'too_large', 'excess_precision'] as $change) {
+            $snapshot = $this->withFractionalDiskDiscount();
+            match ($change) {
+                'rounded_parent' => $snapshot['reports'][0]['rows'][1]['netPrice'] = '100',
+                'rounded_cycle' => $snapshot['reports'][0]['cycle']['totalPrice'] = '70100',
+                'overstated_summary_discount' => $snapshot['reports'][0]['cycle']['totalItemsDiscount'] = '1',
+                'fractional_traffic' => $snapshot['reports'][0]['rows'][0]['items'][0]['price'] = '70000.5',
+                'float' => $snapshot['reports'][0]['rows'][1]['items'][0]['discount'] = 0.5,
+                'negative' => $snapshot['reports'][0]['rows'][1]['items'][0]['discount'] = '-0.5',
+                'exponent' => $snapshot['reports'][0]['rows'][1]['items'][0]['discount'] = '5e-1',
+                'too_large' => $snapshot['reports'][0]['rows'][1]['items'][0]['discount'] = '1000000000000.1',
+                'excess_precision' => $snapshot['reports'][0]['rows'][1]['items'][0]['discount'] = '0.0000001',
+            };
+            try {
+                app(ArvanTrafficMeter::class)->run($snapshot, true);
+                $this->fail('Invalid supplier amount must fail: '.$change);
+            } catch (RuntimeException $error) {
+                $this->assertMatchesRegularExpression('/Invalid (integer|decimal) IRR|totals differ/', $error->getMessage());
+            }
+            $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+            $this->assertSame(0, Invoice::count());
+            $this->assertSame(0, CreditEntry::count());
+        }
+        Http::assertNothingSent();
+    }
+
     public function test_pending_traffic_reserves_credit_and_stops_before_invoice_minimum_without_a_small_debit(): void
     {
         [$customer, $service, $state] = $this->fixture();
