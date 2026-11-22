@@ -22,13 +22,14 @@ use Throwable;
 /** Registered-account policy and documented external consent are separate sending bases. */
 final class EmailMarketingCampaigns
 {
-    public function __construct(private EmailMarketingPreferences $preferences) {}
+    public function __construct(private EmailMarketingPreferences $preferences, private EmailCampaignTemplate $templates) {}
 
     public function ready(): bool
     {
         if (! $this->preferences->ready() || ! Schema::hasTable('email_marketing_recipients')
             || ! Schema::hasTable('email_marketing_campaigns') || ! Schema::hasTable('email_marketing_deliveries')
-            || ! Schema::hasTable('external_email_consent_reviews') || ! Schema::hasTable('external_email_consent_review_events')) {
+            || ! Schema::hasTable('external_email_consent_reviews') || ! Schema::hasTable('external_email_consent_review_events')
+            || ! Schema::hasColumn('email_marketing_recipients', 'full_name') || ! Schema::hasColumn('email_marketing_campaigns', 'sender_email')) {
             return false;
         }
         try {
@@ -41,7 +42,7 @@ final class EmailMarketingCampaigns
 
     public function summary(): array
     {
-        $stats = ['ready' => $this->ready(), 'registered' => 0, 'external_ready' => 0, 'external_missing' => 0, 'blocked' => 0, 'mailer_ready' => false];
+        $stats = ['ready' => $this->ready(), 'registered' => 0, 'external_ready' => 0, 'external_missing' => 0, 'external_missing_names' => 0, 'blocked' => 0, 'mailer_ready' => false];
         if (! $stats['ready']) {
             return $stats;
         }
@@ -59,6 +60,7 @@ final class EmailMarketingCampaigns
                 $stats['registered']++;
             } else {
                 $stats['external_ready']++;
+                if (! filled($recipient->full_name)) { $stats['external_missing_names']++; }
             }
         }
         $stats['external_missing'] = ExternalEmailConsentReview::query()
@@ -99,7 +101,7 @@ final class EmailMarketingCampaigns
     }
 
     /** The upload restores an address only when its HMAC matches an existing evidence record. */
-    public function restoreAddress(string $email, int $adminId): bool
+    public function restoreAddress(string $email, int $adminId, ?string $fullName = null): bool
     {
         $this->assertAdmin($adminId);
         $this->assertReady();
@@ -108,7 +110,8 @@ final class EmailMarketingCampaigns
         if (! $review) {
             return false;
         }
-        $this->upsertRecipient($email, 'documented', null, (int) $review->id, $adminId);
+        $fullName = filled($fullName) ? $this->templates->normalizeName($fullName) : null;
+        $this->upsertRecipient($email, 'documented', null, (int) $review->id, $adminId, $fullName);
 
         return true;
     }
@@ -127,8 +130,12 @@ final class EmailMarketingCampaigns
             $header = fgetcsv($handle, 0, ',', '"', '');
             $header = is_array($header) ? array_map(fn ($v) => strtolower(trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $v))), $header) : [];
             $column = array_search('email', $header, true);
-            if ($column === false) {
+            if ($column === false || count($header) !== count(array_unique($header))) {
                 throw new DomainException('CSV requires email column.');
+            }
+            $nameColumn = false;
+            foreach (['full_name', 'name', 'نام و نام خانوادگی'] as $nameHeader) {
+                if (($index = array_search($nameHeader, $header, true)) !== false) { $nameColumn = $index; break; }
             }
             $rows = 0;
             while (($row = fgetcsv($handle, 0, ',', '"', '')) !== false) {
@@ -138,20 +145,29 @@ final class EmailMarketingCampaigns
                 if (++$rows > 1000) {
                     throw new DomainException('CSV exceeds 1000 rows.');
                 }
+                if (count($row) !== count($header)) { $stats['invalid']++; continue; }
                 try {
                     $email = $this->preferences->normalizeEmail((string) ($row[$column] ?? ''));
-                    $entries[$email] = true;
+                    $fullName = $nameColumn !== false && filled($row[$nameColumn] ?? null)
+                        ? $this->templates->normalizeName((string) $row[$nameColumn]) : null;
+                    if (isset($entries[$email]) && $entries[$email]['name'] !== null && $fullName !== null
+                        && $entries[$email]['name'] !== $fullName) {
+                        throw new \UnexpectedValueException('Conflicting names for one address.');
+                    }
+                    $entries[$email] = ['name' => $fullName ?? ($entries[$email]['name'] ?? null)];
                 } catch (DomainException) {
                     $stats['invalid']++;
                 }
             }
+        } catch (\UnexpectedValueException) {
+            throw new DomainException('Conflicting recipient names in CSV.');
         } finally {
             fclose($handle);
         }
         // Parse the entire bounded file before making changes.
         return DB::transaction(function () use ($entries, $adminId, $stats) {
-            foreach (array_keys($entries) as $email) {
-                $stats[$this->restoreAddress($email, $adminId) ? 'restored' : 'unmatched']++;
+            foreach ($entries as $email => $entry) {
+                $stats[$this->restoreAddress($email, $adminId, $entry['name']) ? 'restored' : 'unmatched']++;
             }
 
             return $stats;
@@ -206,7 +222,9 @@ final class EmailMarketingCampaigns
             throw new DomainException('Campaign content invalid.');
         }
 
-        return EmailMarketingCampaign::query()->create(['subject' => trim($subject), 'body' => trim($body),
+        $this->templates->validate($body);
+        return EmailMarketingCampaign::query()->create(['sender_email' => 'info@servernet.cloud',
+            'sender_name' => 'ServerNet', 'reply_to' => 'info@servernet.cloud', 'subject' => trim($subject), 'body' => trim($body),
             'audience' => $audience, 'status' => 'draft', 'created_by' => $adminId]);
     }
 
@@ -227,13 +245,22 @@ final class EmailMarketingCampaigns
             } elseif ($campaign->audience === 'external') {
                 $recipients->where('basis', 'documented');
             }
-            $count = 0;
+            $this->templates->validate($campaign->body);
+            $requiresName = $this->templates->requiresName($campaign->body);
+            $selected = [];
+            $missingNames = 0;
             foreach ($recipients->cursor() as $recipient) {
-                if (! $this->eligible($recipient)) {
-                    continue;
+                if (! $this->eligible($recipient)) { continue; }
+                $selected[] = $recipient;
+                if ($requiresName) {
+                    try { $this->templates->normalizeName($recipient->full_name); }
+                    catch (DomainException) { $missingNames++; }
                 }
+            }
+            if ($missingNames > 0) { throw new MissingEmailRecipientNames($missingNames); }
+            $count = count($selected);
+            foreach ($selected as $recipient) {
                 EmailMarketingDelivery::query()->firstOrCreate(['campaign_id' => $campaign->id, 'recipient_id' => $recipient->id], ['status' => 'queued']);
-                $count++;
             }
             if ($count === 0) {
                 throw new DomainException('No eligible recipients.');
@@ -277,10 +304,20 @@ final class EmailMarketingCampaigns
                     continue;
                 }
                 $unsubscribe = rtrim((string) config('app.url'), '/').'/email-marketing/unsubscribe/campaign/'.$this->token($recipient);
-                $text = $campaign->body."\n\nServerNet\n".(string) config('crm.from.address', '')."\n".__('email-campaigns.unsubscribe_label').': '.$unsubscribe;
+                try {
+                    $text = $this->templates->render($campaign->body, $recipient->full_name, $unsubscribe);
+                } catch (DomainException) {
+                    $delivery->update(['status' => 'skipped', 'reason' => 'personalization_unavailable']);
+                    $stats['skipped']++;
+                    continue;
+                }
+                if (! $this->templates->containsUnsubscribeToken($campaign->body)) {
+                    $text .= "\n\nServerNet\n".(string) config('crm.from.address', '')."\n".__('email-campaigns.unsubscribe_label').': '.$unsubscribe;
+                }
                 $sent = Mail::mailer($mailer)->raw($text, function ($message) use ($recipient, $campaign, $unsubscribe) {
                     $message->to($recipient->email)->subject($campaign->subject)
-                        ->from((string) config('crm.from.email', config('mail.from.address')), (string) config('crm.from.name', config('mail.from.name')));
+                        ->from($campaign->sender_email ?? (string) config('crm.from.email', config('mail.from.address')), $campaign->sender_name ?? 'ServerNet')
+                        ->replyTo($campaign->reply_to ?? $campaign->sender_email ?? (string) config('crm.from.email'));
                     $headers = $message->getSymfonyMessage()->getHeaders();
                     $headers->addTextHeader('List-Unsubscribe', '<'.$unsubscribe.'>');
                     $headers->addTextHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
@@ -377,13 +414,14 @@ final class EmailMarketingCampaigns
         return true;
     }
 
-    private function upsertRecipient(string $email, string $basis, ?int $customerId, ?int $reviewId, ?int $adminId): EmailMarketingRecipient
+    private function upsertRecipient(string $email, string $basis, ?int $customerId, ?int $reviewId, ?int $adminId, ?string $fullName = null): EmailMarketingRecipient
     {
         $identity = $this->preferences->evidenceReviewIdentity($email);
-        return DB::transaction(function () use ($email, $basis, $customerId, $reviewId, $adminId, $identity) {
+        return DB::transaction(function () use ($email, $basis, $customerId, $reviewId, $adminId, $identity, $fullName) {
             $recipient = EmailMarketingRecipient::query()->whereIn('email_digest', $identity['digests'])->lockForUpdate()->first();
             if ($recipient) {
                 $values = [];
+                if ($fullName !== null && $recipient->full_name !== $fullName) { $values['full_name'] = $fullName; }
                 if ((string) $recipient->email !== $email) {
                     $values['email'] = $email;
                 }
@@ -401,7 +439,7 @@ final class EmailMarketingCampaigns
 
             return EmailMarketingRecipient::query()->firstOrCreate(['email_digest' => $identity['digests'][0]], ['public_id' => (string) Str::uuid(),
                 'digest_key_id' => $identity['key_id'],
-                'email' => $email, 'basis' => $basis, 'customer_id' => $customerId,
+                'email' => $email, 'full_name' => $fullName, 'basis' => $basis, 'customer_id' => $customerId,
                 'review_id' => $reviewId, 'created_by' => $adminId]);
         }, 3);
     }
@@ -448,7 +486,23 @@ final class EmailMarketingCampaigns
 
     private function assertMailer(): string
     {
-        $mailer = (string) config('email-marketing.mailer', config('crm.mailer', 'crm'));
+        $mailer = config('email-marketing.mailer');
+        if (! filled($mailer)) {
+            // The marketing sender uses the already configured company mailbox; CRM remains separate.
+            $account = collect(config('mailboxes.accounts', []))->firstWhere('key', 'info');
+            if (! $account || strtolower((string) ($account['user'] ?? '')) !== 'info@servernet.cloud' || ! filled($account['pass'] ?? null)) {
+                throw new DomainException('Company sender mailbox unavailable.');
+            }
+            $transport = (array) config('mail.mailers.'.config('crm.mailer', 'crm'));
+            if (($transport['transport'] ?? null) !== 'smtp') { throw new DomainException('Company SMTP transport unavailable.'); }
+            $transport['username'] = $account['user'];
+            $transport['password'] = $account['pass'];
+            $transport['timeout'] = 20;
+            unset($transport['url']);
+            config(['mail.mailers.email-marketing-info' => $transport]);
+            $mailer = 'email-marketing-info';
+        }
+        $mailer = (string) $mailer;
         if (! in_array(config('mail.mailers.'.$mailer.'.transport'), ['smtp', 'sendmail', 'ses', 'ses-v2', 'mailgun', 'postmark', 'resend'], true)) {
             throw new DomainException('Real mail transport unavailable.');
         }
