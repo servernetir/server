@@ -20,4 +20,14 @@ The installer uses the shared release lock, complete preflight, private backup, 
 
 On the approved application account: `python3 release.py prepare <sha>`, then `apply`, `verify` and `activate` with the same fixed SHA. Private receipt: `deploy-backups/studio-home-20261122-<sha12>/`. `rollback` with that SHA checks every installed hash and the backup before restoring the exact home bytes, recompiling the two views and retiring only this release's new files. Any newer live change stops rollback.
 
-Status: implementation and isolated checks complete; Git, CI and production acceptance pending.
+## Production acceptance — 22 November 2026
+
+PR [378](https://github.com/servernetir/server/pull/378) reviewed source `2684232e3e972ac9b49e8574492293b22f08a793`, merged as `ecec7873c7a97ded3dab696d24785f2e048f3a11`. All ten triggered CI workflows completed successfully, including Studio presentation run `45026176616`, existing domain presentation, SEO and security regressions. Concurrent Ollama changes in develop were preserved.
+
+Eleven runtime destinations installed and matched their manifest hashes. Both existing application FPM pools compiled the two views, reported Studio configured and confirmed no general cache flush. The original live-only home differences were preserved. Final public acceptance at **13:19:35 UTC / 16:49:35 Tehran** returned HTTP 200 with Studio present on `/`, `/en` and `/tr`; all three public assets matched source SHA-256. No temporary activation primary remained.
+
+Live desktop acceptance: Persian RTL and English/Turkish LTR copy and localized guide links; purple/cyan composition in dark and light themes; all four previews switched to exactly one visible panel with the correct pressed state. The ordinary unparameterized Persian homepage shows Studio before the infrastructure hero. No browser console errors were observed in the final page. The viewport was 1920 CSS pixels with no horizontal overflow. The browser's requested mobile viewport override did not change its actual dimensions, so **live mobile visual acceptance remains unverified**. Responsive CSS and DOM checks are present; no narrow-browser screenshot or device test is claimed. The original dark theme and default viewport settings were restored.
+
+![Published Persian homepage](studio-home-2026-11-22/homepage-fa-dark.jpg)
+
+Final status: source in develop, runtime installed and public desktop production acceptance confirmed. Rollback uses the fixed merge SHA above and the private receipt described earlier.
