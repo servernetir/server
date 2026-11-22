@@ -35,9 +35,9 @@ $icons = preg_replace('/\{\{--.*?--\}\}/s', '', file_get_contents("$root/resourc
 foreach (['css', 'js', 'img', 'font/woff2'] as $directory) {
     if (!is_dir($output.'/assets/'.$directory)) mkdir($output.'/assets/'.$directory, 0700, true);
 }
-foreach (['css/site.css', 'css/atlas.css', 'css/studio-carousel.css', 'js/studio-carousel.js', 'img/atlas-earth.svg', 'img/studio-coffee-campaign.webp'] as $asset) {
+foreach (['css/site.css', 'css/atlas.css', 'css/atlas-public.css', 'css/studio-carousel.css', 'js/studio-carousel.js', 'img/atlas-earth.svg', 'img/studio-coffee-campaign.webp'] as $asset) {
     copy($root.'/public/assets/'.$asset, $output.'/assets/'.$asset);
 }
 foreach (glob($root.'/public/assets/font/woff2/IRANSans*web.woff2') as $font) copy($font, $output.'/assets/font/woff2/'.basename($font));
-file_put_contents($output."/$locale.html", '<!doctype html><html lang="'.$locale.'" dir="'.$dir.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ServerNet · Glass carousel preview</title><link rel="stylesheet" href="assets/css/site.css"><link rel="stylesheet" href="assets/css/atlas.css"><link rel="stylesheet" href="assets/css/studio-carousel.css"></head><body>'.$icons.'<main id="main" style="padding-top:0">'.$partial.'</main><script src="assets/js/studio-carousel.js"></script></body></html>');
+file_put_contents($output."/$locale.html", '<!doctype html><html lang="'.$locale.'" dir="'.$dir.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ServerNet · Glass carousel preview</title><link rel="stylesheet" href="assets/css/site.css"><link rel="stylesheet" href="assets/css/atlas.css"><link rel="stylesheet" href="assets/css/atlas-public.css"><link rel="stylesheet" href="assets/css/studio-carousel.css"></head><body class="sn-public">'.$icons.'<main id="main" style="padding-top:0">'.$partial.'</main><script src="assets/js/studio-carousel.js"></script></body></html>');
 echo "Rendered carousel $locale\n";

@@ -10,7 +10,7 @@ js = (root/'website/public/assets/js/studio-carousel.js').read_text()
 for locale in ['fa','en','tr']:
     page = (source/(locale+'.html')).read_text()
     page = page.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">')
-    for name in ['site','atlas']:
+    for name in ['site','atlas','atlas-public']:
         page = page.replace('href="assets/css/'+name+'.css"', 'href="https://servernet.cloud/assets/css/'+name+'.css"')
     page = page.replace('<link rel="stylesheet" href="assets/css/studio-carousel.css">', '<style>'+css+'</style>')
     page = page.replace('<script src="assets/js/studio-carousel.js"></script>', '<script>'+js+'</script>')
