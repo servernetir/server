@@ -151,7 +151,14 @@ try {
         $current = is_file($target) ? hash_file('sha256', $target) : null;
         if ($current !== $item['before']) { throw new RuntimeException('Changed target: '.$relative); }
         $url = 'https://raw.githubusercontent.com/servernetir/server/'.$sha.'/website/'.$relative;
-        $bytes = file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 40], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]));
+        // This cPanel CLI disables URL fopen; use the verified system HTTPS client.
+        $process = proc_open(['/usr/bin/curl', '--proto', '=https', '--tlsv1.2', '--fail', '--silent', '--show-error', '--location', '--max-time', '40', $url], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $downloadPipes);
+        if (! is_resource($process)) { throw new RuntimeException('Download unavailable: '.$relative); }
+        $bytes = stream_get_contents($downloadPipes[1]);
+        $downloadError = stream_get_contents($downloadPipes[2]);
+        fclose($downloadPipes[1]);
+        fclose($downloadPipes[2]);
+        if (proc_close($process) !== 0) { throw new RuntimeException('HTTPS download failed: '.$relative); }
         if ($bytes === false || hash('sha256', $bytes) !== $item['source']) { throw new RuntimeException('Artifact mismatch: '.$relative); }
         // Preserve independently deployed production changes in these shared files.
         if ($relative === 'app/Http/Controllers/Account/AccountController.php') {
