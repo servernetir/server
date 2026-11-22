@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Http;
  * Approved Ollama release for new deliveries. Runtime upgrades are separate:
  * refreshing the catalog must never restart an existing customer container.
  * Discover stable upstream releases only in the scheduled refresh command.
- * Checkout reads a verified, digest-pinned reference without network calls.
+ * Checkout reads a verified version tag without network calls. The provider
+ * rejects digest references; the observed amd64 digest remains in the audit metadata.
  */
 final class SaladOllamaImage
 {
@@ -25,8 +26,7 @@ final class SaladOllamaImage
 
     public function ref(): string
     {
-        $release = $this->approved(Setting::get(self::RELEASE_SETTING));
-        return self::REPO.':'.$this->tag().($release ? '@'.$release['digest'] : '');
+        return self::REPO.':'.$this->tag();
     }
 
     public function tag(): string
@@ -135,7 +135,7 @@ final class SaladOllamaImage
                 ->filter(fn ($row) => self::isOurs((string) $row->provider_ref));
             $source = $rows->firstWhere('is_active', true) ?? $rows->first();
             if ($source === null) { return null; }
-            $ref = self::REPO.':'.$release['version'].'@'.$release['digest'];
+            $ref = self::REPO.':'.$release['version'];
             $image = $rows->firstWhere('provider_ref', $ref);
             if ($image === null) { $image = $source->replicate(); $image->provider_ref = $ref; }
             $image->is_active = $rows->contains(fn ($row) => $row->is_active) && Setting::where('key', 'salad_ollama_sales_paused')->value('value') !== '1';

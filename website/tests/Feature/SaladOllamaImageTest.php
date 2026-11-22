@@ -86,7 +86,7 @@ class SaladOllamaImageTest extends TestCase
             'arch' => 'x86', 'is_active' => true]);
     }
 
-    public function test_stable_refresh_pins_the_amd64_digest_and_aligns_only_ollama(): void
+    public function test_stable_refresh_audits_the_amd64_digest_and_aligns_only_ollama(): void
     {
         $old = $this->catalog(); $this->stable();
         $other = CloudImage::create(['provider' => 'salad', 'provider_ref' => 'saladtechnologies/comfyui:kept',
@@ -94,7 +94,7 @@ class SaladOllamaImageTest extends TestCase
         $service = app(SaladOllamaImage::class);
         $result = $service->discoverStable();
         $this->assertTrue($result['ok']); $this->assertTrue($result['changed']);
-        $this->assertSame('ollama/ollama:0.41.0@sha256:'.str_repeat('a', 64), $service->ref());
+        $this->assertSame('ollama/ollama:0.41.0', $service->ref());
         $this->assertSame('0.41.0', Setting::get(SaladOllamaImage::SETTING));
         $this->assertFalse($old->fresh()->is_active); $this->assertTrue($other->fresh()->is_active);
         $this->assertSame(1, CloudImage::where('key', 'gpu-ollama')->where('is_active', true)->count());
