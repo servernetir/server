@@ -60,4 +60,38 @@ To revoke, restore the gateway receipt first while root access still works;
 then restore the Proxmox key receipt from an existing administrator session.
 Do not replay old actions; their target hashes bind to the previous identity.
 
-Status: source prepared; production grant and activation have not been performed.
+## Production acceptance — 22 November 2026
+
+PR 369 source 7e4b13c611c1d8f64cc23a8162ea7d3dd6147943 merged into
+develop as c6d1b76059e411c3072d8ce85304cabb1e57e56f after the focused
+CI passed and the independent code review completed without findings.
+All eleven isolated behavioral tests passed locally and in CI.
+The installer SHA-256 is
+c4f2e98ac507df37175b16a88e3cf6c6bad85f74e6ef4779a72944a36e20afde;
+the staged bytes on both destinations were verified against it.
+
+After explicit owner confirmation at the browser action, host-grant completed
+once in the existing root administrator session. It enrolled the dedicated
+key in the already configured local authorized_keys2. The existing cluster
+symlink, SSH policy and source-address restriction were preserved. The private
+root receipt and any previous local keys remain on the host.
+
+gateway-promote then verified pinned root SSH and qm status 127 before changing
+the existing proxmox-ir target to root. It returned root_verified=true and
+other_targets_preserved=true and retained its private backup/receipt. No runtime
+PHP release or plugin archive update was needed.
+
+Acceptance through the actual connected ChatGPT plugin succeeded: the inventory
+reported Proxmox Iran administrator; the fixed SSH uptime diagnostic exited 0;
+a newly registered automatically approved action returned uid 0, user root and
+VM127 running. Guest-agent execution inside VM127 also returned uid 0 and exit 0.
+Thus both host administration and real command execution in the Hermes guest
+were confirmed without another Proxmox browser login.
+
+Hermes inspection confirmed its three assistant/broker/owner services running
+on 10.10.10.127. The documented dashboard/webapp defaults 9119 and 9120 had no
+listener. Port 9090 was identified as Prometheus, not a Hermes GUI.
+This access change did not start or publish a web dashboard. Other guests'
+agent availability and separately hosted panel OS administration were not tested.
+
+Final state: root access installed and production acceptance confirmed.
