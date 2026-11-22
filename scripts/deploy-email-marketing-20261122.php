@@ -109,7 +109,7 @@ $manifest = json_decode(<<<'MANIFEST'
     "source": "cb6fcb2f02fc758bdbed8057731aaabc1fa209e56ed9c18a911ff07bf225bc8f"
   },
   "routes/console.php": {
-    "before": "9e66365e0a6165c8dd89b364074886a8a28b07c4041f3c7abd477e564cdf0e77",
+    "before": "fd6cddb4659247bd28a7d8f26f136560020d4b48e69a84d680e256ef8cb74566",
     "source": "549b5469c3201037f3a67fbfb0c5438468ca13bb4cc3832d16cedfaced77423b"
   },
   "routes/email-marketing-account.php": {
