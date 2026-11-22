@@ -166,7 +166,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         ], $overrides);
     }
 
-    private function assertEvidenceCounts(int $pending, int $verified, int $rejected, int $revoked): void
+    private function assertEvidenceCounts(int $pending, int $verified, int $rejected, int $revoked, int $eligible = 0): void
     {
         $page = $this->get('/admin/email-marketing')->assertOk();
         $dom = $this->pageDom((string) $page->getContent());
@@ -176,7 +176,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
             'verified' => $verified,
             'rejected' => $rejected,
             'revoked' => $revoked,
-            'eligible' => 0,
+            'eligible' => $eligible,
         ] as $metric => $value) {
             $attribute = 'data-evidence-'.$metric;
             $this->assertSame((string) $value, $this->element($dom, '//*[@'.$attribute.']')->getAttribute($attribute));
@@ -267,7 +267,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertSame('independent-verification-log-001', $event->review_reference);
         $this->assertArrayNotHasKey('review_reference', $event->toArray());
         $this->assertSame((array) $before, (array) DB::table('external_email_consent_reviews')->sole());
-        $this->assertEvidenceCounts(0, 1, 0, 0);
+        $this->assertEvidenceCounts(0, 1, 0, 0, 1);
 
         $page = $this->get($this->reviewUrl($review))->assertOk()
             ->assertDontSee('member@external.example.test')
@@ -407,7 +407,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertReviewOnly();
     }
 
-    public function test_dashboard_counts_and_displays_each_individual_review_state_without_enabling_sending(): void
+    public function test_dashboard_counts_and_displays_each_individual_review_state_without_dispatching_a_campaign(): void
     {
         $this->admin();
         $date = now()->subDays(9)->toDateString();
@@ -427,7 +427,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
             'decision' => 'revoked', 'reason' => 'administrative_prevent',
             'acknowledge' => '1', 'expected_event' => '0',
         ])->assertSessionHas('review_success');
-        $this->assertEvidenceCounts(1, 1, 1, 1);
+        $this->assertEvidenceCounts(1, 1, 1, 1, 1);
         $page = $this->get('/admin/email-marketing')->assertOk()
             ->assertDontSee('@external.example.test')
             ->assertDontSee('archive-verified')
@@ -526,7 +526,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertReviewOnly();
     }
 
-    public function test_shared_document_links_selected_pending_records_without_approving_any_consent(): void
+    public function test_legacy_shared_document_endpoint_preserves_linkage_history_while_ui_uses_bulk_approval(): void
     {
         $admin = $this->admin();
         $date = now()->subDays(7)->toDateString();
@@ -542,7 +542,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $dom = $this->pageDom((string) $page->getContent());
         $formPath = '//*[@id="evidence"]//form[@id="evidence-document-group"]';
         $form = $this->element($dom, $formPath);
-        $this->assertSame(url($this->documentUrl()), $form->getAttribute('action'));
+        $this->assertSame(route('admin.email-marketing.bulk-approve'), $form->getAttribute('action'));
         $this->assertSame('post', strtolower($form->getAttribute('method')));
         $this->assertNotEmpty($this->element($dom, $formPath.'//input[@name="_token" and @type="hidden"]')->getAttribute('value'));
         $this->element($dom, $formPath.'//input[@name="selection" and @value="selected"]');
@@ -596,9 +596,9 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
             ->assertDontSee('archive-original-001');
         $dom = $this->pageDom((string) $list->getContent());
         $remaining = $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]');
-        $this->assertSame(1, $remaining->length);
-        $this->assertSame((string) $records[1]->id, $remaining->item(0)->getAttribute('value'));
-        $this->assertSame('1', $this->element($dom, $formPath.'//input[@name="expected_count"]')->getAttribute('value'));
+        // A legacy document association does not prevent the new approval action.
+        $this->assertSame(3, $remaining->length);
+        $this->assertSame('3', $this->element($dom, $formPath.'//input[@name="expected_count"]')->getAttribute('value'));
 
         // The shared pointer is visible only in the detail of its specific linked record.
         $detail = $this->get($this->reviewUrl($records[0]))->assertOk()
@@ -656,19 +656,19 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $originalBatch = ExternalEmailConsentDocumentBatch::query()->sole();
         $priorEvents = DB::table('external_email_consent_review_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
 
-        // The hidden expected count is the complete eligible set, not the first page.
+        // The new approval form includes all pending records, including legacy links.
         $firstPage = $this->get('/admin/email-marketing?evidence_page=1')->assertOk();
         $dom = $this->pageDom((string) $firstPage->getContent());
         $this->assertSame(35, $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]')->length);
-        $this->assertSame('38', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
+        $this->assertSame('39', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
         $nextPage = $this->get('/admin/email-marketing?evidence_page=2')->assertOk();
         $dom = $this->pageDom((string) $nextPage->getContent());
         $enabled = $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]');
-        $this->assertSame(3, $enabled->length);
-        foreach ($records->take(4) as $ineligible) {
+        $this->assertSame(4, $enabled->length);
+        foreach ($records->take(3) as $ineligible) {
             $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-row="'.$ineligible->contact_id.'"]//input[@name="review_ids[]" and not(@disabled)]')->length);
         }
-        $this->assertSame('38', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
+        $this->assertSame('39', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
 
         $this->postDocument([
             'selection' => 'all_pending', 'expected_count' => '38',
@@ -688,7 +688,7 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         ]);
         $this->assertSame($before, $this->reviewPreimages());
         $this->assertSame($priorEvents, DB::table('external_email_consent_review_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all());
-        $this->assertEvidenceCounts(39, 1, 1, 1);
+        $this->assertEvidenceCounts(39, 1, 1, 1, 1);
         $this->assertReviewOnly();
     }
 
@@ -865,14 +865,14 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         Mail::assertNothingQueued();
     }
 
-    public function test_evidence_dashboard_has_an_accessible_review_only_form_and_empty_state(): void
+    public function test_evidence_dashboard_has_an_accessible_evidence_form_and_empty_state(): void
     {
         $this->admin();
 
         $page = $this->get('/admin/email-marketing')->assertOk()
             ->assertSee(__('email-evidence-review.intro'))
             ->assertSee(__('email-evidence-review.empty'))
-            ->assertSee(__('email-marketing.admin_intro'));
+            ->assertSee(__('email-campaigns.registration_note'));
         $this->assertStringContainsString('no-store', $page->headers->get('Cache-Control'));
         $this->assertSame('no-referrer', $page->headers->get('Referrer-Policy'));
         $this->assertSame('noindex, nofollow', $page->headers->get('X-Robots-Tag'));

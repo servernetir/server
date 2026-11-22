@@ -3,7 +3,7 @@
 return [
     'title' => 'E-posta abonelik yönetimi',
     'account_title' => 'Pazarlama e-postası tercihleri',
-    'admin_intro' => 'Doğrulanmış müşteri hesaplarının izin durumunu inceleyin. Bu modül e-posta göndermez ve işlem bildirimlerinden bağımsızdır.',
+    'admin_intro' => 'Kayıtlı müşteriler varsayılan abonelik politikasına tabidir; tercih ve engel geçmişi burada saklanır.',
     'metric_all' => 'Kayıtlı tercihler',
     'metric_pending' => 'Onay bekleyen',
     'metric_granted' => 'Kayıtlı izin',

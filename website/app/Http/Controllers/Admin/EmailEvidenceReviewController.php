@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ExternalEmailConsentReview;
 use App\Services\Marketing\EmailMarketingPreferences;
+use App\Services\Marketing\EmailMarketingCampaigns;
 use DateTimeImmutable;
 use DomainException;
 use Illuminate\Http\Request;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
-/** Receives pointers to pre-existing evidence for review, never grants subscriptions. */
+/** Imports evidence and encrypted delivery addresses; approval is a separate administrator action. */
 class EmailEvidenceReviewController extends Controller
 {
     public function index(Request $request, EmailMarketingPreferences $preferences)
@@ -47,8 +48,7 @@ class EmailEvidenceReviewController extends Controller
             throw $this->fileError('csv_required');
         }
 
-        // Fully validate before writing anything. Nothing from the upload is
-        // copied to the session or a list of sendable recipients.
+        // Fully validate before writing. Addresses are encrypted separately; no messages are sent.
         [$entries, $stats] = $this->readCsv($file->getRealPath(), $preferences);
         $admin = (int) Auth::guard('web')->id();
         try {
@@ -59,10 +59,12 @@ class EmailEvidenceReviewController extends Controller
                 }
                 foreach ($entries as $entry) {
                     $identity = $entry['identity'];
-                    // Never overwrite original evidence/date or resurrect any
-                    // subscription. This table is not used by eligibility.
+                    // Preserve evidence and all previous review/withdrawal decisions.
                     if (ExternalEmailConsentReview::query()->whereIn('email_digest', $identity['digests'])->exists()) {
                         $stats['duplicates']++;
+                        if (app(EmailMarketingCampaigns::class)->ready()) {
+                            app(EmailMarketingCampaigns::class)->restoreAddress($entry['email'], $admin);
+                        }
                         continue;
                     }
                     $row = ExternalEmailConsentReview::query()->firstOrCreate([
@@ -74,6 +76,9 @@ class EmailEvidenceReviewController extends Controller
                         'imported_by' => $admin,
                     ]);
                     $stats[$row->wasRecentlyCreated ? 'added' : 'duplicates']++;
+                    if (app(EmailMarketingCampaigns::class)->ready()) {
+                        app(EmailMarketingCampaigns::class)->restoreAddress($entry['email'], $admin);
+                    }
                 }
 
                 return $stats;
@@ -136,7 +141,7 @@ class EmailEvidenceReviewController extends Controller
                     $stats['duplicates']++;
                     continue;
                 }
-                $entries[$digest] = ['identity' => $identity, 'date' => $date, 'reference' => $reference];
+                $entries[$digest] = ['identity' => $identity, 'email' => $preferences->normalizeEmail($email), 'date' => $date, 'reference' => $reference];
             }
         } finally {
             fclose($handle);

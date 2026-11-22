@@ -208,8 +208,6 @@ class AccountController extends Controller
                     // «پروفایل و احراز هویت» یک صفحه است؛ آیتمِ جدای verify حذف شد
                     // چون کاربر نمی‌فهمید تفاوتش با پروفایل چیست.
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
-                    ...((bool) config('email-marketing.enabled') && \Illuminate\Support\Facades\Route::has('account.email-preferences')
-                        ? [['key' => 'email-preferences', 'icon' => 'mail', 'label' => __('email-marketing.account_title'), 'url' => lroute('account.email-preferences')]] : []),
                     ['key' => 'ai', 'icon' => 'code', 'label' => __('ai.usage'), 'url' => lroute('account.ai')],
                     ['key' => 'identity', 'icon' => 'shield', 'label' => __('identity.menu'), 'url' => lroute('account.identity')],
                     ...(\Illuminate\Support\Facades\Route::has('account.api') ? [['key' => 'api', 'icon' => 'code', 'label' => __('customer-api.title'), 'url' => lroute('account.api')]] : []),

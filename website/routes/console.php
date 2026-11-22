@@ -815,3 +815,6 @@ Schedule::command('cloud:watch-arvan-monitoring')
     ->everyMinute()
     ->withoutOverlapping(2)
     ->runInBackground();
+
+// Sends only drafts explicitly queued by an administrator; no campaign is created automatically.
+Schedule::command('email-marketing:send --limit=25')->everyMinute()->withoutOverlapping(10);

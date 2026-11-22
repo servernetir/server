@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\EmailMarketingPreference;
 use App\Models\ExternalEmailConsentReview;
 use App\Services\Marketing\EmailMarketingPreferences;
+use App\Services\Marketing\EmailMarketingCampaigns;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -53,8 +54,7 @@ class EmailMarketingController extends Controller
             }
         }
 
-        // Show review-only evidence alongside existing customer preferences.
-        // The evidence table is optional and never contributes to eligibility.
+        // Evidence review and campaign eligibility share the administrator dashboard.
         $evidenceRecords = null;
         $evidenceReviewReady = false;
         $evidenceDocumentReady = false;
@@ -70,13 +70,7 @@ class EmailMarketingController extends Controller
                     $evidenceCounts[$decision] = ExternalEmailConsentReview::query()
                         ->whereHas('latestDecision', fn ($q) => $q->where('decision', $decision))->count();
                 }
-                $evidenceDocumentReady = Schema::hasTable('external_email_consent_document_batches')
-                    && Schema::hasTable('external_email_consent_document_items');
-                if ($evidenceDocumentReady) {
-                    $evidenceQuery->with('sharedDocumentItem');
-                    $evidenceDocumentAvailable = ExternalEmailConsentReview::query()
-                        ->doesntHave('decisions')->doesntHave('sharedDocumentItem')->count();
-                }
+
             }
             $evidenceRecords = $evidenceQuery->paginate(35, ['*'], 'evidence_page')->withQueryString()->fragment('evidence');
             if (! $evidenceReviewReady) {
@@ -84,7 +78,13 @@ class EmailMarketingController extends Controller
             }
         }
 
-        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords', 'evidenceReviewReady', 'evidenceCounts', 'evidenceDocumentReady', 'evidenceDocumentAvailable'))
+        $campaignSummary = app(EmailMarketingCampaigns::class)->summary();
+        $campaignReady = (bool) ($campaignSummary['ready'] ?? false);
+        $campaigns = $campaignReady ? app(EmailMarketingCampaigns::class)->recent() : collect();
+        $evidenceDocumentReady = $campaignReady && $evidenceReviewReady;
+        $evidenceDocumentAvailable = $evidenceCounts['pending'];
+
+        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords', 'evidenceReviewReady', 'evidenceCounts', 'evidenceDocumentReady', 'evidenceDocumentAvailable', 'campaignSummary', 'campaignReady', 'campaigns'))
             ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer', 'X-Robots-Tag' => 'noindex, nofollow']);
     }
 

@@ -8,7 +8,7 @@
   .em-dashboard-head h2{margin:0;color:var(--text);font-size:20px;line-height:1.65}
   .em-dashboard-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.em-dashboard-nav .btn{white-space:normal;text-align:center;justify-content:center}
   .em-dashboard-alert{padding:14px 18px;border:1px solid rgba(255,107,107,.45);border-radius:14px;background:rgba(255,107,107,.10);color:var(--text)}.em-dashboard-alert p{margin:3px 0}
-  .em-dashboard #evidence,.em-dashboard #customer-preferences{scroll-margin-top:75px}
+  .em-dashboard #evidence,.em-dashboard #customer-preferences,.em-dashboard #campaigns{scroll-margin-top:75px}
   .em-customer-head{border-top:1px solid var(--line);padding-top:24px}.em-customer-head h2{margin:0 0 8px;color:var(--text);font-size:20px}.em-customer-head p{color:var(--muted);line-height:1.8}
   @media(max-width:520px){.em-dashboard{gap:15px}.em-dashboard-head{padding:18px}.em-dashboard-nav{width:100%}.em-dashboard-nav .btn{flex:1 1 100%}}
 </style>
@@ -19,12 +19,15 @@
       @if($evidenceRecords !== null)
         <a class="btn btn-glass" href="#evidence">{{ __('email-evidence-review.title') }}</a>
       @endif
-      <a class="btn btn-glass" href="#customer-preferences">{{ __('email-marketing.stage_title') }}</a>
+      <a class="btn btn-primary" href="#campaigns">{{ __('email-campaigns.compose') }}</a>
+      <a class="btn btn-glass" href="#customer-preferences">{{ __('email-campaigns.preferences_history') }}</a>
     </nav>
   </section>
 
 @if(session('ok'))<p role="status">{{ session('ok') }}</p>@endif
 @if($errors->any())<div class="em-dashboard-alert" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+
+@include('admin.email-marketing-campaigns')
 
 @if($evidenceRecords !== null)
   @include('admin.email-evidence-review', ['records' => $evidenceRecords])
@@ -32,8 +35,8 @@
 
 <section id="customer-preferences" aria-labelledby="em-customer-title">
 <div class="em-customer-head">
-  <h2 id="em-customer-title">{{ __('email-marketing.stage_title') }}</h2>
-  <p>{{ __('email-marketing.admin_intro') }}</p>
+  <h2 id="em-customer-title">{{ __('email-campaigns.preferences_history') }}</h2>
+  <p>{{ __('email-campaigns.preferences_history_note') }}</p>
 </div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0">
