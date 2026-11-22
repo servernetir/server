@@ -22,10 +22,8 @@ class CloudSaladGpuTest extends TestCase
 
     private function configure(): void
     {
-        // ⚠️ بی‌نرخ، بها عمداً صفر می‌شود (رفتارِ درست) و تستِ ترکیبِ قیمت
-        // چیزی برای سنجیدن ندارد. پس هر دو نرخ دستی ست می‌شوند.
-        Setting::put('pricing_rate_override', '100000');      // ۱ یورو
-        Setting::put('pricing_usd_rate_override', '90000');   // ۱ دلار
+        // Use the current stored-rate contract; legacy overrides are ignored.
+        \Tests\Support\NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000]);
 
         Setting::putSecret('salad_api_key', 'k-test');
         Setting::put('salad_org', 'servernet');
