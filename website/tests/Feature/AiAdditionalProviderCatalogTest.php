@@ -53,6 +53,24 @@ class AiAdditionalProviderCatalogTest extends TestCase
         AdditionalProviderCatalog::gapRows('{"data":[]}');
     }
 
+    public function test_nested_feed_metadata_and_escaped_strings_preserve_exact_decimal_prices(): void
+    {
+        $metadata = json_encode(['uptime' => ['day' => 99.9], 'ttft' => ['p50' => 0.2],
+            'input_token_price' => 0.000001, 'output_token_price' => 0.000001,
+            'message' => 'nested } ] { [ and "quoted" \\ data', 'data' => [['model_name' => 'metadata-only']]]);
+        $raw = str_replace('{"model_name":', '{"metadata":'.$metadata.',"model_name":', $this->gapPrices());
+        $raw = str_replace('{"data":', '{"metadata":{"data":[{}]},"data":', $raw);
+        $rows = AdditionalProviderCatalog::gapRows($raw);
+        $this->assertCount(20, $rows);
+        $this->assertSame(100001, $rows['test-0']['rates']['input']);
+        $this->assertSame(400000, $rows['test-19']['rates']['output']);
+        $this->assertArrayNotHasKey('metadata-only', $rows);
+        $this->assertSame($rows, AdditionalProviderCatalog::gapRows(str_replace('"data":', '"\u0064ata":', $raw)));
+
+        $this->expectException(\RuntimeException::class);
+        AdditionalProviderCatalog::gapRows(substr($raw, 0, -1).',"data":[]}');
+    }
+
     public function test_model_discovery_price_versions_manual_disable_and_removed_models(): void
     {
         $p = $this->provider('gapgpt');
@@ -76,6 +94,39 @@ class AiAdditionalProviderCatalogTest extends TestCase
         $this->assertSame('disabled', $m->fresh()->status);
         $this->assertFalse(DeepInfraCatalog::isFresh($m->fresh()));
         Http::assertSent(fn ($r) => $r->url() === AdditionalProviderCatalog::GAPGPT_PRICES && ! $r->hasHeader('Authorization'));
+    }
+
+    public function test_official_price_feed_options_are_accepted_by_the_real_curl_handler(): void
+    {
+        $this->provider('gapgpt');
+        $this->provider('deepseek');
+        $checked = [];
+        Http::preventStrayRequests();
+        Http::fake(function ($request, array $options) use (&$checked) {
+            if ($request->url() === 'https://api.gapgpt.app/v1/models') {
+                return Http::response(['data' => [['id' => 'test-0']]]);
+            }
+            if ($request->url() === 'https://api.deepseek.com/models') {
+                return Http::response(['data' => [['id' => 'deepseek-flash']]]);
+            }
+            $this->assertFalse($request->hasHeader('Authorization'));
+            // Configure a real cURL handle without sending any network request.
+            // Http::fake alone bypasses Guzzle's validation and missed the production failure.
+            $factory = new \GuzzleHttp\Handler\CurlFactory(1);
+            $easy = $factory->create($request->toPsrRequest(), $options);
+            $factory->release($easy);
+            $checked[] = $request->url();
+
+            return match ($request->url()) {
+                AdditionalProviderCatalog::GAPGPT_PRICES => Http::response($this->gapPrices()),
+                AdditionalProviderCatalog::DEEPSEEK_PRICES => Http::response($this->deepseekPrices()),
+                default => throw new \RuntimeException('Unexpected catalogue request.'),
+            };
+        });
+
+        app(AdditionalProviderCatalog::class)->sync('gapgpt');
+        app(AdditionalProviderCatalog::class)->sync('deepseek');
+        $this->assertSame([AdditionalProviderCatalog::GAPGPT_PRICES, AdditionalProviderCatalog::DEEPSEEK_PRICES], $checked);
     }
 
     public function test_peak_rates_and_model_order_are_unambiguous(): void

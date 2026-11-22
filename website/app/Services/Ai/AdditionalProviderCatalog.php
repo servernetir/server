@@ -54,7 +54,7 @@ final class AdditionalProviderCatalog
             if ($slug === AiProvider::DIRECT_OPENAI) {
                 $rows = app(OpenAiCatalog::class)->discoverPrices($ids);
             } else {
-                $response = Http::withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])->connectTimeout(10)->timeout(45)
+                $response = Http::withOptions(['force_ip_resolve' => 'v4'])->connectTimeout(10)->timeout(45)
                     ->get($slug === 'gapgpt' ? self::GAPGPT_PRICES : self::DEEPSEEK_PRICES)->throw();
                 $rows = $slug === 'gapgpt' ? self::gapRows($response->body()) : self::deepseekRows($response->body());
             }
@@ -69,12 +69,12 @@ final class AdditionalProviderCatalog
         if (! is_array($data) || ! array_is_list($data) || count($data) < 20) {
             throw new \RuntimeException('Incomplete official price feed.');
         }
-        preg_match_all('/\{[^{}]*"model_name"[^{}]*\}/s', $raw, $objects);
-        if (count($objects[0]) !== count($data)) {
+        $objects = self::priceObjects($raw);
+        if (count($objects) !== count($data)) {
             throw new \RuntimeException('Changed price feed schema.');
         }
         $rows = [];
-        foreach ($objects[0] as $object) {
+        foreach ($objects as $object) {
             $row = json_decode($object, true, 512, JSON_THROW_ON_ERROR);
             $name = $row['model_name'] ?? null;
             if (! is_string($name) || $name === '' || strlen($name) > 120 || isset($rows[$name])) {
@@ -112,6 +112,75 @@ final class AdditionalProviderCatalog
             $rows[$name] = ['category' => $category, 'vendor' => (string) ($row['provider'] ?? ''), 'rates' => $rates,'native_pricing'=>$nativePrice];
         }
         return $rows;
+    }
+
+    /** Keep top-level number literals; nested operational metadata cannot supply a tariff. */
+    private static function priceObjects(string $raw): array
+    {
+        $tokens = [];
+        $quoted = $escaped = false;
+        $start = 0;
+        for ($i = 0, $length = strlen($raw); $i < $length; $i++) {
+            $char = $raw[$i];
+            if ($quoted) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    $tokens[] = [substr($raw, $start, $i - $start + 1), $start];
+                    $quoted = false;
+                }
+            } elseif ($char === '"') {
+                $quoted = true;
+                $start = $i;
+            } elseif (str_contains('{}[]:,', $char)) {
+                $tokens[] = [$char, $i];
+            }
+        }
+        $depth = 0;
+        $arrays = [];
+        foreach ($tokens as $index => [$token]) {
+            if ($depth === 1 && str_starts_with($token, '"') && json_decode($token) === 'data'
+                && ($tokens[$index + 1][0] ?? null) === ':') {
+                if (($tokens[$index + 2][0] ?? null) !== '[') {
+                    throw new \RuntimeException('Changed price feed schema.');
+                }
+                $arrays[] = $index + 2;
+            }
+            if ($token === '{' || $token === '[') $depth++;
+            if ($token === '}' || $token === ']') $depth--;
+        }
+        if (count($arrays) !== 1) {
+            throw new \RuntimeException('Changed price feed schema.');
+        }
+        $objects = [];
+        $depth = 1;
+        $nested = [];
+        $nestedStart = 0;
+        for ($i = $arrays[0] + 1, $count = count($tokens); $i < $count; $i++) {
+            [$token, $offset] = $tokens[$i];
+            if ($token === '{' && $depth === 1) {
+                $start = $offset;
+                $nested = [];
+            }
+            if (($token === '{' || $token === '[') && $depth === 2) $nestedStart = $offset;
+            if (($token === '}' || $token === ']') && $depth === 3) {
+                $nested[] = [$nestedStart - $start, $offset - $nestedStart + 1];
+            }
+            if ($token === '}' && $depth === 2) {
+                $object = substr($raw, $start, $offset - $start + 1);
+                foreach (array_reverse($nested) as [$position, $length]) {
+                    $object = substr_replace($object, 'null', $position, $length);
+                }
+                $objects[] = $object;
+            }
+            if ($token === ']' && $depth === 1) break;
+            if ($token === '{' || $token === '[') $depth++;
+            if ($token === '}' || $token === ']') $depth--;
+        }
+
+        return $objects;
     }
 
     /** Parse the official two-model table, retaining peak rates as a conservative ceiling. */
