@@ -1,0 +1,14 @@
+[Unit]
+Description=ServerNet restricted Arvan observation query connection
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/ssh -F /home/servernetcloud/servernet_app/storage/app/private/arvan-observation/ssh-config-20261107 -T -o ConnectTimeout=2 -o ConnectionAttempts=1 -W 127.0.0.1:19101 sn-arvan-collector-20261107
+StandardInput=socket
+StandardOutput=inherit
+StandardError=journal
+RuntimeMaxSec=7
+TimeoutStopSec=2
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=yes
