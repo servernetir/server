@@ -61,4 +61,35 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(list(reversed(names)),observed)
             module.run_release('verify','d'*40,stage)
 
+    def test_activation_rejects_foreign_sockets_symlinks_and_regular_files(self):
+        import stat
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        spec=importlib.util.spec_from_file_location('mcp_socket_checks',Path(__file__).parent/'mcp-auto-approval-20261122/activate.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        target=module.FPM_DIRECTORY/('a'*40+'.sock')
+        observed=SimpleNamespace(st_mode=stat.S_IFSOCK | 0o600,st_uid=os.getuid())
+        with patch.object(module.Path,'lstat',return_value=observed),patch.object(module.Path,'is_symlink',return_value=False):
+            self.assertTrue(module.owned_socket(target,os.getuid()))
+            self.assertFalse(module.owned_socket(target,os.getuid()+1))
+            self.assertFalse(module.owned_socket(Path('/tmp')/target.name,os.getuid()))
+            self.assertFalse(module.owned_socket(target.with_name('unexpected.sock'),os.getuid()))
+            observed.st_mode=stat.S_IFREG | 0o600
+            self.assertFalse(module.owned_socket(target,os.getuid()))
+        observed.st_mode=stat.S_IFSOCK | 0o600
+        with patch.object(module.Path,'lstat',return_value=observed),patch.object(module.Path,'is_symlink',return_value=True):
+            self.assertFalse(module.owned_socket(target,os.getuid()))
+
+    def test_activation_pool_inventory_keeps_only_observed_owned_sockets(self):
+        from unittest.mock import patch
+        spec=importlib.util.spec_from_file_location('mcp_socket_inventory',Path(__file__).parent/'mcp-auto-approval-20261122/activate.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        accepted=module.FPM_DIRECTORY/('a'*40+'.sock')
+        other=module.FPM_DIRECTORY/('b'*40+'.sock')
+        rows='header\n0 0 0 '+str(accepted)+'\n0 0 0 '+str(accepted)+'\n0 0 0 '+str(other)
+        with patch.object(module.Path,'read_text',return_value=rows),patch.object(module,'owned_socket',side_effect=lambda p,u:Path(p)==accepted):
+            self.assertEqual([accepted],module.observe_pools())
+        with patch.object(module.Path,'read_text',return_value='header'),patch.object(module,'owned_socket',return_value=False):
+            with self.assertRaisesRegex(RuntimeError,'no_observed'):module.observe_pools()
+
 if __name__=='__main__':unittest.main()
