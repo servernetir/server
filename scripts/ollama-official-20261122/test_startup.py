@@ -24,11 +24,14 @@ elif mode=='run':
  (root/'model').write_text(sys.argv[3])
  time.sleep(.3)
  sys.exit(int(os.environ['FAKE_RUN_EXIT']))
+elif mode=='ps':
+ print('MODEL SIZE PROCESSOR\\nllama3.1 5GB '+os.environ.get('FAKE_GPU','100% GPU'))
 else: sys.exit(2)
 '''
 
+
 class StartupTest(unittest.TestCase):
-    def exercise(self, run_exit):
+    def exercise(self, run_exit, gpu="100% GPU"):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             binary = root/'ollama'
@@ -36,7 +39,7 @@ class StartupTest(unittest.TestCase):
             binary.chmod(0o700)
             marker = root/'ready'
             env = os.environ | {'PATH':folder+':'+os.environ['PATH'], 'FAKE_ROOT':folder,
-                'FAKE_RUN_EXIT':str(run_exit), 'OLLAMA_HOST':'[::]:11434',
+                'FAKE_RUN_EXIT':str(run_exit), 'FAKE_GPU':gpu, 'OLLAMA_HOST':'[::]:11434',
                 'OLLAMA_MODEL_NAME':'qwen3.5:4b'}
             command = COMMAND.replace('/tmp/ollama_model_ready', str(marker))
             p = subprocess.Popen(['/bin/sh','-c',command], env=env, start_new_session=True,
@@ -52,7 +55,7 @@ class StartupTest(unittest.TestCase):
                 self.assertEqual((root/'server-host').read_text(),'[::]:11434')
                 self.assertEqual((root/'client-host').read_text(),'http://[::1]:11434')
                 self.assertEqual((root/'model').read_text(),'qwen3.5:4b')
-                if run_exit==0:
+                if run_exit==0 and gpu!="100% CPU":
                     self.assertTrue(marker.exists())
                     self.assertIsNone(p.poll())
                 else:
@@ -63,6 +66,8 @@ class StartupTest(unittest.TestCase):
                 p.wait(timeout=3)
     def test_ready_only_after_model_runs(self): self.exercise(0)
     def test_failed_model_never_becomes_ready(self): self.exercise(1)
+    def test_cpu_only_model_never_becomes_ready(self): self.exercise(0, "100% CPU")
+    def test_mixed_gpu_model_can_be_ready(self): self.exercise(0, "25%/75% CPU/GPU")
     def test_missing_model_stops_before_starting(self):
         env = os.environ.copy(); env.pop('OLLAMA_MODEL_NAME',None)
         result=subprocess.run(['/bin/sh','-c',COMMAND],env=env,capture_output=True,timeout=3)

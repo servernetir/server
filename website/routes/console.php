@@ -515,6 +515,9 @@ Schedule::command('cloud:sync --prices')
 
 // GPU tariffs are in USD. Refresh their currency conversion and availability
 // separately; the general catalog's two-day cadence is too slow for new sales.
+// Refresh stable Ollama metadata only; never restart existing customer groups.
+Schedule::command('cloud:ollama-refresh')->hourly()->runInBackground()->withoutOverlapping(10);
+
 Schedule::command('cloud:sync --provider=salad')
     ->hourlyAt(15)
     ->withoutOverlapping(15);

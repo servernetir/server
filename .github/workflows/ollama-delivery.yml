@@ -5,6 +5,8 @@ on:
     paths:
       - 'website/app/Services/Cloud/SaladOllamaImage.php'
       - 'website/app/Services/Cloud/SaladOperations.php'
+      - 'website/app/Console/Commands/RefreshOllamaRelease.php'
+      - 'website/routes/console.php'
       - 'website/tests/Feature/SaladOllama*'
       - 'website/tests/Feature/CloudSaladGpuTest.php'
       - 'scripts/ollama-official-20261122/**'
@@ -39,8 +41,12 @@ jobs:
         run: |
           php -l app/Services/Cloud/SaladOllamaImage.php
           php -l app/Services/Cloud/SaladOperations.php
+          php -l app/Console/Commands/RefreshOllamaRelease.php
+          php -l routes/console.php
           php vendor/bin/phpunit tests/Feature/SaladOllamaImageTest.php tests/Feature/SaladOllamaRepairTest.php tests/Feature/CloudSaladGpuTest.php tests/Feature/GpuStoreSeparationTest.php --fail-on-warning
           php -l ../scripts/ollama-official-20261122/catalog.php
           php -l ../scripts/ollama-official-20261122/activate.php
           python3 -m py_compile ../scripts/ollama-official-20261122/release.py ../scripts/ollama-official-20261122/activate.py
           python3 ../scripts/ollama-official-20261122/test_startup.py
+          python3 ../scripts/ollama-official-20261122/test_activation.py
+          python3 ../scripts/test-deploy-vpstc.py
