@@ -16,7 +16,9 @@ chdir($root);
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-if (app(SaladOllamaImage::class)->ref() !== 'ollama/ollama:0.40.17') {
+$approved = app(SaladOllamaImage::class);
+if (! preg_match('/\Aollama\/ollama:\d+\.\d+\.\d+(?:@sha256:[a-f0-9]{64})?\z/', $approved->ref())
+    || version_compare($approved->tag(), SaladOllamaImage::FLOOR, '<')) {
     throw new RuntimeException('approved_runtime_not_loaded');
 }
 $result = DB::transaction(function () use ($backup) {
@@ -24,8 +26,10 @@ $result = DB::transaction(function () use ($backup) {
     $legacy = $rows->filter(fn ($row) => SaladOllamaImage::isOurs($row->provider_ref));
     $source = $legacy->firstWhere('is_active', true) ?? $legacy->first();
     if ($source === null) { throw new RuntimeException('existing_ollama_catalog_required'); }
-    $snapshot = ['setting' => Setting::get(SaladOllamaImage::SETTING), 'images' => $legacy->map(fn ($row) => [
-        'id' => $row->id, 'provider_ref' => $row->provider_ref, 'is_active' => $row->is_active,
+    $snapshot = ['setting' => Setting::get(SaladOllamaImage::SETTING),
+        'stable_release' => Setting::get(SaladOllamaImage::RELEASE_SETTING),
+        'checked_at' => Setting::get('salad_ollama_stable_checked_at'), 'images' => $legacy->map(fn ($row) => [
+        'id' => $row->id, 'provider_ref' => $row->provider_ref, 'is_active' => $row->is_active, 'version' => $row->version,
     ])->all()];
     $snapshotPath = $backup.'/ollama-catalog-before.json';
     $handle = fopen($snapshotPath, 'x');
@@ -39,7 +43,7 @@ $result = DB::transaction(function () use ($backup) {
         $image = $source->replicate();
         $image->provider_ref = $ref;
     }
-    $image->is_active = ! SaladClient::salesPaused('gpu-ollama');
+    $image->is_active = $legacy->contains(fn ($row) => $row->is_active) && ! SaladClient::salesPaused('gpu-ollama');
     $image->version = app(SaladOllamaImage::class)->tag();
     $image->save();
     foreach ($legacy as $old) {
