@@ -1,0 +1,43 @@
+name: Ollama delivery contract
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/SaladOllamaImage.php'
+      - 'website/app/Services/Cloud/SaladOperations.php'
+      - 'website/tests/Feature/SaladOllama*'
+      - 'website/tests/Feature/CloudSaladGpuTest.php'
+      - 'scripts/ollama-official-20261122/**'
+      - '.github/workflows/ollama-delivery.yml'
+permissions:
+  contents: read
+jobs:
+  delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without production configuration
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-scripts --no-plugins --prefer-dist --no-progress
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Verify delivery, legacy compatibility, readiness and catalog
+        run: |
+          php -l app/Services/Cloud/SaladOllamaImage.php
+          php -l app/Services/Cloud/SaladOperations.php
+          php vendor/bin/phpunit tests/Feature/SaladOllamaImageTest.php tests/Feature/SaladOllamaRepairTest.php tests/Feature/CloudSaladGpuTest.php tests/Feature/GpuStoreSeparationTest.php --fail-on-warning
+          python3 ../scripts/ollama-official-20261122/test_startup.py
