@@ -18,6 +18,7 @@ final class AdminController
         return response()->view('mcp-admin.index', [
             'enabled' => AdminAccess::allowed($request->user('web')),
             'owner' => AdminAccess::owner($request->user('web')),
+            'autoApproveCommands' => AdminAccess::autoApproveCommands($request->user('web')),
             'tokens' => Token::where('user_id', $request->user('web')->id)->with('client')
                 ->where('revoked', false)->where('expires_at', '>', now())->get(),
             'inventory' => $reader->inventory(),
@@ -53,6 +54,14 @@ final class AdminController
             }
             $this->revokeTokens($request->user('web')->id);
         });
+        return redirect('/admin/mcp');
+    }
+
+    public function commandPolicy(Request $request)
+    {
+        abort_unless(AdminAccess::allowed($request->user('web')), 403);
+        $data = $request->validate(['automatic' => ['required', 'boolean']]);
+        Setting::put('mcp_admin_ssh_auto_approve', $data['automatic'] ? '1' : '0');
         return redirect('/admin/mcp');
     }
 

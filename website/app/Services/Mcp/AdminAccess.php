@@ -29,6 +29,11 @@ final class AdminAccess
         return $user?->isAdmin() && (int) Setting::get('mcp_admin_owner_user_id', '0') === (int) $user->id;
     }
 
+    public static function autoApproveCommands(?User $user): bool
+    {
+        return self::allowed($user) && Setting::get('mcp_admin_ssh_auto_approve', '1') === '1';
+    }
+
     public static function scopes(): array
     {
         return [self::READ => 'mcp_admin.scope_read', self::EXECUTE => 'mcp_admin.scope_execute',

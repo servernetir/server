@@ -1,0 +1,62 @@
+[
+  {
+    "path": "website/app/Http/Controllers/Mcp/AdminController.php",
+    "before_sha256": "37d2fb07afdef7a8bd52dcf43744a9bbf7a83cbbb8ca46834f07d3576328f650",
+    "sha256": "2dc42af1fbc1e745ae7b1e86855c603a16a9aa40c29c795a99fc3ab4e44c2009"
+  },
+  {
+    "path": "website/app/Mcp/AdminInfrastructureServer.php",
+    "before_sha256": "4f570b03c02da94df5c48cc64b4e51116200845020b016317033c0445241d0a3",
+    "sha256": "c03c55b86038cd0ed398c836bb95e6d07ed13b7566956d5775b14686434ac4dc"
+  },
+  {
+    "path": "website/app/Mcp/Tools/ExecuteSshCommand.php",
+    "before_sha256": "0f84fa3b690189370079458d801f169c6881fd1a6d75ff87fccaae3838b16011",
+    "sha256": "c181fe913f6d7c980a0a6db25907fbc2312ff7aac932ce7711282cb4e456181e"
+  },
+  {
+    "path": "website/app/Mcp/Tools/RequestSshCommand.php",
+    "before_sha256": "1b91c1931e4952d80fe9f391580572bc1aada019409c96909bd48f225d0dd1d7",
+    "sha256": "b40b62e0cec9b73536a53d8ffb954097fe2f0e32acedc0e9ff972774e4725989"
+  },
+  {
+    "path": "website/app/Services/Mcp/AdminAccess.php",
+    "before_sha256": "d611721af3c3d185b8998103fa2e7306223f276b625949ba02f241d80f74e44f",
+    "sha256": "1a037abedbd5b38c4b2df7dc84289b61ab188b146a742e4163aa6bfbc40dfb21"
+  },
+  {
+    "path": "website/app/Services/Mcp/CommandApprovals.php",
+    "before_sha256": "d27bd46caef1e6afe8d434a58461b501c5608070fc7ea04d37b3a7900d3946a5",
+    "sha256": "af3700ec5dbe7b9d7d51272f86a4bb44a94ef40b4e17e9cf075befd97ba4ef3c"
+  },
+  {
+    "path": "website/lang/en/mcp_admin.php",
+    "before_sha256": "71cc11f9ea8b1c16239a9cbb3b3d8bff17060fbe679dc721c9791238be9a5792",
+    "sha256": "a4e96320862dabe284a62dbd7e559db7f1c1f5a2e2096abeb73202056e1579b9"
+  },
+  {
+    "path": "website/lang/fa/mcp_admin.php",
+    "before_sha256": "951c8771740b1c3a36118caf4ee9996faf48d99ef86702b76e589656383e50f9",
+    "sha256": "173b8df20bb268dd964168e962a0495e3a7b1c911e527fe6756f27d09f55eb2d"
+  },
+  {
+    "path": "website/lang/tr/mcp_admin.php",
+    "before_sha256": "55e64e13f314284b12ad14705d02ae0131e81234cd6702a31ceaece3d2d5a3b7",
+    "sha256": "de3a29911b3f7913cf3b0f2c1b5309c353e50913c178fcc0ecb430a19b8d0d89"
+  },
+  {
+    "path": "website/resources/views/mcp-admin/action.blade.php",
+    "before_sha256": "9ef18e2f12db3cbe64fe798910f03d58310da13635da9587b8045fa5ae860f65",
+    "sha256": "9c5cadbb4dff6943fbcb742b5b46dfabac92651a8c3dae5ea7344f8ac2f722c8"
+  },
+  {
+    "path": "website/resources/views/mcp-admin/index.blade.php",
+    "before_sha256": "39106c392fa5fb21f13be11cb9efe4823ddcea50abc47cc47d5f96b81c217609",
+    "sha256": "9f2b5f5efcfac1fdbf25c85cbd4d31bf7ad624277a575364f53d481ef4ca73a7"
+  },
+  {
+    "path": "website/routes/mcp-admin.php",
+    "before_sha256": "36ad6aa17478f32629bcc2db37fd5615668eb7eb2eda8ed8aaf2047a3a5b06e3",
+    "sha256": "5aa6ee80a679a9f6d4068b9504502d98447c218770a123d658ba8df02a3c709b"
+  }
+]

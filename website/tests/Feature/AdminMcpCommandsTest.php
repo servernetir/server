@@ -24,6 +24,8 @@ class AdminMcpCommandsTest extends TestCase
         Setting::put('mcp_admin_enabled', '1');
         Setting::put('mcp_admin_owner_user_id', (string) $u->id);
         Setting::put('mcp_admin_user_ids', json_encode([$u->id]));
+        // Existing cases exercise the explicit manual fallback.
+        Setting::put('mcp_admin_ssh_auto_approve', '0');
         return $this->attachOperatorToken($u, $scopes);
     }
 
@@ -130,5 +132,97 @@ class AdminMcpCommandsTest extends TestCase
         McpAdminAction::whereKey($id)->update(['expires_at' => now()->subMinute()]);
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $service->approve($u, $id);
+    }
+
+    public function test_default_policy_approves_without_a_console_visit_and_executes_once(): void
+    {
+        $u = $this->operator();
+        Setting::put('mcp_admin_ssh_auto_approve', null);
+        $this->gateway()->shouldReceive('run')->once()->with('proxmox-ir', 'uptime')->andReturn(['ok' => true]);
+        $service = app(CommandApprovals::class);
+        $proposal = $service->request($u, 'proxmox-ir', 'uptime');
+        $this->assertSame('approved', $proposal['status']);
+        $this->assertSame('automatic', $proposal['approval_mode']);
+        $action = McpAdminAction::findOrFail($proposal['id']);
+        $this->assertNotNull($action->approved_at);
+        $this->assertStringNotContainsString('uptime', $action->getRawOriginal('command'));
+        $this->assertTrue($service->execute($u, $action->id)['ok']);
+        $this->assertTrue($service->execute($u, $action->id)['replayed']);
+    }
+
+    public function test_automatic_policy_does_not_grant_execute_scope_or_access_to_other_admins(): void
+    {
+        $owner = $this->operator([AdminAccess::READ]);
+        Setting::put('mcp_admin_ssh_auto_approve', '1');
+        $other = $this->attachOperatorToken(User::factory()->create(['role' => 'admin']), [AdminAccess::EXECUTE]);
+        $this->gateway()->shouldNotReceive('run');
+        foreach ([$owner, $other] as $user) {
+            try {
+                app(CommandApprovals::class)->request($user, 'proxmox-ir', 'uptime');
+                $this->fail('Unauthorized execution request was accepted.');
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                $this->assertSame(403, $e->getStatusCode());
+            }
+        }
+        $this->assertSame(0, McpAdminAction::count());
+    }
+
+    public function test_automatic_approval_is_still_bound_to_the_requesting_token(): void
+    {
+        $u = $this->operator(); Setting::put('mcp_admin_ssh_auto_approve', '1');
+        $this->gateway()->shouldNotReceive('run');
+        $service = app(CommandApprovals::class); $id = $service->request($u, 'proxmox-ir', 'uptime')['id'];
+        $this->attachOperatorToken($u, [AdminAccess::EXECUTE]);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $service->execute($u, $id);
+    }
+
+    public function test_automatic_approval_rejects_changed_host_keys(): void
+    {
+        $u = $this->operator(); Setting::put('mcp_admin_ssh_auto_approve', '1'); $this->gateway();
+        $service = app(CommandApprovals::class); $id = $service->request($u, 'proxmox-ir', 'uptime')['id'];
+        $this->gateway('changed')->shouldNotReceive('run');
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $service->execute($u, $id);
+    }
+
+    public function test_automatic_approval_does_not_retry_unknown_results(): void
+    {
+        $u = $this->operator(); Setting::put('mcp_admin_ssh_auto_approve', '1');
+        $this->gateway()->shouldReceive('run')->once()->andThrow(new \RuntimeException('lost transport'));
+        $service = app(CommandApprovals::class); $id = $service->request($u, 'proxmox-ir', 'uptime')['id'];
+        $this->assertSame('unknown', $service->execute($u, $id)['outcome']);
+        $this->assertTrue($service->execute($u, $id)['replayed']);
+    }
+
+    public function test_automatic_approval_does_not_revive_expired_actions(): void
+    {
+        $u = $this->operator(); Setting::put('mcp_admin_ssh_auto_approve', '1');
+        $this->gateway()->shouldNotReceive('run');
+        $service = app(CommandApprovals::class); $id = $service->request($u, 'proxmox-ir', 'uptime')['id'];
+        McpAdminAction::whereKey($id)->update(['expires_at' => now()->subSecond()]);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $service->execute($u, $id);
+    }
+
+    public function test_only_the_enabled_owner_can_change_the_policy(): void
+    {
+        $u = $this->operator();
+        $this->actingAs($u, 'web')->post('/admin/mcp/command-policy', ['automatic' => '1'])->assertRedirect('/admin/mcp');
+        $this->assertTrue(AdminAccess::autoApproveCommands($u));
+        $this->post('/admin/mcp/command-policy', ['automatic' => '0'])->assertRedirect('/admin/mcp');
+        $this->assertFalse(AdminAccess::autoApproveCommands($u));
+        $other = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($other, 'web')->post('/admin/mcp/command-policy', ['automatic' => '1'])->assertForbidden();
+        $this->assertFalse(AdminAccess::autoApproveCommands($u));
+    }
+
+    public function test_expired_pending_page_explains_the_missing_approval_form(): void
+    {
+        $u = $this->operator(); $this->gateway();
+        $id = app(CommandApprovals::class)->request($u, 'proxmox-ir', 'uptime')['id'];
+        McpAdminAction::whereKey($id)->update(['expires_at' => now()->subMinute()]);
+        $this->actingAs($u, 'web')->get('/admin/mcp/actions/'.$id)->assertOk()
+            ->assertSee(__('mcp_admin.command_expired'))->assertDontSee('name="accept"', false);
     }
 }
