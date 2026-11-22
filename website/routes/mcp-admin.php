@@ -27,6 +27,7 @@ Route::middleware(['web', 'auth:web', 'admin'])->prefix('admin/mcp')->group(func
     Route::post('/disable', [AdminController::class, 'disable'])->middleware('throttle:forms');
     Route::post('/connections/{client}/revoke', [AdminController::class, 'revoke'])->middleware('throttle:forms');
     Route::middleware(McpAdminAccess::class.':web')->group(function () {
+        Route::post('/command-policy', [AdminController::class, 'commandPolicy'])->middleware('throttle:forms');
         Route::get('/oauth/authorize', [AuthorizationController::class, 'authorize'])
             ->middleware(McpOAuthRequest::class)->name('passport.authorizations.authorize');
         Route::post('/oauth/authorize', [ApproveAuthorizationController::class, 'approve'])

@@ -1,0 +1,27 @@
+# Owner SSH automatic approval — 22 November 2026
+
+The owner explicitly requested persistent approval of SSH commands from their authorized AI connections. New requests now use `approved` by default and record `approved_at` immediately. The caller still registers the exact command and executes its returned action ID; it does not open an approval page when the returned status is `approved`.
+
+`mcp_admin_ssh_auto_approve` defaults to `1`. The existing owner-only MCP page shows the effective mode and can set `0` for manual approval or `1` for automatic approval. Changing this setting affects new requests. It does not revoke an already approved action; existing actions retain their ten-minute lifetime. Disabling the connection revokes active pending and approved actions as before.
+
+The policy applies only to the enabled, allowlisted owner with `infrastructure:execute`. It grants no new OAuth scopes, SSH keys, target registrations or OS permissions. Host-key/target binding, same-token binding, encrypted command/result storage, expiry, durable execution claims and unknown-result reconciliation remain mandatory. The owner's existing execute-authorized connections gain unattended command execution under this explicitly requested policy. ChatGPT/tool platform confirmations are independent of this application setting.
+
+Expired pending pages now display an expired status and explain why there is no approval form. Old pending, expired, executing and unknown actions are not automatically approved or rerun. Reconcile any executing/unknown operation before registering a replacement.
+
+## Implementation and validation
+
+Base: `8cf28c6b6496733fe3a3b0c69891f8a5c0fc8061` on develop. Changes cover the command policy/service, MCP instructions, owner-only policy form, three translations, expired-action display and behavioral tests. No schema migration.
+
+Local PHP is unavailable in this execution environment. PHP acceptance must come from the PR's pinned PHP 8.4 CI against SQLite and MariaDB. New cases cover unattended execution exactly once, owner and execute-scope isolation, token and host-key binding, expired actions, unknown outcomes, policy toggles and expired-page rendering. The release rollback preflight test runs locally using disposable files.
+
+## Limited release
+
+`scripts/mcp-auto-approval-20261122/manifest.json` pins the expected old and new bytes of runtime files. The installer uses the existing release lock, private backups, complete preflight and per-file atomic replacement. `prepare`, `apply`, `verify`, `activate` and `rollback` take a fixed reviewed commit SHA. Stop on unexpected live bytes; never overwrite another change.
+
+`activate.py` and `activate.php` invalidate only this manifest's PHP files and compile the two changed views through independently observed same-account FPM sockets. An existing route cache is rebuilt; no general cache flush is performed. The private primary is outside the public document root and requires the local release marker. The bounded FastCGI protocol helper is bundled as `fcgi.py` and pinned by SHA-256. Dependency classes install before their callers; rollback restores callers before removing those dependencies. Acceptance checks server version `1.2.0` and the actual owner's effective automatic mode in both pools; it does not execute a remote command, send a message or modify a customer service.
+
+Rollback first preflights every installed file and backup. It restores only this release's files when their hashes still match. Reactivate restored PHP/views/routes using the scoped activation procedure; the forward activation verifier expects version 1.2.0 and is not a rollback acceptance check. No action is rerun on rollback. To restore manual approval immediately without reverting code, use the MCP page's manual mode.
+
+## Release status
+
+PR [363](https://github.com/servernetir/server/pull/363) contains the implementation. PHP acceptance on source `27ffb350f193afba612beb44cbea4d0c5616ea07` passed 150 tests / 657 assertions in each of SQLite and MariaDB; all 25 checks passed. A review finding about the activation companion is addressed by bundling the exact pinned helper and testing its presence. Three local Python release tests cover rollback preflight, dependency installation order and bundled activation files. Runtime PHP bytes are unchanged in this follow-up. Production installation is tracked separately. The currently installed MCP still requires exact owner console approval to run an installation command. Preparing this code does not itself remove that existing gate. No production execution or installation is claimed in this record.

@@ -12,7 +12,7 @@ final class RequestSshCommand extends AdminTool
 {
     protected string $name = 'request_ssh_command';
     protected string $scope = AdminAccess::EXECUTE;
-    protected string $description = 'Propose an exact SSH command for owner approval on ServerNet. Does not execute it. Explain its effects and present the returned approval URL. Never propose reading or exporting credentials. Approval expires after ten minutes.';
+    protected string $description = 'Register an exact SSH command under the owner configured approval policy. Does not execute it. If status is approved, execute its action ID without requesting another ServerNet approval. Only present approval_url when status is awaiting_owner_approval. Never propose reading or exporting credentials. Actions expire after ten minutes.';
     public function schema(JsonSchema $schema): array
     {
         return ['target' => $schema->string()->max(80)->required(), 'command' => $schema->string()->max(4096)->required()];

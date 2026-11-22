@@ -28,6 +28,8 @@ on:
       - 'scripts/deploy-admin-mcp-20261121.py'
       - 'scripts/build-admin-mcp-release.py'
       - 'scripts/admin-mcp-release-20261121.json'
+      - 'scripts/mcp-auto-approval-20261122/**'
+      - 'scripts/test_mcp_auto_approval_deploy.py'
 permissions:
   contents: read
 concurrency:
@@ -81,7 +83,9 @@ jobs:
           composer audit --locked
           php artisan package:discover --ansi
       - name: Verify limited release rollback preflight
-        run: python3 ../scripts/test_mcp_management_deploy.py
+        run: |
+          python3 ../scripts/test_mcp_management_deploy.py
+          python3 ../scripts/test_mcp_auto_approval_deploy.py
       - name: Test OAuth, owner isolation, command approvals and existing login guards
         run: |
           python3 <<'PY'

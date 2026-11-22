@@ -12,7 +12,7 @@ final class ExecuteSshCommand extends AdminTool
 {
     protected string $name = 'execute_ssh_command';
     protected string $scope = AdminAccess::EXECUTE;
-    protected string $description = 'Execute one owner-approved SSH command by its action ID. The same OAuth token, owner, exact target, host keys and expiry are checked. Completed results may be replayed; interrupted or unknown operations are never automatically rerun.';
+    protected string $description = 'Execute one approved SSH command by its action ID, including commands approved automatically by the owner policy. The same OAuth token, owner, exact target, host keys and expiry are checked. Completed results may be replayed; interrupted or unknown operations are never automatically rerun.';
     public function schema(JsonSchema $schema): array
     {
         return ['action_id' => $schema->string()->format('uuid')->required()];

@@ -15,13 +15,16 @@ final class CommandApprovals
         abort_unless(strlen($command) >= 1 && strlen($command) <= 4096 && ! str_contains($command, "\0"), 422);
         abort_if(McpAdminAction::where('user_id', $user->id)->where('status', 'pending')
             ->where('expires_at', '>', now())->count() >= 20, 429);
+        $automatic = AdminAccess::autoApproveCommands($user);
         $action = McpAdminAction::create([
             'id' => (string) Str::uuid(), 'user_id' => $user->id,
             'token_id' => $user->currentAccessToken()->id,
             'target' => $target, 'target_hash' => app(SshGateway::class)->targetHash($target),
-            'command' => $command, 'status' => 'pending', 'expires_at' => now()->addMinutes(10),
+            'command' => $command, 'status' => $automatic ? 'approved' : 'pending',
+            'approved_at' => $automatic ? now() : null, 'expires_at' => now()->addMinutes(10),
         ]);
-        return ['id' => $action->id, 'status' => 'awaiting_owner_approval',
+        return ['id' => $action->id, 'status' => $automatic ? 'approved' : 'awaiting_owner_approval',
+            'approval_mode' => $automatic ? 'automatic' : 'manual',
             'approval_url' => config('mcp_admin.origin').'/admin/mcp/actions/'.$action->id,
             'expires_at' => $action->expires_at->toIso8601String()];
     }

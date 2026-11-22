@@ -19,6 +19,13 @@
 <h2>{{ __('mcp_admin.infrastructure') }}</h2><p>{{ __('mcp_admin.inventory_note') }}</p>
 <ul>@foreach($inventory['panels'] as $panel)<li>{{ $panel['name'] }} · {{ $panel['type'] }} · {{ $panel['country'] }} · {{ $panel['status'] }}</li>@endforeach</ul>
 <h2>SSH</h2><p>{{ __('mcp_admin.ssh_note') }}</p>
+@if($enabled && $owner)
+<p><strong>{{ $autoApproveCommands ? __('mcp_admin.commands_automatic') : __('mcp_admin.commands_manual') }}</strong></p>
+<form method="post" action="/admin/mcp/command-policy">@csrf
+<input type="hidden" name="automatic" value="{{ $autoApproveCommands ? '0' : '1' }}">
+<button class="btn" type="submit">{{ $autoApproveCommands ? __('mcp_admin.use_manual') : __('mcp_admin.use_automatic') }}</button>
+</form>
+@endif
 <ul>@forelse($inventory['ssh_targets'] as $target)<li>{{ $target['label'] }} — <code>{{ $target['id'] }}</code></li>@empty<li>{{ __('mcp_admin.ssh_empty') }}</li>@endforelse</ul>
 </div>
 @endsection
