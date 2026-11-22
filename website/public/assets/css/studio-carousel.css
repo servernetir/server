@@ -96,3 +96,6 @@ html[data-theme="light"] .sn-studio-glass-foot{color:#5c7d94}html[data-theme="li
 @media(max-width:540px){.sn-hero-compact{display:inline}.sn-hero-wide{display:none}.sn-hero-selectors>button{font-size:.875rem}.sn-studio-lead{font-size:1rem}.sn-studio-modes button{font-size:.875rem}.sn-studio-glass-head>span:last-child{font-size:.75rem;max-width:100px;text-align:end}.sn-studio-glass-foot{font-size:.75rem}}
 @keyframes sn-studio-camera{from{transform:scale(1.03) translateX(-1%)}to{transform:scale(1.12) translateX(1%)}}
 @media(prefers-reduced-motion:no-preference){.is-active .sn-studio-output-video img{animation:sn-studio-camera 9s ease-in-out infinite alternate}}
+
+/* Keep the desktop introduction within the original hero's visual scale. */
+@media(min-width:821px){.sn-studio-hero{padding-block:32px 26px}.sn-studio-scene{max-width:560px;padding-block:32px}.sn-studio-copy{padding-block:8px}.sn-studio-copy h2{font-size:clamp(35px,3.15vw,52px)}.sn-studio-brand{margin-bottom:20px}.sn-studio-use-cases{margin-bottom:24px}.sn-studio-billing{margin-top:17px}}

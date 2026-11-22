@@ -1,0 +1,30 @@
+{
+  "files": [
+    {
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "before": "46528357db1562de306727b7bb68b986ca3490aa43fc62454651215132df1376",
+      "after": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
+      "source": "website/public/assets/css/studio-carousel.css"
+    },
+    {
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "before": "46528357db1562de306727b7bb68b986ca3490aa43fc62454651215132df1376",
+      "after": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
+      "source": "website/public/assets/css/studio-carousel.css"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/studio-carousel-fit-20261122/activate.php",
+      "sha256": "b5771e3151481b0a277082a83af79499a402c36a8f671e3e014b3f706f61281b"
+    }
+  }
+}
