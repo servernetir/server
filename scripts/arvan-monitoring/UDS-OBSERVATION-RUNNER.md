@@ -36,6 +36,12 @@ trusted channel; restrict the SSH key to the exact proxy destination; preserve
 existing exporters and tunnels. No SSH or systemd installation is performed by
 these sources. Shared-host loopback TCP alone is not access control.
 
+The [application-side socket activation units](../../infra/arvan-observation/README.md)
+keep the reviewed Unix listener independent of individual bounded SSH requests.
+See the [22 November runtime acceptance](../../docs/project/ERROR-RECURRENCE-2026-11-22.md)
+for the installed transport and remaining checkpoint/guest limitations. Unit
+publication alone does not establish native installation or fleet coverage.
+
 Before enabling, record a private native acceptance receipt and its SHA-256.
 Prove the actual PHP CLI can use this exact approved socket, the actual proxy
 rejects other paths/queries, all ten metric/timestamp rows have current labels,

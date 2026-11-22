@@ -1,0 +1,14 @@
+[Unit]
+Description=ServerNet account-private Arvan observation query socket
+
+[Socket]
+ListenStream=/home/servernetcloud/servernet_app/storage/app/private/arvan-observation/prometheus-query.sock
+SocketMode=0600
+DirectoryMode=0700
+Accept=yes
+Backlog=8
+MaxConnections=8
+RemoveOnStop=no
+
+[Install]
+WantedBy=sockets.target
