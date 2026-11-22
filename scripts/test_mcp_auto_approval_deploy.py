@@ -86,8 +86,9 @@ class ReleaseTest(unittest.TestCase):
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         accepted=module.FPM_DIRECTORY/('a'*40+'.sock')
         other=module.FPM_DIRECTORY/('b'*40+'.sock')
+        module.APP_POOL_NAMES=frozenset({accepted.name})
         rows='header\n0 0 0 '+str(accepted)+'\n0 0 0 '+str(accepted)+'\n0 0 0 '+str(other)
-        with patch.object(module.Path,'read_text',return_value=rows),patch.object(module,'owned_socket',side_effect=lambda p,u:Path(p)==accepted):
+        with patch.object(module.Path,'read_text',return_value=rows),patch.object(module,'owned_socket',return_value=True):
             self.assertEqual([accepted],module.observe_pools())
         with patch.object(module.Path,'read_text',return_value='header'),patch.object(module,'owned_socket',return_value=False):
             with self.assertRaisesRegex(RuntimeError,'no_observed'):module.observe_pools()
