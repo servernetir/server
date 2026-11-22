@@ -207,25 +207,33 @@ trait SaladOperations
      *    برای همین `OLLAMA_HOST='::'` و `NOTEBOOK_ARGS='--ip=*'` این‌جا تزریق
      *    می‌شوند — همان کاری که entrypointِ دستورِ رسمی می‌کند.
      */
-    /**
-     * 🔴 مدلی که Ollama در بوت پیش‌بار می‌کند — و **بی‌آن کانتینر اصلاً بالا نمی‌آید**.
-     *
-     * `entrypoint.sh`ِ ایمیجِ `saladtechnologies/ollama` (همهٔ تگ‌ها، از ۰٫۹٫۱ تا
-     * ۰٫۲۴٫۰) اولِ کار این را دارد:
-     *
-     *     if [ -z "$OLLAMA_MODEL_NAME" ]; then … exit 1
-     *
-     * رخداد (مهر ۱۴۰۵): این متغیر به گمانِ «پیش‌بارِ اضافه» برداشته شد و از همان
-     * دیپلوی **هر** سرورِ Ollamaی تازه در حلقهٔ «بالا آمدن → exit 1 → بالا آمدن»
-     * افتاد و هرگز آماده نشد. بی‌هیچ خطایی سمتِ ما: سفارش پذیرفته، صفحه «در حالِ
-     * ساخت»، و سرورِ آزمایشی ۸۸ ساعت همان‌جا ماند.
-     *
-     * همین نام در مثالِ آمادهٔ پنل (`/api/chat`) هم می‌آید؛ یک منبع، تا مثالی که
-     * به مشتری می‌دهیم همیشه روی سرورِ تازه جواب بدهد. پیش‌بار هزینه‌ای برای
-     * مشتری ندارد: ساعت‌شمار از لحظهٔ تحویل شروع می‌شود، نه از بوت.
-     * تست: CloudSaladGpuTest::test_ollama_gets_the_model_its_entrypoint_requires
-     */
+    /** Preloaded model shared by provisioning and the customer API examples. */
     public const OLLAMA_PRELOAD_MODEL = 'llama3.1';
+
+    /** Official Salad recipe startup: IPv6 server plus model readiness marker. */
+    private const OLLAMA_START_COMMAND = <<<'SH'
+set -eu
+: "${OLLAMA_MODEL_NAME:?model required}"
+ready=/tmp/ollama_model_ready
+rm -f "$ready"
+server=$$
+(
+    export OLLAMA_HOST='http://[::1]:11434'
+    attempts=0
+    until ollama list >/dev/null 2>&1; do
+        attempts=$((attempts + 1))
+        if [ "$attempts" -ge 120 ]; then kill -TERM "$server"; exit 1; fi
+        sleep 1
+    done
+    if ollama run -- "$OLLAMA_MODEL_NAME" </dev/null; then
+        touch "$ready"
+    else
+        kill -TERM "$server"
+        exit 1
+    fi
+) &
+exec ollama serve
+SH;
 
     // The CUDA 12.8 Dreamshaper image mounts workflows at /workflow/txt2img.
     // Copy them into sd1.5 as well to retain the endpoint already given to customers.
@@ -236,19 +244,12 @@ trait SaladOperations
         .'exec ./comfyui-api';
 
     public const APPS = [
-        /*
-        | 🔴 تنها ردیفی که `ref` سفت‌شده ندارد — تگِ تازه‌ترین نسخه در
-        | `SaladOllamaImage` را می‌خواند (چرایش در docblockِ همان کلاس).
-        | مقدارِ این‌جا فقط مخزن است و `apps()` تگ را رویش می‌نشاند.
-        |
-        | 🔴 `OLLAMA_MODEL_NAME` **اجباری** است — بالای همین ثابت را بخوان.
-        | `OLLAMA_HOST` هم حیاتی است (دروازه IPv6 است).
-        */
+        // New deliveries use the explicitly approved official image.
         'gpu-ollama' => [
             'ref'       => SaladOllamaImage::REPO,
             'label'     => 'Ollama (OpenAI API)',
             'port'      => 11434,
-            'env'       => ['OLLAMA_MODEL_NAME' => self::OLLAMA_PRELOAD_MODEL, 'OLLAMA_HOST' => '::'],
+            'env'       => ['OLLAMA_MODEL_NAME' => self::OLLAMA_PRELOAD_MODEL, 'OLLAMA_HOST' => '[::]:11434'],
             'token_env' => null,
         ],
         'gpu-comfyui' => [
@@ -268,16 +269,7 @@ trait SaladOperations
         ],
     ];
 
-    /**
-     * فهرستِ برنامه‌ها با رفرنسِ **امروز** — تگِ Ollama زنده حل می‌شود.
-     *
-     * ⚠️ هر جا قبلاً `self::APPS` خوانده می‌شد باید این را بخواند؛ خودِ
-     * ثابت برای `gpu-ollama` فقط **نامِ مخزن** را دارد، نه یک ایمیجِ
-     * قابلِ سفارش. فرستادنِ مخزنِ بی‌تگ به زیرساخت یعنی `:latest`ی
-     * که در آن مخزن **وجود ندارد**.
-     *
-     * @return array<string,array{ref:string,label:string,port:int,env:array<string,string>,token_env:?string}>
-     */
+    /** Approved app references, resolved without registry calls during checkout. */
     public function apps(): array
     {
         $apps = self::APPS;
@@ -300,7 +292,8 @@ trait SaladOperations
         $repo = SaladOllamaImage::repoOf($imageRef);
 
         foreach ($this->apps() as $key => $app) {
-            if (SaladOllamaImage::repoOf($app['ref']) === $repo) {
+            if (SaladOllamaImage::repoOf($app['ref']) === $repo
+                || ($key === 'gpu-ollama' && SaladOllamaImage::isOurs($imageRef))) {
                 return $app + ['key' => $key];
             }
         }
@@ -343,13 +336,7 @@ trait SaladOperations
             'longitude'         => null,
         ]];
 
-        /*
-        | تازه‌ترین نسخهٔ Ollama همین‌جا حل می‌شود — تنها نقطهٔ شبکه‌ایِ
-        | این تصمیم، و عمداً در همگام‌سازی نه در مسیرِ ساختِ سرور.
-        |
-        | ⚠️ شکستِ خواندن کاتالوگ را نمی‌خواباند: `refresh()` همان تگِ
-        | قبلی را برمی‌گرداند و خودش فریاد می‌زند.
-        */
+        // Record the approved release during catalog synchronization only.
         $apps = $this->apps();
         app(SaladOllamaImage::class)->refresh();
         $apps['gpu-ollama']['ref'] = app(SaladOllamaImage::class)->ref();
@@ -650,6 +637,12 @@ trait SaladOperations
             return $fail('ایمیجِ کانتینر برای این زیرساخت تنظیم نشده است.');
         }
 
+        // Pending orders can still point at a saved legacy catalog image.
+        // Normalize only new creation; never PATCH existing groups here.
+        if (SaladOllamaImage::isOurs($image)) {
+            $image = app(SaladOllamaImage::class)->ref();
+        }
+
         $app = $this->appFor($image);
 
         $name = (string) ($spec['name'] ?? '');
@@ -724,6 +717,10 @@ trait SaladOperations
                 ],
             ],
         ];
+
+        if (($app['key'] ?? null) === 'gpu-ollama') {
+            $body['container']['command'] = ['/bin/sh', '-c', self::OLLAMA_START_COMMAND];
+        }
 
         if ($image === self::APPS['gpu-comfyui']['ref']) {
             $body['container']['command'] = ['/bin/sh', '-c', self::COMFYUI_LEGACY_ROUTES_COMMAND];

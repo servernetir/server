@@ -89,7 +89,7 @@ class SaladOllamaRepairTest extends TestCase
 
         [$req] = $this->patches()[0];
         $env = data_get(json_decode($req->body(), true), 'container.environment_variables');
-        $this->assertSame('::', $env['OLLAMA_HOST'] ?? null);
+        $this->assertSame('[::]:11434', $env['OLLAMA_HOST'] ?? null);
         $this->assertSame(SaladClient::OLLAMA_PRELOAD_MODEL, $env['OLLAMA_MODEL_NAME'] ?? null);
     }
 
