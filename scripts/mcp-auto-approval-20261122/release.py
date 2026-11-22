@@ -63,7 +63,7 @@ def run_release(mode,commit,stage):
             if r['before'] is not None:
                 b=stage/'backup'/r['path'];assert b.is_file() and sha(b.read_bytes())==r['before'], 'Invalid rollback backup: '+r['path']
         # Remove registration first, restore existing dependencies next, remove new inert classes last.
-        ordered=list(reversed(sorted(records,key=lambda r:(r['before'] is not None,r['path']=='app/Mcp/AdminInfrastructureServer.php'))))
+        ordered=list(reversed(sorted(records,key=lambda r:(r['before'] is not None, -2 if r['path']=='app/Services/Mcp/AdminAccess.php' else -1 if r['path']=='app/Services/Mcp/CommandApprovals.php' else 1 if r['path']=='app/Mcp/AdminInfrastructureServer.php' else 0))))
         for r in ordered:
             p=ROOT/r['path']
             if r['before'] is not None: write(p,(stage/'backup'/r['path']).read_bytes(),r['mode'])
@@ -77,7 +77,7 @@ def run_release(mode,commit,stage):
         if p.exists():
             b=stage/'backup'/r['path'];b.parent.mkdir(parents=True,exist_ok=True,mode=0o700);shutil.copy2(p,b)
     # New inert classes first, tool registration last.
-    ordered=sorted(records,key=lambda r:(r['before'] is not None,r['path']=='app/Mcp/AdminInfrastructureServer.php'))
+    ordered=sorted(records,key=lambda r:(r['before'] is not None, -2 if r['path']=='app/Services/Mcp/AdminAccess.php' else -1 if r['path']=='app/Services/Mcp/CommandApprovals.php' else 1 if r['path']=='app/Mcp/AdminInfrastructureServer.php' else 0))
     changed=[]
     try:
         for r in ordered:

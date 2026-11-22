@@ -34,4 +34,31 @@ class ReleaseTest(unittest.TestCase):
             from unittest.mock import patch
             with patch.object(Path,'unlink',checked_unlink):module.run_release('rollback',commit,stage)
             self.assertFalse(tool.exists());self.assertEqual(b'old registration',server.read_bytes())
+    def test_activation_companion_is_bundled_at_the_pinned_hash(self):
+        directory=Path(__file__).parent/'mcp-auto-approval-20261122'
+        spec=importlib.util.spec_from_file_location('mcp_activation',directory/'activate.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        self.assertEqual(module.FCGI_SHA,hashlib.sha256((directory/'fcgi.py').read_bytes()).hexdigest())
+        self.assertTrue((directory/'activate.php').is_file())
+
+    def test_new_policy_dependency_installs_before_its_callers(self):
+        from unittest.mock import patch
+        spec=importlib.util.spec_from_file_location('mcp_order',Path(__file__).parent/'mcp-auto-approval-20261122/release.py')
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/'app';stage=Path(temp)/'stage';root.mkdir();stage.mkdir();module.ROOT=root;module.fetch=lambda *_:b'[]'
+            names=['app/Http/Controllers/Mcp/AdminController.php','app/Services/Mcp/CommandApprovals.php','app/Services/Mcp/AdminAccess.php']
+            records=[]
+            for name in names:
+                target=root/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(b'old')
+                source=stage/'files/website'/name;source.parent.mkdir(parents=True,exist_ok=True);source.write_bytes(b'new')
+                records.append({'path':name,'before':hashlib.sha256(b'old').hexdigest(),'after':hashlib.sha256(b'new').hexdigest(),'mode':0o644})
+            (stage/'prepared.json').write_text(json.dumps(records))
+            original=module.write;observed=[]
+            def checked_write(path,data,mode):
+                observed.append(str(path.relative_to(root)));return original(path,data,mode)
+            with patch.object(module,'write',checked_write):module.run_release('apply','d'*40,stage)
+            self.assertEqual(list(reversed(names)),observed)
+            module.run_release('verify','d'*40,stage)
+
 if __name__=='__main__':unittest.main()
