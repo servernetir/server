@@ -7,7 +7,8 @@ if (PHP_SAPI !== 'fpm-fcgi' || getenv('SERVERNET_LOCAL_RELEASE') !== 'ollama-off
 $planPath = getenv('SERVERNET_OLLAMA_PLAN');
 $plan = json_decode((string) file_get_contents($planPath), true, 32, JSON_THROW_ON_ERROR);
 $root = '/home/servernetcloud/servernet_app';
-$paths = ['app/Services/Cloud/SaladOllamaImage.php', 'app/Services/Cloud/SaladOperations.php'];
+$paths = ['app/Services/Cloud/SaladOllamaImage.php', 'app/Services/Cloud/SaladOperations.php',
+    'app/Console/Commands/RefreshOllamaRelease.php', 'routes/console.php'];
 if (($plan['root'] ?? '') !== $root || array_column($plan['files'] ?? [], 'path') !== $paths) {
     throw new RuntimeException('invalid_scoped_plan');
 }
@@ -24,9 +25,12 @@ foreach ($paths as $path) {
     }
     $invalidated[] = $path;
 }
-require $root.'/'.$paths[0];
-require $root.'/'.$paths[1];
-$version = App\Services\Cloud\SaladOllamaImage::VERSION;
-if ($version !== '0.40.17') { throw new RuntimeException('loaded_version_mismatch'); }
+require $root.'/vendor/autoload.php';
+$app = require $root.'/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$image = app(App\Services\Cloud\SaladOllamaImage::class);
+$version = $image->tag();
+if (version_compare($version, '0.40.17', '<')) { throw new RuntimeException('loaded_version_mismatch'); }
 echo json_encode(['release' => 'ollama-official-20261122', 'version' => $version,
-    'invalidated' => $invalidated, 'general_cache_flush' => false], JSON_THROW_ON_ERROR);
+    'reference' => $image->ref(), 'invalidated' => $invalidated,
+    'general_cache_flush' => false], JSON_THROW_ON_ERROR);

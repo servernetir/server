@@ -225,7 +225,7 @@ server=$$
         if [ "$attempts" -ge 120 ]; then kill -TERM "$server"; exit 1; fi
         sleep 1
     done
-    if ollama run -- "$OLLAMA_MODEL_NAME" </dev/null; then
+    if ollama run -- "$OLLAMA_MODEL_NAME" </dev/null && ollama ps | grep -Eq '([1-9][0-9]*%[[:space:]]+GPU|[0-9]+%/[1-9][0-9]*%[[:space:]]+CPU/GPU)'; then
         touch "$ready"
     else
         kill -TERM "$server"

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""Guarded two-file release. No purchases, provider mutations, migrations or cache flushes."""
+"""Guarded Ollama runtime and hourly stable-refresh release. No purchases, provider mutations, migrations or cache flushes."""
 import argparse
+from contextlib import contextmanager
+import fcntl
+import os
 import hashlib
 import importlib.util
 import json
@@ -8,7 +11,8 @@ from pathlib import Path
 import subprocess
 
 BASE = '20a55d08db0adadfec2510e0b63bedf260deb65d'
-PATHS = ('app/Services/Cloud/SaladOllamaImage.php', 'app/Services/Cloud/SaladOperations.php')
+PATHS = ('app/Services/Cloud/SaladOllamaImage.php', 'app/Services/Cloud/SaladOperations.php',
+    'app/Console/Commands/RefreshOllamaRelease.php', 'routes/console.php')
 CORE_SHA = '00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de'
 
 
@@ -27,14 +31,17 @@ def main():
     spec.loader.exec_module(core)
     core.BASE = BASE
     core.RUNTIME_PATHS = PATHS
-    core.NEW_PATHS = frozenset()
+    core.NEW_PATHS = frozenset(['app/Console/Commands/RefreshOllamaRelease.php'])
     php = '/opt/cpanel/ea-php84/root/usr/bin/php'
     root = core.checked_root(args.root)
     if root != Path('/home/servernetcloud/servernet_app'):
         raise RuntimeError('unexpected_production_root')
     core.validate_sha(args.target)
-    with core.release_locks(root):
+    with core.release_locks(root), application_lock(root):
         release, plan = core.build_plan(root, args.target, php)
+        backups = root.parent/'deploy-backups'; backups.mkdir(mode=0o700, exist_ok=True)
+        destination = backups/release.name.replace('vpstc-release-', 'ollama-release-', 1)
+        release.rename(destination); release = destination
         print(json.dumps({'phase':'prepared','release_dir':str(release),'plan_sha256':plan['plan_sha256'],
             'files':plan['files']}), flush=True)
         if not args.install: return
@@ -58,6 +65,15 @@ def main():
         print(json.dumps({'phase':'installed','runtime':result,'catalog':catalog_result,
             'fpm':fpm_result, 'web_opcache_activation_required':False}), flush=True)
 
+
+
+@contextmanager
+def application_lock(root):
+    path = root/'storage/framework/servernet-release.lock'
+    fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(fd, 'a') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield
 
 def fetch_repo_file(commit, path):
     import urllib.request

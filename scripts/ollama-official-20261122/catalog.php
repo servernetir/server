@@ -40,6 +40,7 @@ $result = DB::transaction(function () use ($backup) {
         $image->provider_ref = $ref;
     }
     $image->is_active = ! SaladClient::salesPaused('gpu-ollama');
+    $image->version = app(SaladOllamaImage::class)->tag();
     $image->save();
     foreach ($legacy as $old) {
         if ($old->id !== $image->id && $old->is_active) { $old->update(['is_active' => false]); }
