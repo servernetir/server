@@ -117,3 +117,13 @@ It does not reopen ordinary VPS products or disabled foreign providers.
 The follow-up manifest contains only its three changed production files, with
 preimages bound to the installed core release. The original full manifest and
 its rollback recipe remain available at the immutable core release SHA.
+
+
+Iranian acceptance also exposed a legacy allocator defect: QEMU-only discovery
+reused 10.10.10.60, which belongs to existing LXC #124. The temporary new VM
+was stopped and cleaned; the existing container was not modified. Allocation
+now inventories QEMU and every LXC network interface, reserves pending database
+addresses, fails closed on an unreadable inventory and serializes clones under
+a per-node lock. A separate address-pool start is used above legacy addresses.
+Three regression tests cover LXC reservations, unreadable inventory and clone
+contention. Ordinary Proxmox VPS sales remain disabled.

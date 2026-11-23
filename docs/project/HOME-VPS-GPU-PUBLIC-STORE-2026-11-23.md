@@ -45,4 +45,3 @@ The guest acceptance uncovered an existing catalog bottleneck: an actual anonymo
 Current isolated verification: 49 focused PHP tests / 768 assertions pass, including 13 public-store cases, 60 same-region OS images requiring one regional query, a fresh query on the next request, stock removal and independent provider/slug/region checks. Four disposable release safety cases pass for the two-file performance release. Performance installation and measured result are recorded after acceptance below.
 
 The existing live controller has production-only delivery-access and catalog-pricing changes; the follow-up applies five unique exact source anchors and preserves those lines. Its deployment is limited to the new lookup and the existing controller through `scripts/cloud-store-catalog-performance-20261123/`.
-

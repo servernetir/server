@@ -3,7 +3,9 @@
 namespace App\Services\Cloud;
 
 use App\Models\CloudLocation;
+use App\Models\CloudInstance;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -488,6 +490,17 @@ class ProxmoxClient implements CloudProvider
      */
     public function createServer(array $spec): array
     {
+        $lock = Cache::lock('proxmox-create-'.$this->node(), 300);
+        if (! $lock->get()) {
+            return ['ok' => false, 'transient' => true, 'message' => 'تخصیص دیگری در حال انجام است؛ تلاش خودکار ادامه دارد.',
+                'ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
+        }
+        try { return $this->createServerLocked($spec); }
+        finally { $lock->release(); }
+    }
+
+    private function createServerLocked(array $spec): array
+    {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'error'];
         $name = (string) ($spec['name'] ?? '');
 
@@ -532,7 +545,11 @@ class ProxmoxClient implements CloudProvider
                 return ['ok' => false, 'message' => 'شناسهٔ آزاد برای ماشین گرفته نشد.'] + $fail;
             }
 
-            $ip = $this->allocateIp($this->usedIps($node, $vms));
+            $used = $this->usedIps($node, $vms);
+            if ($used === null) {
+                return ['ok' => false, 'transient' => true, 'message' => 'فهرست آدرس‌های موجود برای تخصیص امن تأیید نشد.'] + $fail;
+            }
+            $ip = $this->allocateIp($used);
 
             if ($ip === null) {
                 return ['ok' => false, 'message' => 'آدرسِ IP آزاد در محدوده پیدا نشد.'] + $fail;
@@ -652,18 +669,27 @@ class ProxmoxClient implements CloudProvider
      * @param  array<int,array<string,mixed>>  $vms  خروجیِ فهرستِ qemu
      * @return array<string,bool>
      */
-    private function usedIps(string $node, array $vms): array
+    private function usedIps(string $node, array $vms): ?array
     {
+        $containers = $this->req('GET', '/nodes/'.rawurlencode($node).'/lxc');
+        if (! $containers['ok'] || ! is_array($containers['body']['data'] ?? null)) { return null; }
         $used = [];
-
-        foreach ($vms as $vm) {
-            $ip = $this->vmIp($node, (string) ($vm['vmid'] ?? ''));
-
-            if ($ip !== null) {
-                $used[$ip] = true;
+        $guests = array_merge(array_map(fn ($vm) => ['kind' => self::KIND_QEMU] + $vm, $vms),
+            array_map(fn ($vm) => ['kind' => self::KIND_LXC] + $vm, $containers['body']['data']));
+        foreach ($guests as $vm) {
+            $ref = (string) ($vm['vmid'] ?? '');
+            if ($ref === '') { return null; }
+            $r = $this->req('GET', '/nodes/'.rawurlencode($node).'/'.$vm['kind'].'/'.rawurlencode($ref).'/config');
+            if (! $r['ok'] || ! is_array($r['body']['data'] ?? null)) { return null; }
+            foreach ($r['body']['data'] as $key => $value) {
+                if (preg_match('/^(?:ipconfig|net)\d+$/D', (string) $key)
+                    && preg_match_all('/(?:^|,)ip=([0-9]{1,3}(?:\.[0-9]{1,3}){3})(?:\/|,|$)/', (string) $value, $matches)) {
+                    foreach ($matches[1] as $ip) { $used[$ip] = true; }
+                }
             }
         }
-
+        foreach (CloudInstance::where('provider', 'proxmox')->whereNotIn('status', ['deleted', 'terminated'])
+            ->whereNotNull('ipv4')->pluck('ipv4') as $ip) { $used[$ip] = true; }
         return $used;
     }
 
