@@ -6,7 +6,7 @@
       "source": "website/resources/n8n/install.py",
       "destination": "servernet_app/resources/n8n/install.py",
       "before": "d4e2bb26a74dfa6e0f9ace004a6b448d21f9d2a6eb426ed1a799eb6e6554922e",
-      "after": "9b877be7bb69b210621eb157b1860dc35d12e03d2c10e2bd4b10fbb61e9a98a2"
+      "after": "8570d593bcd6cd49ffdce5cae5095aae76fb3b4956efdc602489ce25b4017cf8"
     }
   ],
   "helpers": {

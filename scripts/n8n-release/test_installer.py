@@ -30,10 +30,11 @@ class InstallerTest(unittest.TestCase):
             calls.append(path)
             return {'status': 'ok'} if path.startswith('/health') else {'data': {'email': self.spec['email']}}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image') as images, \
                 patch.object(installer, 'api', side_effect=api), \
                 patch.object(installer, 'run', side_effect=lambda command, **kw: calls.append(command)):
             installer.install()
+        images.assert_any_call('docker.n8n.io/n8nio/n8n:2.48.7', 'ghcr.io/n8n-io/n8n:2.48.7')
         setup = calls.index('/rest/owner/setup')
         public = next(i for i, value in enumerate(calls) if isinstance(value, list) and value[-1] == 'caddy')
         self.assertLess(setup, public)

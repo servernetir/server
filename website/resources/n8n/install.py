@@ -197,7 +197,7 @@ volumes:
     write('phase', 'image_postgres')
     pull_image('postgres:16-alpine', 'public.ecr.aws/docker/library/postgres:16-alpine')
     write('phase', 'image_n8n')
-    pull_image(f'docker.n8n.io/n8nio/n8n:{version}')
+    pull_image(f'docker.n8n.io/n8nio/n8n:{version}', f'ghcr.io/n8n-io/n8n:{version}')
     write('phase', 'image_caddy')
     pull_image('caddy:2-alpine', 'public.ecr.aws/docker/library/caddy:2-alpine')
     write('phase', 'application_containers')
