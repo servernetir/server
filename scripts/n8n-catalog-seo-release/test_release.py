@@ -12,6 +12,15 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_activation_helper_is_pinned_to_this_release_and_matches_its_guard(self):
+        root = Path(__file__).resolve().parents[2]
+        manifest = json.loads(Path(__file__).with_name('manifest.json').read_text())
+        helper = manifest['helpers']['activate.php']
+        self.assertEqual(release.PREFIX + 'activate.php', helper['path'])
+        data = (root / helper['path']).read_bytes()
+        self.assertEqual(helper['sha256'], release.sha(data))
+        self.assertIn(("!== '" + release.RELEASE + "'").encode(), data)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
