@@ -131,8 +131,8 @@
       "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
     },
     "activate.php": {
-      "path": "scripts/console-workspace-release/activate.php",
-      "sha256": "a3b57d4909efeca1b7e170c8c8040a512abdc7d6ef018609cb85eb010971d799"
+      "path": "scripts/n8n-catalog-seo-release/activate.php",
+      "sha256": "11636bed4c32f9f2d634fb1dbfafa03d558a77624a4676884c69aa6ceab339f1"
     }
   },
   "overlay_sha256": "a87983134c36e77de94d076647d93e39c8cb2e6150b1470a0a7a907398156426"
