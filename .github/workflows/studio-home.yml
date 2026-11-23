@@ -2,7 +2,7 @@ name: Studio homepage presentation
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/resources/views/pages/home.blade.php', 'website/resources/views/partials/studio-carousel*.blade.php', 'website/public/assets/*/studio-*', 'website/lang/*/studio_carousel.php', 'website/tests/Fixtures/StudioHomePreview.php', 'website/tests/js/studio-home.test.cjs', 'website/tests/Feature/StudioHomeHeroTest.php', 'scripts/studio-carousel-20261122/**', '.github/workflows/studio-home.yml']
+    paths: ['website/resources/views/pages/home.blade.php', 'website/resources/views/partials/studio-carousel*.blade.php', 'website/public/assets/*/studio-*', 'website/lang/*/studio_carousel.php', 'website/lang/*/home_slides.php', 'website/resources/views/partials/home-service-slides.blade.php', 'website/tests/Fixtures/StudioHomePreview.php', 'website/tests/js/studio-home.test.cjs', 'website/tests/Feature/StudioHomeHeroTest.php', 'scripts/studio-carousel-20261122/**', 'scripts/home-four-slides-20261123/**', '.github/workflows/studio-home.yml']
 permissions:
   contents: read
 jobs:
@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           php -l tests/Fixtures/StudioHomePreview.php
-          for locale in fa en tr; do php -l "lang/$locale/studio_carousel.php"; done
+          for locale in fa en tr; do php -l "lang/$locale/studio_carousel.php"; php -l "lang/$locale/home_slides.php"; done
           php artisan test tests/Feature/StudioHomeHeroTest.php tests/Feature/StudioDownloadsTest.php tests/Feature/HomePricingPresentationTest.php
           node --check public/assets/js/studio-carousel.js
           for locale in fa en tr; do php tests/Fixtures/StudioHomePreview.php "$locale" /tmp/studio-home-preview; done
@@ -44,6 +44,8 @@ jobs:
         run: |
           php -l scripts/studio-carousel-20261122/activate.php
           python3 scripts/studio-carousel-20261122/test_release.py
+          php -l scripts/home-four-slides-20261123/activate.php
+          python3 scripts/home-four-slides-20261123/test_release.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: studio-home-preview

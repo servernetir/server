@@ -1,6 +1,10 @@
 @extends('layouts.site')
 @include('partials.atlas-assets')
 @include('partials.atlas-seo')
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/studio-carousel.css') }}">
+<script src="{{ asset_ver('assets/js/studio-carousel.js') }}" defer></script>
+@endpush
 @section('content')
 @php
   $loc = app()->getLocale();
@@ -11,11 +15,10 @@
   $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
 @endphp
 <div class="sn-atlas sn-home">
-@if($studioCarouselAvailable)
-<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="{{ __('studio_carousel.carousel_role') }}" aria-label="{{ __('studio_carousel.carousel_label') }}" data-interval="7000">
+<div class="sn-home-intro">
+<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="{{ __('studio_carousel.carousel_role') }}" aria-label="{{ __('home_slides.carousel_label') }}" data-interval="5000">
 <div class="sn-hero-slides">
-@endif
-<section class="hero sn-hero" @if($studioCarouselAvailable) id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="{{ __('studio_carousel.slide_infrastructure') }}" @endif>
+<section class="hero sn-hero" id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="{{ __('studio_carousel.slide_infrastructure') }}">
   <div class="container">
     <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
     <div class="sn-hero-grid">
@@ -33,12 +36,11 @@
     </div>
   </div>
 </section>
-@if($studioCarouselAvailable)
 @include('partials.studio-carousel')
+@include('partials.home-service-slides')
 </div>
 @include('partials.studio-carousel-controls')
 </div>
-@endif
 <div class="sn-proof-rail">
   <div class="container sn-proof-grid">
     <div><b>{{ fa_num('15') }}<span>+</span></b><span>{{ __('ui.stat_years') }}</span></div>
@@ -46,6 +48,7 @@
     <div><b>{{ fa_num('11') }}<span>+</span></b><span>{{ __('ui.stat_dc') }}</span></div>
     <div><b>{{ fa_num('99.9') }}<span>%</span></b><span>{{ __('ui.stat_uptime') }}</span></div>
   </div>
+</div>
 </div>
 <section class="sn-domain sn-domain-discovery" aria-labelledby="sn-domain-title">
 @push('head')
