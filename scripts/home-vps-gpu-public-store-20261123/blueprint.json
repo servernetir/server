@@ -1,0 +1,124 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/Cloud/CloudStoreDraft.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudStoreDraft.php",
+      "new": true
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreGuestController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreGuestController.php",
+      "new": true
+    },
+    {
+      "source": "website/app/Http/Middleware/CloudStoreBrowse.php",
+      "destination": "servernet_app/app/Http/Middleware/CloudStoreBrowse.php",
+      "new": true
+    },
+    {
+      "source": "website/resources/views/layouts/cloud-store.blade.php",
+      "destination": "servernet_app/resources/views/layouts/cloud-store.blade.php",
+      "new": true
+    },
+    {
+      "source": "website/resources/views/partials/home-gpu-slide.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-gpu-slide.blade.php",
+      "new": true
+    },
+    {
+      "source": "website/lang/fa/cloud_store_guest.php",
+      "destination": "servernet_app/lang/fa/cloud_store_guest.php",
+      "new": true
+    },
+    {
+      "source": "website/lang/en/cloud_store_guest.php",
+      "destination": "servernet_app/lang/en/cloud_store_guest.php",
+      "new": true
+    },
+    {
+      "source": "website/lang/tr/cloud_store_guest.php",
+      "destination": "servernet_app/lang/tr/cloud_store_guest.php",
+      "new": true
+    },
+    {
+      "source": "website/public/assets/css/home-gpu-slide.css",
+      "destination": "servernet_app/public/assets/css/home-gpu-slide.css",
+      "new": true
+    },
+    {
+      "source": "website/public/assets/css/home-gpu-slide.css",
+      "destination": "public_html/assets/css/home-gpu-slide.css",
+      "new": true
+    },
+    {
+      "source": "website/public/assets/css/cloud-store-public.css",
+      "destination": "servernet_app/public/assets/css/cloud-store-public.css",
+      "new": true
+    },
+    {
+      "source": "website/public/assets/css/cloud-store-public.css",
+      "destination": "public_html/assets/css/cloud-store-public.css",
+      "new": true
+    },
+    {
+      "source": "website/lang/fa/home_slides.php",
+      "destination": "servernet_app/lang/fa/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/home_slides.php",
+      "destination": "servernet_app/lang/en/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/home_slides.php",
+      "destination": "servernet_app/lang/tr/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "patch": true
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/account/cloud-store.blade.php",
+      "destination": "servernet_app/resources/views/account/cloud-store.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "patch": true
+    }
+  ]
+}

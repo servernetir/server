@@ -9,7 +9,7 @@
     if (slides.length < 2 || selectors.length !== slides.length || !toggle) return;
     if (selectors.some(function (button, i) { return button.dataset.heroTarget !== slides[i].dataset.heroSlide; })) return;
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches: false};
-    var interval = Math.max(5000, Number(root.dataset.interval) || 5000);
+    var interval = Math.max(5000, Number(root.dataset.interval) || 6000);
     var active = 0, timer = null, transition = null;
     var explicitPause = motion.matches, focused = false, hovered = false, inView = true;
     root.style.setProperty('--hero-duration', interval + 'ms');
@@ -68,7 +68,7 @@
       if (event.target.closest('[data-studio-mode], [data-sn-region]')) { explicitPause = true; schedule(); }
     });
     root.addEventListener('pointerdown', function (event) {
-      if (event.target.closest('[data-sn-globe]')) { explicitPause = true; schedule(); }
+      if (event.target.closest('[data-sn-globe], [data-sn-home-globe]')) { explicitPause = true; schedule(); }
     });
     [root.querySelector('.sn-hero-controls'), root.querySelector('[data-studio-modes]')].forEach(function (area) {
       if (!area) return;

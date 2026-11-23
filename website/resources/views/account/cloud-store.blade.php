@@ -1,4 +1,7 @@
-@extends('panel.layout')
+@php
+  $isGuestStore = auth('customer')->guest();
+@endphp
+@extends($isGuestStore ? 'layouts.cloud-store' : 'panel.layout')
 @section('title', __(($gpuMode ?? false) ? 'ui.cvb_gpu_title' : 'ui.cvb_title'))
 
 {{-- «برگهٔ سرور» — سرورساز به‌شکلِ یک رسید که خودش را پر می‌کند.
@@ -255,7 +258,7 @@
     : __('ui.cvb_cpu_shared');
 @endphp
 
-<form method="POST" action="{{ lroute('account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
+<form method="POST" action="{{ lroute($isGuestStore ? 'account.cloud.store.continue' : 'account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
   @csrf
   <input type="hidden" name="quoted_hourly_irt" id="cvb-quoted-hourly" value="{{ $hRate }}">
   @if($isGpuStore)
@@ -794,6 +797,7 @@
         {{-- ورود با کلید SSH — در خطِ GPU رندر نمی‌شود: این محصول SSH ندارد
              (دسترسی با نشانی و توکن است) و فرمی که کلیدِ SSH بخواهد، دربارهٔ
              خودِ محصول دروغ می‌گوید. --}}
+        @auth('customer')
         <label class="cvb-field">
           <span>{{ __('ui.cvb_ssh') }} — {{ __('ui.cvb_free') }}</span>
           <select name="ssh_key_id" id="cvb-ssh-pick">
@@ -826,6 +830,7 @@
             <span>{{ __('ui.cvb_ssh_note2') }}</span>
           </p>
         </div>
+        @endauth
 
         {{-- IP اضافه — فقط وقتی این اسلاگ واقعاً بتواند تحویلش دهد. کارت با
              عوض‌شدنِ پلن پنهان/آشکار می‌شود، وگرنه انتخابی می‌ماند که سرِ ثبتِ
@@ -867,7 +872,7 @@
                 </span>
               </span>
             </p>
-            <p class="cvb-warn" id="cvb-h-low" @if($creditIrt >= $hMin) hidden @endif>{{ __('ui.cvb_hourly_low') }}</p>
+            <p class="cvb-warn" id="cvb-h-low" @if($isGuestStore || $creditIrt >= $hMin) hidden @endif>{{ __('ui.cvb_hourly_low') }}</p>
             <p class="cvb-note" id="cvb-retention-note" @if($hRetention === 0) hidden @endif>
               {{ __('ui.cvb_retention_pre') }}<b id="cvb-retention">{{ cloud_price($hRetention) }}</b>{{ __('ui.cvb_retention_suf') }}
             </p>
@@ -997,7 +1002,7 @@
         @endif
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
           <svg class="icon"><use href="#i-rocket"/></svg>
-          {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
+          {{ __($isGuestStore ? 'cloud_store_guest.continue' : ($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay')) }}
         </button>
         <p class="cvb-eta">
           <svg class="icon"><use href="#i-clock"/></svg>
@@ -1015,7 +1020,7 @@
       <b class="pnl-num" id="cvb-d-first">{{ $hOn ? cloud_hourly_price($hRate).__('ui.cvb_hourly_per') : ($hasPrice ? cloud_price($initFirst) : '—') }}</b>
     </span>
     <button type="submit" class="pnl-btn primary" id="cvb-submit-2" @disabled(count($planCards) === 0 || ! $hasPrice)>
-      {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
+      {{ __($isGuestStore ? 'cloud_store_guest.continue' : ($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay')) }}
     </button>
   </div>
 </form>
@@ -1058,6 +1063,7 @@
       'display_rate' => cloud_hourly_price((int) ($row['rate'] ?? 0)),
     ])->all(),
     'credit' => $creditIrt ?? 0,
+    'guest' => $isGuestStore,
     'hPer'   => __('ui.cvb_hourly_per'),
     'hLbl'   => __('ui.cvb_hourly_t'),
     'openStep' => (int) $openStep,
@@ -1347,7 +1353,7 @@
     var existingNote = document.getElementById('cvb-h-existing-note');
     if (existingNote) existingNote.hidden = !(h.existing > 0);
     var low = document.getElementById('cvb-h-low');
-    if (low) low.hidden = (D.credit >= startMinimum);
+    if (low) low.hidden = D.guest || (D.credit >= startMinimum);
 
     var bill = document.getElementById('cvb-bill');
     if (bill) bill.classList.toggle('is-hourly', hourly);

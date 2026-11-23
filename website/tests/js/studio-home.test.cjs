@@ -32,15 +32,17 @@ function setup(locale='fa', reduced=false, withoutStudio=false) {
     hidden:value=>{visibility=value;doc.dispatchEvent(new w.Event('visibilitychange'));}};
 }
 for (const locale of ['fa','en','tr']) {
-  test(locale+': original globe is first; Studio appears after five seconds; four services loop in order',()=>{
+  test(locale+': original globe is first; GPU appears after six seconds; five services loop in order',()=>{
     const e=setup(locale);try{
       assert.equal(e.slide(),'infrastructure');assert.equal(e.doc.getElementById('studio').inert,true);
-      e.tick(4999);assert.equal(e.slide(),'infrastructure');e.tick(1);assert.equal(e.slide(),'studio');
-      assert.equal(e.doc.getElementById('hero-infrastructure').inert,true);
-      assert.equal(e.doc.getElementById('studio').inert,false);
-      assert.equal(e.doc.getElementById('studio').getAttribute('aria-hidden'),'false');
-      e.tick(5000);assert.equal(e.slide(),'n8n');e.tick(5000);assert.equal(e.slide(),'hosting');e.tick(5000);assert.equal(e.slide(),'infrastructure');
-      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,4);
+      let previous='infrastructure';
+      for(const name of ['gpu','studio','n8n','hosting','infrastructure']){
+        e.tick(5999);assert.equal(e.slide(),previous);e.tick(1);assert.equal(e.slide(),name);
+        const active=e.doc.querySelector('[data-hero-slide="'+name+'"]');
+        assert.equal(active.inert,false);assert.equal(active.getAttribute('aria-hidden'),'false');
+        previous=name;
+      }
+      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,5);
       assert.doesNotMatch(e.doc.body.textContent,/studio_carousel\./);
       assert.equal(e.doc.querySelector('.sn-studio-launch').href,'https://studio.servernet.cloud/');
       assert.equal(e.doc.querySelector('.sn-studio-install').getAttribute('href'),(locale==='fa'?'':'/'+locale)+'/studio/download#studio-web-install');
@@ -53,21 +55,21 @@ test('manual selection pauses rotation; play works with the play control still f
     const toggle=e.doc.querySelector('[data-hero-autoplay]');
     assert.equal(toggle.getAttribute('aria-pressed'),'true');
     toggle.focus();toggle.click();assert.ok(e.root.classList.contains('is-playing'));
-    e.tick(5000);assert.equal(e.slide(),'n8n');
+    e.tick(6000);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
 test('focus in slide content pauses; leaving the carousel starts a fresh interval',()=>{
   const e=setup();try{
     e.doc.querySelector('#hero-infrastructure a').focus();e.tick(20000);assert.equal(e.slide(),'infrastructure');
-    e.doc.activeElement.blur();e.tick(4999);assert.equal(e.slide(),'infrastructure');e.tick(1);assert.equal(e.slide(),'studio');
+    e.doc.activeElement.blur();e.tick(5999);assert.equal(e.slide(),'infrastructure');e.tick(1);assert.equal(e.slide(),'gpu');
   }finally{e.w.close();}
 });
 test('hidden documents and off-screen heroes do not advance',()=>{
   const e=setup();try{
     e.hidden(true);e.tick(20000);assert.equal(e.slide(),'infrastructure');
-    e.hidden(false);e.tick(5000);assert.equal(e.slide(),'studio');
-    e.observers[0].callback([{isIntersecting:false}]);e.tick(30000);assert.equal(e.slide(),'studio');
-    e.observers[0].callback([{isIntersecting:true}]);e.tick(5000);assert.equal(e.slide(),'n8n');
+    e.hidden(false);e.tick(6000);assert.equal(e.slide(),'gpu');
+    e.observers[0].callback([{isIntersecting:false}]);e.tick(30000);assert.equal(e.slide(),'gpu');
+    e.observers[0].callback([{isIntersecting:true}]);e.tick(6000);assert.equal(e.slide(),'studio');
   }finally{e.w.close();}
 });
 test('reduced motion defaults to manual selection without disabling requested play',()=>{
@@ -75,12 +77,12 @@ test('reduced motion defaults to manual selection without disabling requested pl
     e.tick(30000);assert.equal(e.slide(),'infrastructure');
     assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
     e.select('studio');assert.equal(e.slide(),'studio');assert.equal(e.root.classList.contains('is-transitioning'),false);
-    e.doc.querySelector('[data-hero-autoplay]').click();e.tick(5000);assert.equal(e.slide(),'n8n');
+    e.doc.querySelector('[data-hero-autoplay]').click();e.tick(6000);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
 test('four real examples switch locally and stop automatic slide changes',()=>{
   const e=setup();try{
-    e.tick(5000);
+    e.select('studio');
     for(const button of e.doc.querySelectorAll('[data-studio-mode]')){
       assert.equal(button.hidden,false);button.click();
       const visible=e.doc.querySelectorAll('[data-studio-panel]:not([hidden])');
@@ -94,12 +96,12 @@ test('hovering controls pauses and a pointer leave resumes the remaining experie
   const e=setup();try{
     const controls=e.doc.querySelector('.sn-hero-controls');
     controls.dispatchEvent(new e.w.Event('pointerenter'));e.tick(20000);assert.equal(e.slide(),'infrastructure');
-    controls.dispatchEvent(new e.w.Event('pointerleave'));e.tick(5000);assert.equal(e.slide(),'studio');
+    controls.dispatchEvent(new e.w.Event('pointerleave'));e.tick(6000);assert.equal(e.slide(),'gpu');
   }finally{e.w.close();}
 });
 test('re-evaluating the module does not duplicate timers or handlers',()=>{
   const e=setup();try{
-    e.w.eval(code);e.tick(5000);assert.equal(e.slide(),'studio');e.tick(5000);assert.equal(e.slide(),'n8n');
+    e.w.eval(code);e.tick(6000);assert.equal(e.slide(),'gpu');e.tick(6000);assert.equal(e.slide(),'studio');
     e.doc.querySelector('[data-hero-autoplay]').click();assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
   }finally{e.w.close();}
 });
@@ -110,7 +112,7 @@ test('the static first frame remains useful before scripts initialize',()=>{
     assert.equal(d.getElementById('studio').getAttribute('aria-hidden'),'true');
     assert.equal(d.querySelectorAll('[data-studio-mode]:not([hidden])').length,0);
     assert.equal(d.querySelectorAll('form,input,textarea').length,0);
-    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/cloud/n8n','/hosting/linux','https://studio.servernet.cloud/']);
+    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/gpu','/cloud/n8n','/hosting/linux','https://studio.servernet.cloud/']);
   }finally{dom.window.close();}
 });
 test('unrelated pages do not need a carousel',()=>{
@@ -120,7 +122,7 @@ test('unrelated pages do not need a carousel',()=>{
 
 test('every service can be selected directly with a single matching visible and accessible slide',()=>{
   const e=setup();try{
-    for(const name of ['hosting','n8n','studio','infrastructure']){
+    for(const name of ['hosting','n8n','studio','gpu','infrastructure']){
       e.select(name);e.tick(20000);assert.equal(e.slide(),name);
       assert.equal(e.doc.querySelectorAll('[data-hero-slide][aria-hidden="false"]').length,1);
       assert.equal(e.doc.querySelectorAll('[data-hero-target][aria-pressed="true"]').length,1);
@@ -128,9 +130,18 @@ test('every service can be selected directly with a single matching visible and 
     }
   }finally{e.w.close();}
 });
-test('unconfigured Studio leaves a working three-service loop',()=>{
+test('unconfigured Studio leaves a working four-service loop',()=>{
   const e=setup('fa',false,true);try{
-    assert.equal(e.slide(),'infrastructure');e.tick(5000);assert.equal(e.slide(),'n8n');
-    e.tick(5000);assert.equal(e.slide(),'hosting');e.tick(5000);assert.equal(e.slide(),'infrastructure');
+    assert.equal(e.slide(),'infrastructure');e.tick(6000);assert.equal(e.slide(),'gpu');e.tick(6000);assert.equal(e.slide(),'n8n');
+    e.tick(6000);assert.equal(e.slide(),'hosting');e.tick(6000);assert.equal(e.slide(),'infrastructure');
+  }finally{e.w.close();}
+});
+
+test('dragging the production homepage globe pauses automatic slide changes',()=>{
+  const e=setup();try{
+    const globe=e.doc.querySelector('.sn-globe');globe.setAttribute('data-sn-home-globe','');
+    globe.dispatchEvent(new e.w.Event('pointerdown',{bubbles:true}));e.tick(20000);
+    assert.equal(e.slide(),'infrastructure');
+    assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
   }finally{e.w.close();}
 });

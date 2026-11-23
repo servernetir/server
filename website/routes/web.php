@@ -503,7 +503,11 @@ $site = function (): void {
         // صفحاتِ عمومیِ سایت با ?location=…&plan=… به همین‌جا لینک می‌دهند، پس
         // مسیر و نامِ روت‌ها را عوض نکنید. ثبتِ سفارش محدودیتِ نرخ دارد چون هر
         // سفارش یک سرویسِ pending و یک پیش‌فاکتورِ واقعی می‌سازد.
-        Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store');
+        Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store')
+            ->withoutMiddleware('auth:customer')
+            ->middleware([\App\Http\Middleware\CloudStoreBrowse::class, 'throttle:60,1']);
+        Route::post('/cloud-store/continue', [Account\CloudStoreGuestController::class, 'store'])->name('cloud.store.continue')
+            ->withoutMiddleware('auth:customer')->middleware('throttle:12,1');
         Route::get('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'resume'])->name('gpu.resume');
         Route::get('/gpu/recover', [\App\Http\Controllers\GpuOrderController::class, 'recover'])->name('gpu.recover');
         Route::post('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'complete'])->name('gpu.complete')->middleware('throttle:12,1');
