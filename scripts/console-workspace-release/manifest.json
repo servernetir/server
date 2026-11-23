@@ -1,205 +1,18 @@
 {
   "release": "console-workspace-20261123",
-  "base": "fc744ea4db7cb211da6daa8985cd4ec6e10d07ff",
+  "base": "430242e476cd063d58f470722d817aa7e77db0ba",
   "files": [
-    {
-      "source": "website/lang/en/workspace.php",
-      "destination": "servernet_app/lang/en/workspace.php",
-      "before": null,
-      "after": "15d17141e81e5a008fc8f119653c3003e578b33910c4b5001ee4981279715999"
-    },
-    {
-      "source": "website/lang/fa/workspace.php",
-      "destination": "servernet_app/lang/fa/workspace.php",
-      "before": null,
-      "after": "d433e146b87671d08287f2c322602ca27d37089de7e13854b280c4bd16280a8c"
-    },
-    {
-      "source": "website/lang/tr/workspace.php",
-      "destination": "servernet_app/lang/tr/workspace.php",
-      "before": null,
-      "after": "336f935b3710d88ac40097d83f0b262a6ddf7d9eba000aa0edfe6063cd84062a"
-    },
     {
       "source": "website/public/assets/css/console-workspace.css",
       "destination": "public_html/assets/css/console-workspace.css",
-      "before": null,
-      "after": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70"
+      "before": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70",
+      "after": "05e7ce41de2d95a56768423a9b16e74ff88463dfe8ec4b68a4c3812606690035"
     },
     {
       "source": "website/public/assets/css/console-workspace.css",
       "destination": "servernet_app/public/assets/css/console-workspace.css",
-      "before": null,
-      "after": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70"
-    },
-    {
-      "source": "website/public/assets/js/n8n-access.js",
-      "destination": "public_html/assets/js/n8n-access.js",
-      "before": null,
-      "after": "9bae328f28d25f4811e209a94a4897780f65c3379d438a24e832fafc98f1ce99"
-    },
-    {
-      "source": "website/public/assets/js/n8n-access.js",
-      "destination": "servernet_app/public/assets/js/n8n-access.js",
-      "before": null,
-      "after": "9bae328f28d25f4811e209a94a4897780f65c3379d438a24e832fafc98f1ce99"
-    },
-    {
-      "source": "website/public/assets/js/n8n-configurator.js",
-      "destination": "public_html/assets/js/n8n-configurator.js",
-      "before": null,
-      "after": "4995d43baeac302d47d6612c900afc856f3dd68fc7911f6fd2f9e5c03313893a"
-    },
-    {
-      "source": "website/public/assets/js/n8n-configurator.js",
-      "destination": "servernet_app/public/assets/js/n8n-configurator.js",
-      "before": null,
-      "after": "4995d43baeac302d47d6612c900afc856f3dd68fc7911f6fd2f9e5c03313893a"
-    },
-    {
-      "source": "website/resources/views/account/partials/card-n8n.blade.php",
-      "destination": "servernet_app/resources/views/account/partials/card-n8n.blade.php",
-      "before": null,
-      "after": "c0179d2b3e6ef1ea22ad408c6767bd611c38fee6af12e42f4c5abeeb857ccf30"
-    },
-    {
-      "source": "website/resources/views/account/partials/profile-heading.blade.php",
-      "destination": "servernet_app/resources/views/account/partials/profile-heading.blade.php",
-      "before": null,
-      "after": "f69b064b937c7a04ec4ba2957673bef079886958feec5902cdad2fc93f204a73"
-    },
-    {
-      "source": "website/resources/views/partials/n8n-configurator.blade.php",
-      "destination": "servernet_app/resources/views/partials/n8n-configurator.blade.php",
-      "before": null,
-      "after": "17bd84f35473dc9f1da222a24bdf00bf0cdf681588eeecceddea2932fc1fb4e0"
-    },
-    {
-      "source": "website/resources/views/partials/n8n-hero.blade.php",
-      "destination": "servernet_app/resources/views/partials/n8n-hero.blade.php",
-      "before": null,
-      "after": "7120c5bbd25e2d2cd0b0433a9eebd4f670ec11d850e660086cd1bff805a4e69a"
-    },
-    {
-      "source": "website/app/Support/PanelSections.php",
-      "destination": "servernet_app/app/Support/PanelSections.php",
-      "before": "5416cf3c7805ccd00031debc730d48af6bafb88b2645637235cd2d97edc4fe16",
-      "after": "7bdc669295ab9e829638cd5bb3384c740fef7a0a437ecd6aa2aff578e970c680"
-    },
-    {
-      "source": "website/lang/en/n8n.php",
-      "destination": "servernet_app/lang/en/n8n.php",
-      "before": "e0b5e527b190d6b6e23541ca76265b978e02b6a1054ec5377763b5d68a711ea1",
-      "after": "c99f2ed3850f3bce5c85adec528faca0b3b5c04b87b34a962272eea0274935bb"
-    },
-    {
-      "source": "website/lang/fa/n8n.php",
-      "destination": "servernet_app/lang/fa/n8n.php",
-      "before": "d557a610b2a0c9fb2f6777e928be19134da718a5f92bfb7c870dd6312010edfe",
-      "after": "adc694aed9ac2e872a97c8195f45c23fcc28b229077a1fd70f07c4266c2a677d"
-    },
-    {
-      "source": "website/lang/tr/n8n.php",
-      "destination": "servernet_app/lang/tr/n8n.php",
-      "before": "bd083090c981d133275988dedcb620221a2ea2a55ce430f35553efbbb348f07b",
-      "after": "e1ce7cbd07010bf4a3f29f9d2e64cf1397da3ddc89fcd6224460c56640049afb"
-    },
-    {
-      "source": "website/public/assets/css/n8n.css",
-      "destination": "public_html/assets/css/n8n.css",
-      "before": "a093bb7647e14e15c79bdd677ea6f6aa8291740d07885757ef4f28d15b0f7b72",
-      "after": "56f4161b7719aa1496b919295c7414ef208d14a1271573e8e5602f18d0fe3897"
-    },
-    {
-      "source": "website/public/assets/css/n8n.css",
-      "destination": "servernet_app/public/assets/css/n8n.css",
-      "before": "a093bb7647e14e15c79bdd677ea6f6aa8291740d07885757ef4f28d15b0f7b72",
-      "after": "56f4161b7719aa1496b919295c7414ef208d14a1271573e8e5602f18d0fe3897"
-    },
-    {
-      "source": "website/resources/views/account/n8n-store.blade.php",
-      "destination": "servernet_app/resources/views/account/n8n-store.blade.php",
-      "before": "25853041c10047bcd95ebce1c07278e48c8acf0424a6059ec969004bdb4e8538",
-      "after": "d1392ea101a523e825126a54b4e2b2cc819cf00f0b500c216e6151d21a0ab767"
-    },
-    {
-      "source": "website/resources/views/account/other.blade.php",
-      "destination": "servernet_app/resources/views/account/other.blade.php",
-      "before": "b7424285e8385dbc3305310748f8f7f1118c81f33ab891187f73223207fc9475",
-      "after": "a947f59219ca3b27620c27a493bfcc1a4f5652739d85a1db9b73ffc1b8a8798e"
-    },
-    {
-      "source": "website/resources/views/account/partials/n8n-access.blade.php",
-      "destination": "servernet_app/resources/views/account/partials/n8n-access.blade.php",
-      "before": "34851386a49f99a0f66ad0292cc2cca8948efa4421ab9c9d8efa8ff646c5a169",
-      "after": "78dc83c1dd0c1e287dbda94defb733632c6c308161c552ea225f300a0d6f8999"
-    },
-    {
-      "source": "website/resources/views/account/partials/sec-other.blade.php",
-      "destination": "servernet_app/resources/views/account/partials/sec-other.blade.php",
-      "before": "2cb81e95e0d90b81b134ef562f13635db4158c9dd24409a6f72a8bf87deb2d87",
-      "after": "bf9e68dcc5c9544e10683f86964061f3d6882112facce5264a107a146299acd8"
-    },
-    {
-      "source": "website/resources/views/account/profile.blade.php",
-      "destination": "servernet_app/resources/views/account/profile.blade.php",
-      "before": "762a0e4534fda638e35d64f60f0374da1b440a911d2aaf459cd677e3871b6832",
-      "after": "66e2132f55e45ea37f0217b76cd75b328a914f97bae4154b0e1e311690a393cf"
-    },
-    {
-      "source": "website/resources/views/account/security.blade.php",
-      "destination": "servernet_app/resources/views/account/security.blade.php",
-      "before": "e0b85ce1b464706d40b6fce99306c237ea17812e23459988c7ce7a6836771470",
-      "after": "435f850b94bee870a215641a98d857f3cfa61565449bc13cb7c424fc70d6032a"
-    },
-    {
-      "source": "website/resources/views/pages/n8n.blade.php",
-      "destination": "servernet_app/resources/views/pages/n8n.blade.php",
-      "before": "0bf2367362560f6e80dbf8860308438c565930e5d34a3adff587a42562530495",
-      "after": "9e72100197b0fcd1db942a699d20ac585a11816ddb04012cb56fca31fc7bfe44"
-    },
-    {
-      "source": "website/resources/views/partials/header.blade.php",
-      "destination": "servernet_app/resources/views/partials/header.blade.php",
-      "before": "531c866610fb6064d503ebc9b5b7cd805623a52542c08a0238c351f36204aaa6",
-      "after": "1e4e752ee8c701612c6b0b1f0c643d0fa970cd96c4a8f3e81789b10900cfdb48"
-    },
-    {
-      "source": "website/resources/views/layouts/site.blade.php",
-      "destination": "servernet_app/resources/views/layouts/site.blade.php",
-      "before": "bf2de51af9aacdff3dfe1b9d87c2e47c85beedf66b30f1b5008d0f30f23f532c",
-      "after": "6b462a52c040c03cee4ac08e3904fe7086527ea7e34ad7eaa7b623a2f7139793",
-      "crlf": true
-    },
-    {
-      "source": "website/resources/views/panel/layout.blade.php",
-      "destination": "servernet_app/resources/views/panel/layout.blade.php",
-      "before": "849466feeb62c8181399a8391cee1bfbc8151fed305598d80a4415d8340e4fa3",
-      "after": "bca3b3dbc736350a9958695a669deb842f0dc100c0f34f6855eab700d4c68d8e"
-    },
-    {
-      "source": "website/app/Http/Controllers/Account/AccountController.php",
-      "destination": "servernet_app/app/Http/Controllers/Account/AccountController.php",
-      "before": "864900f71facb67f333f2122915d1c3dc6a96c9d5466a230ede540329154542a",
-      "after": "f98146eb8a04c02e9aa7b2d4e4d6d786eb268b570590f89e7490d2ba272b613d"
-    },
-    {
-      "source": "website/app/Http/Controllers/Account/CloudServerController.php",
-      "destination": "servernet_app/app/Http/Controllers/Account/CloudServerController.php",
-      "before": "eb50d23fed0436cdcf5c9309315f18f95e132580ef656bb5eeb966f18ea04101",
-      "after": "200e9c56aea74d9a8056a5f8a8bd42f0b1b9ef0b9d4c7711cd6ffcc3f00e8570"
-    },
-    {
-      "source": "website/app/Http/Controllers/Account/SecurityController.php",
-      "destination": "servernet_app/app/Http/Controllers/Account/SecurityController.php",
-      "before": "61cd3006dc691734be10cc5f92457cf90833c24046c17a7884a6657630d6c713",
-      "after": "f49d2f71c7fd9472b143e2ecd193bf62784616113058bbd1cfc5f5397d44a9e2"
-    },
-    {
-      "source": "website/app/Http/Controllers/ManagedN8nController.php",
-      "destination": "servernet_app/app/Http/Controllers/ManagedN8nController.php",
-      "before": "3e6f3057b24a046e495d7c34bef71b2c2e3a5e207165416741b0751f22e089aa",
-      "after": "8dcce99bed2585025ee03e1d9713e0baaaeffc1d287aa3420bbb8c431f105926"
+      "before": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70",
+      "after": "05e7ce41de2d95a56768423a9b16e74ff88463dfe8ec4b68a4c3812606690035"
     }
   ],
   "helpers": {
@@ -233,5 +46,5 @@
     "partials.n8n-configurator",
     "account.cloud-server"
   ],
-  "overlay_sha256": "b10ae645c76bea7f8084fe6d05d5f8fb0d66df1d35c00e48a57c12886308b5ff"
+  "overlay_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }

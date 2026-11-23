@@ -1,6 +1,6 @@
 /* Account-only workspace. The public site keeps its own width and navigation. */
 .sn-console{--cw-glass:color-mix(in srgb,var(--surface) 84%,transparent);--cw-border:color-mix(in srgb,var(--text) 12%,transparent)}
-.sn-console .pnl-wrap{min-height:calc(100dvh - var(--header-h));padding-block:24px 40px;position:relative;isolation:isolate}
+.sn-console .pnl-wrap{min-height:calc(100dvh - var(--header-h));padding-block:24px 40px;position:relative}
 .sn-console .pnl-wrap::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 90% 0%,#00c9d00a,transparent 45%),radial-gradient(ellipse at 10% 55%,#7773ed0a,transparent 50%)}
 .sn-console .console-container{width:100%;max-width:none;padding-inline:clamp(16px,2.3vw,44px)}
 .sn-console .pnl-layout{--pnl-side:250px;--pnl-gap:28px}
