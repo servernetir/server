@@ -131,11 +131,6 @@
       "patch": true
     },
     {
-      "source": "website/resources/views/account/ai.blade.php",
-      "destination": "servernet_app/resources/views/account/ai.blade.php",
-      "patch": true
-    },
-    {
       "source": "website/resources/views/pages/home.blade.php",
       "destination": "servernet_app/resources/views/pages/home.blade.php",
       "patch": true
@@ -177,7 +172,7 @@
     },
     "activate.php": {
       "path": "scripts/home-email-studio-20261123/activate.php",
-      "sha256": "0efd15be4e5189255a540c4472345aed61fca3124aaec993c78dd337d42ab44f"
+      "sha256": "71f5a7b2b5946a3d45277c9f838227a71481f88b4728b78ca6483fd7cfedd747"
     }
   },
   "preview": [

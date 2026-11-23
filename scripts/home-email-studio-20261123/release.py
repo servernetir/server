@@ -89,7 +89,7 @@ def activate(stage, manifest, phase):
                 connection.sendall(fcgi.record(1, struct.pack('!HB5s', 1, 0, b'\0' * 5))
                     + fcgi.record(4, fcgi.encode_params(params)) + fcgi.record(4) + fcgi.record(5))
                 result = fcgi.receive(connection, time.monotonic() + 20)
-            assert result.get('compiled_views') == 10 and result.get('phase') == phase and result.get('general_cache_flush') is False
+            assert result.get('compiled_views') == 9 and result.get('phase') == phase and result.get('general_cache_flush') is False
             results.append(result)
     return results
 

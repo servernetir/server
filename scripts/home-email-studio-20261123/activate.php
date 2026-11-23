@@ -19,7 +19,7 @@ foreach (['fa', 'en', 'tr'] as $locale) {
 }
 foreach (['pages/home', 'pages/hosting', 'pages/transactional-email', 'partials/studio-carousel',
     'partials/studio-carousel-controls', 'partials/studio-home', 'partials/home-email-slide',
-    'partials/transactional-email-visual', 'partials/email-product-choice', 'account/ai'] as $view) {
+    'partials/transactional-email-visual', 'partials/email-product-choice'] as $view) {
     $expected[] = 'servernet_app/resources/views/'.$view.'.blade.php';
 }
 foreach (['servernet_app/public', 'public_html'] as $public) {
@@ -44,7 +44,7 @@ $app = require $root.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $views = ['pages.home', 'pages.hosting', 'pages.transactional-email', 'partials.studio-carousel',
     'partials.studio-carousel-controls', 'partials.studio-home', 'partials.home-email-slide',
-    'partials.transactional-email-visual', 'partials.email-product-choice', 'account.ai'];
+    'partials.transactional-email-visual', 'partials.email-product-choice'];
 foreach ($views as $view) {
     $source = $app['view']->getFinder()->find($view);
     $app['blade.compiler']->compile($source);

@@ -187,13 +187,6 @@
       "count": 1
     }
   ],
-  "website/resources/views/account/ai.blade.php": [
-    {
-      "old": "      <div class=\"aw-actions\">\n        @if(app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured())\n          <a class=\"pnl-btn primary aw-btn\" href=\"{{ lroute('account.studio.launch') }}\">ServerNet Studio</a>\n        @endif\n        <a class=\"pnl-btn primary aw-btn\" href=\"{{ lroute('account.security') }}#sec-ai\"><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-key\"/></svg>{{ __('ai.key') }}</a>\n",
-      "new": "      <div class=\"aw-actions\">\n        @if(app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured())\n          <a class=\"pnl-btn primary aw-btn\" href=\"{{ lroute('account.studio.launch') }}\">{{ __('ai_studio.name') }}</a>\n        @endif\n        <a class=\"pnl-btn primary aw-btn\" href=\"{{ lroute('account.security') }}#sec-ai\"><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-key\"/></svg>{{ __('ai.key') }}</a>\n",
-      "count": 1
-    }
-  ],
   "website/resources/views/pages/home.blade.php": [
     {
       "old": "<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/studio-carousel.css') }}\">\n<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/home-gpu-slide.css') }}\">\n<script src=\"{{ asset_ver('assets/js/studio-carousel.js') }}\" defer></script>\n@endpush\n",

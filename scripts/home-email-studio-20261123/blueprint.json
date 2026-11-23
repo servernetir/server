@@ -131,11 +131,6 @@
       "patch": true
     },
     {
-      "source": "website/resources/views/account/ai.blade.php",
-      "destination": "servernet_app/resources/views/account/ai.blade.php",
-      "patch": true
-    },
-    {
       "source": "website/resources/views/pages/home.blade.php",
       "destination": "servernet_app/resources/views/pages/home.blade.php",
       "patch": true
