@@ -3,12 +3,16 @@
     {
       "source": "website/app/Services/Cloud/CloudImageRegionLookup.php",
       "destination": "servernet_app/app/Services/Cloud/CloudImageRegionLookup.php",
-      "new": true
+      "new": true,
+      "before": null,
+      "after": "b4af1167b8e1f76f6199a9c295a25456551eb5182991dd7629eae206cbb752db"
     },
     {
       "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
       "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
-      "patch": true
+      "patch": true,
+      "before": "2b0f0f54acd353fb79acbe13bf2907e242e0ae311ba702d1f1ba3343cd551a18",
+      "after": "da58a9b8e21c0fba4918c4bfc919c6533eb984a164416667f05e36c0013d486c"
     }
   ],
   "helpers": {
