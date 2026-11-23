@@ -1,5 +1,5 @@
 /* ServerNet homepage: infrastructure first, consumer Studio second. */
-.sn-hero-carousel{position:relative;isolation:isolate;overflow:hidden;--hero-duration:5000ms;--studio-ink:var(--sn-ink,#edf5ff);--studio-copy:var(--sn-copy,#a9b6ca);--studio-edge:rgba(111,188,233,.19)}
+.sn-hero-carousel{position:relative;isolation:isolate;overflow:hidden;--hero-duration:6000ms;--studio-ink:var(--sn-ink,#edf5ff);--studio-copy:var(--sn-copy,#a9b6ca);--studio-edge:rgba(111,188,233,.19)}
 .sn-hero-slides{display:grid;position:relative}
 .sn-hero-slides>[data-hero-slide]{grid-area:1/1;min-width:0;align-self:stretch;transition:opacity .75s cubic-bezier(.22,1,.36,1),transform .95s cubic-bezier(.22,1,.36,1),filter .7s,visibility 0s .8s}
 .sn-hero-slides>[data-hero-slide="studio"]{opacity:0;visibility:hidden;pointer-events:none;transform:translate3d(2%,0,0) scale(.985);filter:blur(9px)}

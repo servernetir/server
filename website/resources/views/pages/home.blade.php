@@ -3,6 +3,7 @@
 @include('partials.atlas-seo')
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/studio-carousel.css') }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/home-gpu-slide.css') }}">
 <script src="{{ asset_ver('assets/js/studio-carousel.js') }}" defer></script>
 @endpush
 @section('content')
@@ -16,18 +17,18 @@
 @endphp
 <div class="sn-atlas sn-home">
 <div class="sn-home-intro">
-<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="{{ __('studio_carousel.carousel_role') }}" aria-label="{{ __('home_slides.carousel_label') }}" data-interval="5000">
+<div class="sn-hero-carousel" data-hero-carousel role="region" aria-roledescription="{{ __('studio_carousel.carousel_role') }}" aria-label="{{ __('home_slides.carousel_label') }}" data-interval="6000">
 <div class="sn-hero-slides">
-<section class="hero sn-hero" id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="{{ __('studio_carousel.slide_infrastructure') }}">
+<section class="hero sn-hero" id="hero-infrastructure" data-hero-slide="infrastructure" aria-label="{{ __('home_slides.vps_label') }}">
   <div class="container">
     <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
     <div class="sn-hero-grid">
     <div class="sn-hero-copy">
-    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span><h1>{{ __('ui.hero_h1a') }} <span class="grad">{{ __('ui.hero_h1b') }}</span></h1></div>
-      <p class="lead">@if(count($atlasLeadParts) === 2)<span class="sn-lead-line">{{ $atlasLeadParts[0] }}</span><span class="sn-lead-line">{{ $atlasLeadBreak.$atlasLeadParts[1] }}</span>@else{{ $atlasLead }}@endif</p>
+    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>{{ __('home_slides.vps_eyebrow') }}</span><h1>{{ __('ui.hero_h1a') }} <span class="grad">{{ __('home_slides.vps_accent') }}</span></h1></div>
+      <p class="lead">{{ __('home_slides.vps_lead') }}</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn-glass" href="#enterprise">{{ __('ui.hero_cta2') }}</a>
+        <a class="btn btn-primary" href="https://console.servernet.cloud{{ app()->getLocale() === 'fa' ? '' : '/'.app()->getLocale() }}/account/cloud-store"><span>{{ __('home_slides.vps_cta') }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-glass" href="https://console.servernet.cloud{{ app()->getLocale() === 'fa' ? '' : '/'.app()->getLocale() }}/account/cloud-store?billing_mode=hourly">{{ __('home_slides.vps_hourly') }}</a>
       </div>
       <div class="hero-rotator"><span class="dot"></span><span class="rot-txt" id="hero-rot">{{ $rotators[0] ?? '' }}</span></div>
       <a class="sn-discover" href="#products"><span class="sn-discover-line"></span>{{ __('atlas.scroll') }}<svg class="icon"><use href="#i-arrow"/></svg></a>
@@ -36,6 +37,7 @@
     </div>
   </div>
 </section>
+@include('partials.home-gpu-slide')
 @include('partials.studio-carousel')
 @include('partials.home-service-slides')
 </div>

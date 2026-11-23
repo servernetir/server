@@ -966,8 +966,8 @@ class CloudStoreController extends Controller
         $cycles = self::cycles();
         $taxPct = self::taxPercent();
         $customerId = (int) Auth::guard('customer')->id();
-        $existingHourlyMinimum = app(HourlyStartCredit::class)->existingRate($customerId)
-            * CloudPlan::HOURLY_START_MIN_HOURS;
+        $existingHourlyMinimum = $customerId > 0
+            ? app(HourlyStartCredit::class)->existingRate($customerId) * CloudPlan::HOURLY_START_MIN_HOURS : 0;
 
         foreach ($offers as $slug => $offer) {
             $rows = $sellableRows->get((string) $slug, collect());
@@ -1156,7 +1156,7 @@ class CloudStoreController extends Controller
             // نرخِ ساعتیِ هر پلن + حداقلِ اعتبارِ شروع (۲۴ ساعت) و موجودیِ فعلیِ
             // مشتری، تا صفحه بتواند پیش از ثبتِ سفارش بگوید اعتبار کافی است یا نه.
             'hourlyMap' => $hourlyMap,
-            'creditIrt' => app(Wallet::class)->availableOf($customerId),
+            'creditIrt' => $customerId > 0 ? app(Wallet::class)->availableOf($customerId) : 0,
 
             // ── افزودنی‌ها ──
             // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
@@ -1165,8 +1165,8 @@ class CloudStoreController extends Controller
             'addonOk' => (bool) ($addonMap[$selectedSlug] ?? false),
             'extraIpPrice' => $addonSvc->extraIpMonthlyToman(),
             'maxExtraIp' => CloudAddons::MAX_EXTRA_IP,
-            'sshKeys' => \App\Models\CloudSshKey::where('customer_id', (int) (\Illuminate\Support\Facades\Auth::guard('customer')->id() ?? 0))
-                ->orderByDesc('last_used_at')->orderBy('name')->get(),
+            'sshKeys' => $customerId > 0 ? \App\Models\CloudSshKey::where('customer_id', $customerId)
+                ->orderByDesc('last_used_at')->orderBy('name')->get() : collect(),
         ]);
     }
 

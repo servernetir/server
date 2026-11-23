@@ -10,7 +10,7 @@ class StudioHomeHeroTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_rotates_four_localized_services_and_keeps_stats_in_the_intro(): void
+    public function test_home_rotates_five_localized_services_and_keeps_stats_in_the_intro(): void
     {
         Http::preventStrayRequests();
         config(['services.gtm.enabled' => false, 'studio.enabled' => true,
@@ -20,9 +20,9 @@ class StudioHomeHeroTest extends TestCase
             $html = $this->get($path)->assertOk()->getContent();
             $this->assertLessThan(strpos($html, 'id="studio"'), strpos($html, 'id="hero-infrastructure"'));
             $this->assertStringContainsString('data-hero-carousel', $html);
-            $this->assertStringContainsString('data-interval="5000"', $html);
-            $this->assertSame(4, substr_count($html, 'data-hero-slide="'));
-            $this->assertSame(4, substr_count($html, 'data-hero-target="'));
+            $this->assertStringContainsString('data-interval="6000"', $html);
+            $this->assertSame(5, substr_count($html, 'data-hero-slide="'));
+            $this->assertSame(5, substr_count($html, 'data-hero-target="'));
             $this->assertStringContainsString('class="sn-home-intro"', $html);
             $this->assertStringContainsString('data-hero-autoplay', $html);
             $this->assertStringContainsString('aria-hidden="true" inert', $html);
@@ -31,8 +31,12 @@ class StudioHomeHeroTest extends TestCase
             $this->assertStringContainsString('assets/css/studio-carousel.css', $html);
             $this->assertStringContainsString('assets/js/studio-carousel.js', $html);
             $prefix = $locale === 'fa' ? '' : '/'.$locale;
+            $this->assertStringContainsString('https://console.servernet.cloud'.$prefix.'/account/cloud-store"', $html);
+            $this->assertStringContainsString('https://console.servernet.cloud'.$prefix.'/account/cloud-store?billing_mode=hourly"', $html);
+            $this->assertLessThan(strpos($html, 'id="hero-gpu"'), strpos($html, 'id="hero-infrastructure"'));
+            $this->assertLessThan(strpos($html, 'id="studio"'), strpos($html, 'id="hero-gpu"'));
             $this->assertStringContainsString($prefix.'/studio/download#studio-web-install', $html);
-            foreach (['/cloud/n8n', '/hosting/linux', '/hosting/windows', '/hosting/wordpress', '/hosting/woocommerce', '/hosting/python', '/hosting/email', '/hosting/backup', '/hosting/download'] as $target) {
+            foreach (['/gpu', '/cloud/n8n', '/hosting/linux', '/hosting/windows', '/hosting/wordpress', '/hosting/woocommerce', '/hosting/python', '/hosting/email', '/hosting/backup', '/hosting/download'] as $target) {
                 $this->assertStringContainsString($prefix.$target.'"', $html);
             }
             $this->assertStringNotContainsString('studio_carousel.', $html);
@@ -45,8 +49,8 @@ class StudioHomeHeroTest extends TestCase
     {
         config(['studio.enabled' => false]);
         $html = $this->get('/')->assertOk()->assertDontSee('data-studio-home', false)->getContent();
-        $this->assertSame(3, substr_count($html, 'data-hero-slide="'));
-        $this->assertSame(3, substr_count($html, 'data-hero-target="'));
+        $this->assertSame(4, substr_count($html, 'data-hero-slide="'));
+        $this->assertSame(4, substr_count($html, 'data-hero-target="'));
         $this->assertStringContainsString('data-hero-carousel', $html);
         $this->assertStringContainsString('id="hero-n8n"', $html);
         $this->assertStringContainsString('id="hero-hosting"', $html);

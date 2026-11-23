@@ -1,0 +1,53 @@
+{
+  "files": [],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-vps-gpu-public-store-20261123/activate.php",
+      "sha256": "32a007f47eba25f9ad0cc3f5dbe35ca57bae276a2c2055a05a39259adbe037a6"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/home-vps-gpu-public-store-20261123/review.html",
+      "sha256": "05375b2dc8a7f46ea7378ad8c40baddd6af640337200ef140122a8c90d9c217e"
+    },
+    {
+      "name": "carousel-preview.css",
+      "source": "website/public/assets/css/studio-carousel.css",
+      "sha256": "4dfe9c4ca7182e8b9d1f8a67867364c794d91c514d3c964d962ce75c84d5efe4"
+    },
+    {
+      "name": "gpu-preview.css",
+      "source": "website/public/assets/css/home-gpu-slide.css",
+      "sha256": "a04fd65233157d08a17669e46524f97c73788356145e55865b1a3ba2d448d4b2"
+    },
+    {
+      "name": "carousel-preview.js",
+      "source": "website/public/assets/js/studio-carousel.js",
+      "sha256": "082d982b47f7d0da02b3d6e1c9a31b2690f0483075c0c7feec4b41281d08eb53"
+    }
+  ],
+  "preview_partials": {
+    "fa": {
+      "source": "scripts/home-vps-gpu-public-store-20261123/preview/partial-fa.html",
+      "sha256": "cf23edaec75aed5bad7cff7a4e9a9eb69afd8c6f582c287eee35467f58843a74"
+    },
+    "en": {
+      "source": "scripts/home-vps-gpu-public-store-20261123/preview/partial-en.html",
+      "sha256": "acff5224d5d167982b537016a0dded6dac14e6aff94708dd44f52d1de90ea3bf"
+    },
+    "tr": {
+      "source": "scripts/home-vps-gpu-public-store-20261123/preview/partial-tr.html",
+      "sha256": "fe8a9526ad140161867ef5cdf7fd92579547250fc133fbadd980a034fd29aae5"
+    }
+  }
+}

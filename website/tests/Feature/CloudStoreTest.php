@@ -556,11 +556,11 @@ class CloudStoreTest extends TestCase
         $this->assertSame(0, Service::count());
     }
 
-    public function test_guest_can_neither_see_nor_order(): void
+    public function test_guest_can_browse_but_must_authenticate_to_order(): void
     {
         $this->catalog();
 
-        $this->get($this->u())->assertRedirect();
+        $this->get($this->u())->assertOk();
         $this->post($this->up(), [
             'location' => 'de-frankfurt', 'plan' => 'cv-2c-4g-40d-de-frankfurt',
             'image' => 'ubuntu-24.04', 'cycle' => 'monthly',

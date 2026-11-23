@@ -1,0 +1,189 @@
+{
+  "website/routes/web.php": [
+    {
+      "old": "        Route::get('/cloud-store', [Account\\CloudStoreController::class, 'index'])->name('cloud.store');",
+      "new": "        Route::get('/cloud-store', [Account\\CloudStoreController::class, 'index'])->name('cloud.store')\n            ->withoutMiddleware('auth:customer')\n            ->middleware([\\App\\Http\\Middleware\\CloudStoreBrowse::class, 'throttle:60,1']);\n        Route::post('/cloud-store/continue', [Account\\CloudStoreGuestController::class, 'store'])->name('cloud.store.continue')\n            ->withoutMiddleware('auth:customer')->middleware('throttle:12,1');",
+      "count": 1
+    }
+  ],
+  "website/app/Http/Controllers/Account/CloudStoreController.php": [
+    {
+      "old": "$existingHourlyMinimum = app(HourlyStartCredit::class)->existingRate($customerId)\n            * CloudPlan::HOURLY_START_MIN_HOURS;",
+      "new": "$existingHourlyMinimum = $customerId > 0\n            ? app(HourlyStartCredit::class)->existingRate($customerId) * CloudPlan::HOURLY_START_MIN_HOURS : 0;",
+      "count": 1
+    },
+    {
+      "old": "'creditIrt' => app(Wallet::class)->availableOf($customerId),",
+      "new": "'creditIrt' => $customerId > 0 ? app(Wallet::class)->availableOf($customerId) : 0,",
+      "count": 1
+    },
+    {
+      "old": "'sshKeys' => \\App\\Models\\CloudSshKey::where('customer_id', (int) (\\Illuminate\\Support\\Facades\\Auth::guard('customer')->id() ?? 0))\n                ->orderByDesc('last_used_at')->orderBy('name')->get(),",
+      "new": "'sshKeys' => $customerId > 0 ? \\App\\Models\\CloudSshKey::where('customer_id', $customerId)\n                ->orderByDesc('last_used_at')->orderBy('name')->get() : collect(),",
+      "count": 1
+    }
+  ],
+  "website/resources/views/account/cloud-store.blade.php": [
+    {
+      "old": "@extends('panel.layout')",
+      "new": "@php\n  $isGuestStore = auth('customer')->guest();\n@endphp\n@extends($isGuestStore ? 'layouts.cloud-store' : 'panel.layout')",
+      "count": 1
+    },
+    {
+      "old": "action=\"{{ lroute('account.cloud.store.place') }}\"",
+      "new": "action=\"{{ lroute($isGuestStore ? 'account.cloud.store.continue' : 'account.cloud.store.place') }}\"",
+      "count": 1
+    },
+    {
+      "old": "{{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}",
+      "new": "{{ __($isGuestStore ? 'cloud_store_guest.continue' : ($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay')) }}",
+      "count": 2
+    },
+    {
+      "old": "        <label class=\"cvb-field\">\n          <span>{{ __('ui.cvb_ssh') }}",
+      "new": "        @auth('customer')\n        <label class=\"cvb-field\">\n          <span>{{ __('ui.cvb_ssh') }}",
+      "count": 1
+    },
+    {
+      "old": "            <span>{{ __('ui.cvb_ssh_note2') }}</span>\n          </p>\n        </div>",
+      "new": "            <span>{{ __('ui.cvb_ssh_note2') }}</span>\n          </p>\n        </div>\n        @endauth",
+      "count": 1
+    },
+    {
+      "old": "@if($creditIrt >= $hMin) hidden @endif",
+      "new": "@if($isGuestStore || $creditIrt >= $hMin) hidden @endif",
+      "count": 1
+    },
+    {
+      "old": "    'credit' => $creditIrt ?? 0,",
+      "new": "    'credit' => $creditIrt ?? 0,\n    'guest' => $isGuestStore,",
+      "count": 1
+    },
+    {
+      "old": "if (low) low.hidden = (D.credit >= startMinimum);",
+      "new": "if (low) low.hidden = D.guest || (D.credit >= startMinimum);",
+      "count": 1
+    }
+  ],
+  "website/resources/views/pages/home.blade.php": [
+    {
+      "old": "data-interval=\"5000\"",
+      "new": "data-interval=\"6000\"",
+      "count": 1
+    },
+    {
+      "old": "{{ __('atlas.eyebrow') }}",
+      "new": "{{ __('home_slides.vps_eyebrow') }}",
+      "count": 1
+    },
+    {
+      "old": "{{ __('ui.hero_h1b') }}",
+      "new": "{{ __('home_slides.vps_accent') }}",
+      "count": 1
+    },
+    {
+      "old": "<p class=\"lead\">@if(count($atlasLeadParts) === 2)<span class=\"sn-lead-line\">{{ $atlasLeadParts[0] }}</span><span class=\"sn-lead-line\">{{ $atlasLeadBreak.$atlasLeadParts[1] }}</span>@else{{ $atlasLead }}@endif</p>",
+      "new": "<p class=\"lead\">{{ __('home_slides.vps_lead') }}</p>",
+      "count": 1
+    },
+    {
+      "old": "href=\"#pricing\"><span>{{ __('ui.hero_cta1') }}</span>",
+      "new": "href=\"https://console.servernet.cloud{{ app()->getLocale() === 'fa' ? '' : '/'.app()->getLocale() }}/account/cloud-store\"><span>{{ __('home_slides.vps_cta') }}</span>",
+      "count": 1
+    },
+    {
+      "old": "href=\"#enterprise\">{{ __('ui.hero_cta2') }}",
+      "new": "href=\"https://console.servernet.cloud{{ app()->getLocale() === 'fa' ? '' : '/'.app()->getLocale() }}/account/cloud-store?billing_mode=hourly\">{{ __('home_slides.vps_hourly') }}",
+      "count": 1
+    },
+    {
+      "old": "@include('partials.studio-carousel')",
+      "new": "@include('partials.home-gpu-slide')\n@include('partials.studio-carousel')",
+      "count": 1
+    },
+    {
+      "old": "<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/studio-carousel.css') }}\">",
+      "new": "<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/studio-carousel.css') }}\">\n<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/home-gpu-slide.css') }}\">",
+      "count": 1
+    },
+    {
+      "old": "{{ __('studio_carousel.slide_infrastructure') }}",
+      "new": "{{ __('home_slides.vps_label') }}",
+      "count": 1
+    }
+  ],
+  "website/resources/views/partials/studio-carousel-controls.blade.php": [
+    {
+      "old": "{{ __('studio_carousel.slide_infrastructure') }}",
+      "new": "{{ __('home_slides.vps_label') }}",
+      "count": 2
+    },
+    {
+      "old": "{{ __('studio_carousel.slide_short') }}",
+      "new": "{{ __('home_slides.vps_short') }}",
+      "count": 1
+    },
+    {
+      "old": "    @if($studioCarouselAvailable)",
+      "new": "    <button type=\"button\" data-hero-target=\"gpu\" aria-controls=\"hero-gpu\" aria-label=\"{{ __('home_slides.gpu_label') }}\" aria-pressed=\"false\"><span class=\"sn-hero-progress\" aria-hidden=\"true\"><i></i></span><span class=\"sn-hero-wide\">{{ __('home_slides.gpu_label') }}</span><span class=\"sn-hero-compact\" dir=\"ltr\">GPU</span></button>\n    @if($studioCarouselAvailable)",
+      "count": 1
+    },
+    {
+      "old": "<noscript><div class=\"container sn-hero-nojs\">",
+      "new": "<noscript><div class=\"container sn-hero-nojs\"><a href=\"{{ lroute('gpu') }}\">{{ __('home_slides.gpu_label') }}</a> · ",
+      "count": 1
+    }
+  ],
+  "website/public/assets/js/studio-carousel.js": [
+    {
+      "old": "var interval = Math.max(5000, Number(root.dataset.interval) || 5000);",
+      "new": "var interval = Math.max(5000, Number(root.dataset.interval) || 6000);",
+      "count": 1
+    },
+    {
+      "old": "event.target.closest('[data-sn-globe]')",
+      "new": "event.target.closest('[data-sn-globe], [data-sn-home-globe]')",
+      "count": 1
+    }
+  ],
+  "website/public/assets/css/studio-carousel.css": [
+    {
+      "old": "--hero-duration:5000ms",
+      "new": "--hero-duration:6000ms",
+      "count": 1
+    }
+  ],
+  "website/tests/Fixtures/StudioHomePreview.php": [
+    {
+      "old": "$template = str_replace(\"@include('partials.home-service-slides')\"",
+      "new": "$template = str_replace(\"@include('partials.home-gpu-slide')\", file_get_contents(\"$root/resources/views/partials/home-gpu-slide.blade.php\"), $template);\n$template = str_replace(\"@include('partials.home-service-slides')\"",
+      "count": 1
+    },
+    {
+      "old": "'contact' => '/contact', default",
+      "new": "'contact' => '/contact', 'gpu' => '/gpu', default",
+      "count": 1
+    }
+  ],
+  "website/lang/fa/home_slides.php": [
+    {
+      "old": "return [\n",
+      "new": "return [\n    'vps_label' => \"سرور مجازی\",\n    'vps_short' => \"سرور\",\n    'vps_eyebrow' => \"سرور مجازی؛ برای ایده‌ای که منتظر نمی‌ماند\",\n    'vps_accent' => \"قدرتِ سرور، به فرمانِ تو.\",\n    'vps_lead' => \"برای سایت، برنامه یا پروژه‌ات، سرور مجازی خودت را بساز. منابع، موقعیت و سیستم‌عامل را انتخاب کن و ساعتی یا ماهانه جلو برو.\",\n    'vps_cta' => \"ساخت سرور مجازی\",\n    'vps_hourly' => \"سرور مجازی ساعتی\",\n    'gpu_label' => \"اجاره GPU\",\n    'gpu_eyebrow' => \"اجارهٔ کارت گرافیک ابری\",\n    'gpu_title' => \"تصورش با تو.\",\n    'gpu_accent' => \"پردازشش با GPU سرورنت.\",\n    'gpu_lead' => \"ساخت تصویر و ویدیو، اجرای مدل‌های هوش مصنوعی یا پردازش پروژه‌ها؛ کارت گرافیک ابری را انتخاب کن و قدرت لازم را به کارت اضافه کن.\",\n    'gpu_create' => \"تصویر و ویدیوی خلاقانه\",\n    'gpu_models' => \"مدل‌های هوش مصنوعی\",\n    'gpu_compute' => \"پردازش و توسعه\",\n    'gpu_cta' => \"کشف و اجارهٔ GPU\",\n    'gpu_note' => \"انتخاب کارت و برنامهٔ آماده\",\n    'gpu_visual' => \"کارت گرافیک ابری متصل به تولید تصویر و اجرای مدل‌های هوش مصنوعی\",\n    'gpu_art' => \"ایده، تبدیل به تصویر\",\n    'gpu_model' => \"مدل‌ها، آمادهٔ اجرا\",\n    'gpu_caption' => \"از تصور تا نتیجه، با قدرتِ ابری.\",\n",
+      "count": 1
+    }
+  ],
+  "website/lang/en/home_slides.php": [
+    {
+      "old": "return [\n",
+      "new": "return [\n    'vps_label' => \"Virtual servers\",\n    'vps_short' => \"Servers\",\n    'vps_eyebrow' => \"Virtual servers for ideas that cannot wait\",\n    'vps_accent' => \"Server power. Your command.\",\n    'vps_lead' => \"Build a virtual server for your website, application or next project. Choose resources, location and operating system, then go hourly or monthly.\",\n    'vps_cta' => \"Build your server\",\n    'vps_hourly' => \"Hourly virtual servers\",\n    'gpu_label' => \"Cloud GPU\",\n    'gpu_eyebrow' => \"Rent cloud graphics power\",\n    'gpu_title' => \"You imagine it.\",\n    'gpu_accent' => \"ServerNet GPU powers it.\",\n    'gpu_lead' => \"Create images and video, run AI models or process your next project. Choose a cloud GPU and give your work the power it needs.\",\n    'gpu_create' => \"Image and video creation\",\n    'gpu_models' => \"AI models\",\n    'gpu_compute' => \"Compute and development\",\n    'gpu_cta' => \"Explore cloud GPUs\",\n    'gpu_note' => \"Choose a GPU and a ready-to-use app\",\n    'gpu_visual' => \"Cloud GPU connecting image creation and AI model workloads\",\n    'gpu_art' => \"Ideas into images\",\n    'gpu_model' => \"Models ready to run\",\n    'gpu_caption' => \"From imagination to results, with cloud power.\",\n",
+      "count": 1
+    }
+  ],
+  "website/lang/tr/home_slides.php": [
+    {
+      "old": "return [\n",
+      "new": "return [\n    'vps_label' => \"Sanal sunucu\",\n    'vps_short' => \"Sunucu\",\n    'vps_eyebrow' => \"Bekleyemeyen fikirler için sanal sunucu\",\n    'vps_accent' => \"Sunucunun gücü, senin kontrolünde.\",\n    'vps_lead' => \"Siten, uygulaman veya yeni projen için sanal sunucunu oluştur. Kaynaklarını, konumunu ve işletim sistemini seç; saatlik ya da aylık devam et.\",\n    'vps_cta' => \"Sunucunu oluştur\",\n    'vps_hourly' => \"Saatlik sanal sunucu\",\n    'gpu_label' => \"GPU kiralama\",\n    'gpu_eyebrow' => \"Bulut ekran kartı kirala\",\n    'gpu_title' => \"Hayal etmesi senden.\",\n    'gpu_accent' => \"İşlemesi ServerNet GPU’dan.\",\n    'gpu_lead' => \"Görsel ve video üret, yapay zekâ modellerini çalıştır veya projeni işle. Bulut GPU’nu seç, işine gereken gücü ekle.\",\n    'gpu_create' => \"Görsel ve video üretimi\",\n    'gpu_models' => \"Yapay zekâ modelleri\",\n    'gpu_compute' => \"İşlem ve geliştirme\",\n    'gpu_cta' => \"Bulut GPU’ları keşfet\",\n    'gpu_note' => \"Ekran kartını ve hazır uygulamanı seç\",\n    'gpu_visual' => \"Görsel üretimini ve yapay zekâ modellerini destekleyen bulut ekran kartı\",\n    'gpu_art' => \"Fikirden görsele\",\n    'gpu_model' => \"Çalışmaya hazır modeller\",\n    'gpu_caption' => \"Hayalden sonuca, bulutun gücüyle.\",\n",
+      "count": 1
+    }
+  ]
+}
