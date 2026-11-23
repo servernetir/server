@@ -46,7 +46,7 @@ class AccountApiWorkspacePresentationTest extends TestCase
 
         $form = $xpath->query('//form[@action="'.lroute('account.identity.inquire').'"]')->item(0);
         $this->assertNotNull($form);
-        foreach (['service' => 'shahkar-inquiry', 'max_charge_irt' => '1155', 'price_version' => '1'] as $name => $value) {
+        foreach (['service' => 'shahkar-inquiry', 'max_charge_irt' => '1155', 'price_version' => (string) IdentityPrice::where('service', 'shahkar-inquiry')->value('id')] as $name => $value) {
             $this->assertSame($value, $xpath->query('.//input[@name="'.$name.'"]', $form)->item(0)?->getAttribute('value'));
         }
         $idempotency = $xpath->query('.//input[@name="idempotency_key"]', $form)->item(0);
