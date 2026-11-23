@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/Cloud/CloudImageRegionLookup.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudImageRegionLookup.php",
+      "new": true
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
+      "patch": true
+    }
+  ]
+}

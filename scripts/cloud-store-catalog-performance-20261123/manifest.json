@@ -1,0 +1,32 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/Cloud/CloudImageRegionLookup.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudImageRegionLookup.php",
+      "new": true,
+      "before": null,
+      "after": "b4af1167b8e1f76f6199a9c295a25456551eb5182991dd7629eae206cbb752db"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
+      "patch": true,
+      "before": "2b0f0f54acd353fb79acbe13bf2907e242e0ae311ba702d1f1ba3343cd551a18",
+      "after": "da58a9b8e21c0fba4918c4bfc919c6533eb984a164416667f05e36c0013d486c"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/cloud-store-catalog-performance-20261123/activate.php",
+      "sha256": "4ee737c8f33abdcd1036f68c1c6581a8a1664a53d5c3ca92077cfb0411be4778"
+    }
+  }
+}

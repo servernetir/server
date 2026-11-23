@@ -613,7 +613,8 @@ class CloudStoreController extends Controller
      * @param  array<int,string>  $slugProviders  زیرساخت‌هایی که این اسلاگ را می‌فروشند
      * @param  Collection<int,CloudImage>  $rows  همهٔ ردیف‌های همین کلید (هر زیرساخت یک ردیف)
      */
-    private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows): bool
+    private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows,
+        ?\App\Services\Cloud\CloudImageRegionLookup $regions = null): bool
     {
         foreach ($rows as $row) {
             if ((string) $row->provider === 'salad'
@@ -634,8 +635,7 @@ class CloudStoreController extends Controller
                 $region = explode(':', (string) $row->provider_ref)[1] ?? '';
                 if (\App\Services\Cloud\ArvanApplicationImages::imageId($region, (string) $row->provider_ref) === null
                     || (int) $offer->vcpu < \App\Services\Cloud\ArvanApplicationImages::minCpu((string) $row->family)
-                    || ! CloudPlan::query()->sellable()->where('slug', $offer->slug)
-                        ->where('provider', 'arvan')->where('provider_location', $region)->exists()) {
+                    || ! ($regions ?? new \App\Services\Cloud\CloudImageRegionLookup)->exists($offer, 'arvan', $region)) {
                     continue;
                 }
             }
@@ -645,8 +645,7 @@ class CloudStoreController extends Controller
                     continue;
                 }
                 $region = explode('|', (string) $row->provider_ref)[0];
-                if (! CloudPlan::query()->sellable()->where('slug', $offer->slug)
-                    ->where('provider', 'lightnode')->where('provider_location', 'like', $region.'|%')->exists()) {
+                if (! ($regions ?? new \App\Services\Cloud\CloudImageRegionLookup)->exists($offer, 'lightnode', $region)) {
                     continue;
                 }
             }
@@ -969,6 +968,9 @@ class CloudStoreController extends Controller
         $existingHourlyMinimum = $customerId > 0
             ? app(HourlyStartCredit::class)->existingRate($customerId) * CloudPlan::HOURLY_START_MIN_HOURS : 0;
 
+        // A region has many OS images; keep its identical SQL eligibility check
+        // within this render, without caching prices or a later order's gates.
+        $imageRegions = new \App\Services\Cloud\CloudImageRegionLookup;
         foreach ($offers as $slug => $offer) {
             $rows = $sellableRows->get((string) $slug, collect());
             $slugProviders = $rows->pluck('provider')->unique()->values()->all();
@@ -977,7 +979,7 @@ class CloudStoreController extends Controller
                 $keys = [];
 
                 foreach ($catalog as $img) {
-                    if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()))) {
+                    if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()), $imageRegions)) {
                         $keys[] = (string) $img->key;
                     } else {
                         $imageReasons[$slug][$img->key] = $availability->imageReason($offer, $rowsByKey->get((string) $img->key, collect()), $rows);
