@@ -1,0 +1,219 @@
+{
+  "files": [
+    {
+      "source": "website/public/assets/css/email-showcase.css",
+      "destination": "servernet_app/public/assets/css/email-showcase.css",
+      "new": true
+    },
+    {
+      "source": "website/public/assets/css/email-showcase.css",
+      "destination": "public_html/assets/css/email-showcase.css",
+      "new": true
+    },
+    {
+      "source": "website/resources/views/partials/email-product-choice.blade.php",
+      "destination": "servernet_app/resources/views/partials/email-product-choice.blade.php",
+      "new": true
+    },
+    {
+      "source": "website/resources/views/partials/home-email-slide.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-email-slide.blade.php",
+      "new": true
+    },
+    {
+      "source": "website/resources/views/partials/transactional-email-visual.blade.php",
+      "destination": "servernet_app/resources/views/partials/transactional-email-visual.blade.php",
+      "new": true
+    },
+    {
+      "source": "website/lang/en/ai_studio.php",
+      "destination": "servernet_app/lang/en/ai_studio.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/home_slides.php",
+      "destination": "servernet_app/lang/en/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/studio.php",
+      "destination": "servernet_app/lang/en/studio.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/studio_carousel.php",
+      "destination": "servernet_app/lang/en/studio_carousel.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/studio_download.php",
+      "destination": "servernet_app/lang/en/studio_download.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/en/transactional-email.php",
+      "destination": "servernet_app/lang/en/transactional-email.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/home_slides.php",
+      "destination": "servernet_app/lang/fa/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/studio.php",
+      "destination": "servernet_app/lang/fa/studio.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/studio_carousel.php",
+      "destination": "servernet_app/lang/fa/studio_carousel.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/studio_download.php",
+      "destination": "servernet_app/lang/fa/studio_download.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/transactional-email.php",
+      "destination": "servernet_app/lang/fa/transactional-email.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/ai_studio.php",
+      "destination": "servernet_app/lang/tr/ai_studio.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/home_slides.php",
+      "destination": "servernet_app/lang/tr/home_slides.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/studio.php",
+      "destination": "servernet_app/lang/tr/studio.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/studio_carousel.php",
+      "destination": "servernet_app/lang/tr/studio_carousel.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/studio_download.php",
+      "destination": "servernet_app/lang/tr/studio_download.php",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/transactional-email.php",
+      "destination": "servernet_app/lang/tr/transactional-email.php",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "patch": true
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/account/ai.blade.php",
+      "destination": "servernet_app/resources/views/account/ai.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/pages/hosting.blade.php",
+      "destination": "servernet_app/resources/views/pages/hosting.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/pages/transactional-email.blade.php",
+      "destination": "servernet_app/resources/views/pages/transactional-email.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel.blade.php",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/studio-home.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-home.blade.php",
+      "patch": true
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-email-studio-20261123/activate.php",
+      "sha256": "0efd15be4e5189255a540c4472345aed61fca3124aaec993c78dd337d42ab44f"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/home-email-studio-20261123/review.html",
+      "sha256": "4ce4860a381cd19c423a042c62a64ada3f5129533a74d4067a3562cc5dfb9613"
+    },
+    {
+      "name": "carousel-preview.css",
+      "source": "website/public/assets/css/studio-carousel.css",
+      "sha256": "f5a345fed879d393804124f05ba5af3faecb9a5c24011470a7367b23382a6785"
+    },
+    {
+      "name": "mail-preview.css",
+      "source": "website/public/assets/css/email-showcase.css",
+      "sha256": "f252eaaa1879169230ba6b34c27dc2fdabcfc3764cdc96c7b62438326409471d"
+    },
+    {
+      "name": "carousel-preview.js",
+      "source": "website/public/assets/js/studio-carousel.js",
+      "sha256": "e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8"
+    }
+  ],
+  "preview_partials": {
+    "fa": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-fa.html",
+      "sha256": "57efc2b84589dc5040e9d81a071c58588d2c8bd4e565efc468b69aea23d969b0"
+    },
+    "en": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-en.html",
+      "sha256": "af4876417ae40ff71c26219c4f675b996622b18ff1630e82f21c2ca4479fd77b"
+    },
+    "tr": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-tr.html",
+      "sha256": "ef9b17e1c65cbea740adcb1884425ec432afd304f2b07bfd79416a8ccbf2992a"
+    }
+  }
+}

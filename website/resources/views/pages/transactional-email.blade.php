@@ -17,6 +17,7 @@
 @section('canonical', lroute('email.transactional'))
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/transactional-email.css') }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/email-showcase.css') }}">
 @endpush
 @section('content')
 <div class="tx-page" data-email-product>
@@ -31,15 +32,16 @@
 <p class="tx-lead">{{ $t['lead'] }}</p>
 <div class="tx-actions"><a class="btn btn-primary" href="#pricing" data-growth-cta="view_plans" data-growth-placement="email_hero">{{ $t['cta'] }} <svg class="icon dir"><use href="#i-arrow"/></svg></a><a class="tx-text-link" href="#request">{{ $t['consult'] }}</a></div>
 <ul class="tx-trust">@foreach($t['trust'] as $item)<li><svg class="icon"><use href="#i-check"/></svg>{{ $item }}</li>@endforeach</ul>
-</div><aside class="tx-preview" aria-label="{{ $t['demo'] }}">
-<div class="tx-preview-head"><span class="tx-dot"></span><b>SERVERNET / MAIL</b><span>SMTP + API</span></div>
-<div class="tx-preview-message"><span class="tx-mail-icon"><svg class="icon"><use href="#i-mail"/></svg></span><div><small>notifications@your-domain.example</small><h2>{{ $t['demo_subject'] }}</h2><p>{{ $t['demo_body'] }}</p></div></div>
-<ol class="tx-flow">@foreach($t['demo_steps'] as $item)<li><span>{{ $isFa ? fa_num($loop->iteration) : $loop->iteration }}</span><b>{{ $item }}</b><svg class="icon"><use href="#i-check"/></svg></li>@endforeach</ol>
-<p class="tx-caption">{{ $t['demo'] }}</p>
+</div><aside class="tx-hero-visual" aria-label="{{ $t['demo'] }}">
+@include('partials.transactional-email-visual')
 <p class="tx-delivery-note">{{ $t['demo_note'] }}</p>
 </aside></div></div></section>
 <nav class="tx-section-nav" aria-label="{{ $t['badge'] }}"><div class="container">@foreach(['usecases','pricing','setup','guides','faq'] as $i => $target)<a href="#{{ $target }}">{{ $t['nav'][$i] }}</a>@endforeach</div></nav>
 <section class="tx-section" id="usecases"><div class="container"><div class="tx-section-head"><span class="tx-eyebrow">01 / USE CASES</span><h2>{{ $t['use_title'] }}</h2><p>{{ $t['use_lead'] }}</p></div><div class="tx-use-grid">@foreach($t['usecases'] as $row)<article class="tx-card"><span class="tx-card-num">0{{ $loop->iteration }}</span><h3>{{ $row[0] }}</h3><p>{{ $row[1] }}</p></article>@endforeach</div></div></section>
+<section class="tx-section" id="deliverability"><div class="container">
+<div class="tx-section-head"><span class="tx-eyebrow" dir="ltr">DELIVERABILITY / AMAZON SES</span><h2>{{ $t['delivery_title'] }}</h2><p>{{ $t['delivery_lead'] }}</p></div>
+<div class="tx-delivery-grid">@foreach($t['delivery_cards'] as $item)<article><span class="sn-email-choice-icon"><svg class="icon" aria-hidden="true"><use href="#i-{{ $item[0] }}"/></svg></span><h3>{{ $item[1] }}</h3><p>{{ $item[2] }}</p></article>@endforeach</div>
+</div></section>
 <section class="tx-section tx-tinted" id="pricing"><div class="container"><div class="tx-section-head"><span class="tx-eyebrow">02 / SIMPLE ESTIMATES</span><h2>{{ $t['price_title'] }}</h2><p>{{ $t['price_lead'] }}</p></div>
 @if($currency === 'USD')<p class="tx-callout">{{ $t['fx_fallback'] }}</p>@endif
 <div class="tx-plan-grid">@foreach($plans as $i => $plan)<article class="tx-plan {{ $i === 1 ? 'tx-featured' : '' }}">@if($i === 1)<p class="tx-plan-tag">{{ $t['recommended'] }}</p>@endif<h3>{{ $t['plan_names'][$i] }}</h3><p class="tx-volume"><b>{{ $isFa ? fa_num(number_format($plan['volume'])) : number_format($plan['volume']) }}</b> {{ $t['messages'] }}</p><p class="tx-price"><strong>{{ $money($plan['amount']) }}</strong> <span>{{ $currencyLabel }} / {{ $t['monthly'] }}</span></p><small class="tx-usd-basis">{{ $t['usd_basis'] }}: <b dir="ltr">$ {{ number_format($plan['usd_cents'] / 100, 2) }}</b></small><ul>@foreach($t['included'] as $item)<li><svg class="icon"><use href="#i-check"/></svg>{{ $item }}</li>@endforeach</ul><a class="btn {{ $i === 1 ? 'btn-primary' : 'btn-glass' }}" href="#request" data-email-plan="{{ $plan['volume'] }}" data-growth-cta="request_quote" data-growth-placement="email_plan">{{ $t['select'] }}</a></article>@endforeach</div>

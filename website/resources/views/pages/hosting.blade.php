@@ -175,6 +175,12 @@
     @include('partials.atlas-product-stage', ['atlasStage'=>in_array($category, ['vps','dedicated']) ? $category : 'hosting'])
   </div>
 </section>
+@if($category === 'hosting' && $slug === 'email')
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/email-showcase.css') }}">
+@endpush
+@include('partials.email-product-choice')
+@endif
 
 {{-- ============ AI SITE BUILDER (المان اختصاصی صفحه سایت‌ساز) ============ --}}
 @if(($product['signature']['type'] ?? '') === 'ai-builder')
@@ -562,7 +568,7 @@
 @endif
 
 {{-- ============ BAND (پیشنهاد مرتبط، مثل ایمیل تراکنشی) ============ --}}
-@isset($product['band'])
+@if(isset($product['band']) && !($category === 'hosting' && $slug === 'email'))
 @php $band = $product['band']; $bl = lc($band); @endphp
 <section class="section" style="padding-top:0">
   <div class="container">
@@ -583,7 +589,7 @@
     </div>
   </div>
 </section>
-@endisset
+@endif
 
 {{-- ============ SIGNATURE (المان اختصاصی هر محصول) ============ --}}
 @isset($product['signature'])

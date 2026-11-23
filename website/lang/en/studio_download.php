@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'title' => 'ServerNet Studio for desktop',
+    'title' => 'ServerNet AI Studio for desktop',
     'description' => 'Chat with AI models and create images, videos and audio using your ServerNet account.',
     'account' => 'ServerNet or Google sign-in',
     'wallet' => 'Shared wallet',
@@ -46,7 +46,7 @@ return [
     'start' => 'Start using Studio',
     'start_native' => 'Getting started with a native installer',
     'step_install_title' => 'Install the app',
-    'step_install' => 'Choose the installer for your computer and open ServerNet Studio. An internet connection is required.',
+    'step_install' => 'Choose the installer for your computer and open ServerNet AI Studio. An internet connection is required.',
     'step_login_title' => 'Sign in',
     'step_login' => 'Continue with ServerNet or Google. Enter the code shown in the desktop app in your browser.',
     'step_wallet_title' => 'Choose a model',

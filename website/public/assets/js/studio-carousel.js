@@ -10,7 +10,7 @@
     if (selectors.some(function (button, i) { return button.dataset.heroTarget !== slides[i].dataset.heroSlide; })) return;
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches: false};
     var interval = Math.max(5000, Number(root.dataset.interval) || 6000);
-    var active = 0, timer = null, transition = null;
+    var active = 0, timer = null;
     var explicitPause = motion.matches, focused = false, hovered = false, inView = true;
     root.style.setProperty('--hero-duration', interval + 'ms');
     root.dataset.carouselReady = 'true';
@@ -39,14 +39,8 @@
       });
       selectors.forEach(function (button, i) { button.setAttribute('aria-pressed', String(i === active)); });
       if (manual && announcement) announcement.textContent = selectors[active].getAttribute('aria-label') || selectors[active].textContent.trim();
-      root.classList.remove('is-transitioning');
-      if (transition !== null) window.clearTimeout(transition);
-      if (!motion.matches) {
-        // Restart the short light sweep only on a slide change.
-        void root.offsetWidth;
-        root.classList.add('is-transitioning');
-        transition = window.setTimeout(function () { root.classList.remove('is-transitioning'); }, 1100);
-      }
+      // The overlapping slides fade via CSS; there is no moving wipe or delayed
+      // focus state. Rapid selections and reduced motion use the same path.
       schedule();
     }
     selectors.forEach(function (button, index) {

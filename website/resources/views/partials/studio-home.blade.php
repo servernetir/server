@@ -9,7 +9,7 @@
 <section class="sn-studio" id="studio" aria-labelledby="studio-title" data-studio-home>
   <div class="container">
     <div class="sn-studio-topline">
-      <span class="sn-studio-wordmark" dir="ltr">ServerNet <b>Studio</b><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg></span>
+      <span class="sn-studio-wordmark" dir="ltr">ServerNet <b>AI Studio</b><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg></span>
       <span class="sn-studio-new">{{ __('studio_home.new') }}</span>
     </div>
     <div class="sn-studio-grid">

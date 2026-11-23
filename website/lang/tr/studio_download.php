@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'title' => 'Masaüstü için ServerNet Studio',
+    'title' => 'Masaüstü için ServerNet Yapay Zekâ Stüdyosu',
     'description' => 'ServerNet hesabınızla yapay zekâ modelleriyle sohbet edin ve görsel, video ve ses oluşturun.',
     'account' => 'ServerNet veya Google ile giriş',
     'wallet' => 'Ortak cüzdan',
@@ -46,7 +46,7 @@ return [
     'start' => 'Studio’yu kullanmaya başlayın',
     'start_native' => 'Yerel masaüstü kurulumuyla başlayın',
     'step_install_title' => 'Uygulamayı kurun',
-    'step_install' => 'Bilgisayarınıza uygun sürümü kurun ve ServerNet Studio’yu açın. İnternet bağlantısı gerekir.',
+    'step_install' => 'Bilgisayarınıza uygun sürümü kurun ve ServerNet Yapay Zekâ Stüdyosu’nu açın. İnternet bağlantısı gerekir.',
     'step_login_title' => 'Hesaba giriş yapın',
     'step_login' => 'ServerNet veya Google ile devam edin. Uygulamada gösterilen kodu tarayıcıya girin.',
     'step_wallet_title' => 'Model seçin',

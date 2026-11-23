@@ -1,0 +1,91 @@
+/* ServerNet's sending service: shared product artwork and clear entry points. */
+.sn-mail-visual{position:relative;isolation:isolate;min-width:0;width:100%;max-width:690px;aspect-ratio:1.5;justify-self:center;margin:0;color:#d5eaf9}
+.sn-mail-art{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 22px 38px #00112550)}
+.sn-mail-plate-grid{position:absolute;z-index:-1;inset:1% 0 5%;background:repeating-linear-gradient(0deg,transparent 0 29px,#64cce411 29px 30px),repeating-linear-gradient(90deg,transparent 0 29px,#64cce411 29px 30px);mask-image:radial-gradient(ellipse at center,#000 0,transparent 70%);transform:perspective(640px) rotateX(53deg)}
+.sn-mail-signal{position:absolute;display:flex;align-items:center;gap:11px;max-width:55%;padding:13px 17px;border:1px solid #7abed641;border-radius:14px;background:linear-gradient(140deg,#254b65bc,#081e37d4);box-shadow:0 14px 36px #0003,inset 0 1px 0 #adf0ff17;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.sn-mail-signal-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;background:#61ccea13;border:1px solid #64cde632;color:#90e5ef}
+.sn-mail-signal-icon .icon{width:21px;height:21px}
+.sn-mail-signal small,.sn-mail-signal b{display:block;line-height:1.6;overflow-wrap:anywhere}
+.sn-mail-signal small{color:#9ab9d0;font-size:.75rem}
+.sn-mail-signal b{color:#e4f5ff;font-size:.9375rem;font-weight:600}
+.sn-mail-sender{top:5%;left:1%;transform:rotate(-4deg)}
+.sn-mail-message{top:5%;right:1%;transform:rotate(3deg)}
+.sn-mail-receiver{bottom:14%;right:0;transform:rotate(3deg)}
+.sn-mail-auth{position:absolute;bottom:14%;left:2%;display:flex;align-items:center;gap:8px;color:#8adfe6;border:1px solid #64d5e62b;border-radius:9px;padding:10px 12px;background:#153a52a0;backdrop-filter:blur(6px);font:600 .72rem/1.5 system-ui,sans-serif;white-space:nowrap}
+.sn-mail-auth .icon{width:17px;height:17px}
+.sn-mail-visual figcaption{position:absolute;inset-inline:8px;bottom:1%;text-align:center;font-size:.75rem;line-height:1.5;color:var(--sn-quiet,var(--muted,#92a9bc))}
+.sn-email-hero .sn-service-mark{display:grid;place-items:center;padding:9px}
+.sn-email-hero .sn-service-mark .icon{width:24px;height:24px}
+.sn-email-actions{gap:10px}
+.is-active .sn-mail-route,.tx-hero-visual .sn-mail-route{animation:sn-mail-route 3s linear infinite}
+@keyframes sn-mail-route{to{stroke-dashoffset:-56}}
+html[data-theme="light"] .sn-mail-signal{background:linear-gradient(140deg,#f5fcffe8,#d8edf7e0);color:#17354b;border-color:#72accd50;box-shadow:0 14px 36px #2e62861c}
+html[data-theme="light"] .sn-mail-signal b{color:#183d56}
+html[data-theme="light"] .sn-mail-signal small{color:#486d85}
+html[data-theme="light"] .sn-mail-signal-icon{color:#087c9e;background:#52b2cc16}
+html[data-theme="light"] .sn-mail-auth{background:#e1f4fae0;color:#086d90;border-color:#81bacb60}
+
+/* The dedicated service keeps its real estimator and quote form. */
+.tx-page .tx-hero{background:radial-gradient(ellipse at 68% 35%,#2b95d010,transparent 63%);padding-block:32px 55px}
+.tx-page .tx-hero-grid{grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:clamp(26px,4vw,68px)}
+.tx-page .tx-hero h1{font-size:clamp(32px,3.45vw,54px);line-height:1.45;letter-spacing:-.035em}
+.tx-hero-visual{min-width:0;width:100%;margin:0}
+.tx-hero-visual .sn-mail-visual{max-width:640px;margin-inline:auto}
+.tx-hero-visual .tx-delivery-note{color:var(--muted);font-size:.8125rem;line-height:1.8;max-width:520px;margin:14px auto 0;text-align:center}
+.tx-delivery-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.tx-delivery-grid article{padding:27px;border:1px solid var(--line);background:linear-gradient(140deg,#4e98d00d,transparent 70%);border-radius:18px}
+.tx-delivery-grid article>.sn-email-choice-icon{margin-bottom:24px}
+.tx-delivery-grid article h3{margin:0 0 10px;font-size:1.15rem}
+.tx-delivery-grid article p{color:var(--muted);font-size:.9375rem;margin:0;line-height:1.9}
+
+/* Surface the sending product before mailbox plans on /hosting/email. */
+.sn-email-choice{padding-block:18px 34px}
+.sn-email-choice>h2{font-size:clamp(21px,2vw,30px);font-weight:650;line-height:1.6;margin:0 0 19px}
+.sn-email-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.sn-email-choice-grid article{display:flex;align-items:flex-start;gap:20px;padding:clamp(21px,3vw,36px);border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#4c9fd514,var(--surface));min-width:0}
+.sn-email-choice-grid article>div{min-width:0}
+.sn-email-choice-grid article.sn-email-choice-highlight{border-color:#51b9dc55;background:radial-gradient(ellipse at 0 0,#35b8ea25,transparent 85%),linear-gradient(135deg,#398fce18,var(--surface));box-shadow:inset 0 1px 0 #abefff19}
+.sn-email-choice-icon{display:grid;place-items:center;width:49px;height:49px;flex:none;color:var(--cyan,#62dce9);background:#40a5d613;border:1px solid #67c5e43b;border-radius:13px}
+.sn-email-choice-icon .icon{width:24px;height:24px}
+.sn-email-choice-platform{font:600 .75rem/1.2 system-ui,sans-serif;color:var(--cyan,#62dce9);display:inline-block;margin-bottom:7px}
+.sn-email-choice-grid h3{font-size:clamp(18px,1.7vw,24px);margin:0 0 11px;line-height:1.5}
+.sn-email-choice-grid p{font-size:.9375rem;color:var(--muted);line-height:1.9;margin:0 0 21px;max-width:530px}
+.sn-email-choice-grid .btn{font-size:.875rem;white-space:normal;text-align:center;min-height:42px}
+
+@media(min-width:1024px) and (min-height:600px){
+  .sn-home-intro .sn-mail-visual{max-width:min(680px,calc((100svh - 260px)*1.5))}
+}
+@media(min-width:1024px) and (max-height:710px){
+  .sn-home-intro .sn-mail-signal{gap:7px;padding:9px 12px}
+  .sn-home-intro .sn-mail-signal-icon{width:30px;height:30px}
+  .sn-home-intro .sn-mail-signal-icon .icon{width:17px;height:17px}
+  .sn-home-intro .sn-mail-signal small,.sn-home-intro .sn-mail-auth{font-size:.625rem}
+  .sn-home-intro .sn-mail-signal b{font-size:.75rem}
+  .sn-home-intro .sn-mail-auth{padding:8px}
+}
+@media(max-width:900px){
+  .tx-page .tx-hero-grid{grid-template-columns:minmax(0,1fr);gap:22px}
+  .tx-hero-visual .sn-mail-visual{max-width:550px}
+  .tx-delivery-grid{grid-template-columns:1fr}
+  .tx-delivery-grid article{padding:22px}
+  .tx-delivery-grid article>.sn-email-choice-icon{margin-bottom:15px}
+  .sn-email-choice-grid{grid-template-columns:1fr}
+}
+@media(max-width:540px){
+  .sn-mail-visual{aspect-ratio:1.21;max-width:420px}
+  .sn-mail-art{filter:none}
+  .sn-mail-signal{padding:8px 10px;gap:6px;border-radius:10px;max-width:49%}
+  .sn-mail-signal-icon{width:27px;height:27px;border-radius:7px}
+  .sn-mail-signal-icon .icon{width:16px;height:16px}
+  .sn-mail-signal small{font-size:.625rem}
+  .sn-mail-signal b{font-size:.75rem}
+  .sn-mail-auth{padding:8px 9px;gap:5px;font-size:.625rem}
+  .sn-mail-auth .icon{width:14px;height:14px}
+  .sn-mail-visual figcaption{font-size:.6875rem}
+  .sn-mail-sender,.sn-mail-message{top:3%}
+  .tx-page .tx-hero{padding-bottom:35px}
+  .tx-page .tx-hero h1{font-size:32px}
+  .sn-email-choice-grid article{padding:21px 16px;gap:13px}
+  .sn-email-choice-icon{width:40px;height:40px}
+}
+@media(prefers-reduced-motion:reduce){.sn-mail-visual *{animation:none!important;transition:none!important}}

@@ -33,6 +33,9 @@ class TransactionalEmailTest extends TestCase
             $this->assertStringContainsString('hreflang="'.$locale.'"', $html);
             $this->assertStringNotContainsString('noindex', $html);
             $this->assertStringContainsString('name="request_id"', $html);
+            $this->assertStringContainsString('class="sn-mail-visual"', $html);
+            $this->assertStringContainsString('id="deliverability"', $html);
+            $this->assertStringContainsString('assets/css/email-showcase.css', $html);
             $this->assertStringNotContainsString('99%+', $html);
             preg_match_all('~<script type="application/ld\+json">(.*?)</script>~s', $html, $matches);
             $schemas = array_map(fn ($s) => json_decode($s, true, flags: JSON_THROW_ON_ERROR), $matches[1]);
@@ -127,6 +130,12 @@ class TransactionalEmailTest extends TestCase
             foreach (['', '/solutions', '/hosting/email'] as $source) {
                 $html = $this->get($prefix.$source)->assertOk()->getContent();
                 $this->assertStringContainsString('href="http://localhost'.$prefix.'/transactional-email"', $html);
+                if ($source === '/hosting/email') {
+                    $this->assertStringContainsString('class="sn-email-choice container"', $html);
+                    $this->assertLessThan(strpos($html, 'id="pricing"'), strpos($html, 'id="email-choice-title"'));
+                    $this->assertStringContainsString(__('transactional-email.choice_mailbox'), $html);
+                    $this->assertStringContainsString(__('transactional-email.choice_transactional'), $html);
+                }
             }
         }
         $sitemap = $this->get('/sitemap.xml')->assertOk()->getContent();
