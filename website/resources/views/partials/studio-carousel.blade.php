@@ -3,7 +3,7 @@
 <section class="sn-studio-hero" id="studio" data-studio-home data-hero-slide="studio" aria-labelledby="studio-title" aria-hidden="true" inert>
   <div class="container sn-studio-layout">
     <div class="sn-studio-copy">
-      <div class="sn-studio-brand"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><span dir="ltr">ServerNet Studio</span><span class="sn-studio-new">{{ __('studio_carousel.new') }}</span></div>
+      <div class="sn-studio-brand"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg><span>{{ __('studio_carousel.brand') }}</span><span class="sn-studio-new">{{ __('studio_carousel.new') }}</span></div>
       <h2 id="studio-title">{{ __('studio_carousel.title') }}<span>{{ __('studio_carousel.title_accent') }}</span></h2>
       <p class="sn-studio-lead">{{ __('studio_carousel.lead') }}</p>
       <ul class="sn-studio-use-cases" aria-label="{{ __('studio_carousel.capabilities') }}">
@@ -20,7 +20,7 @@
     <div class="sn-studio-scene">
       <div class="sn-studio-orbit" aria-hidden="true"></div>
       <div class="sn-studio-glass">
-        <div class="sn-studio-glass-head"><span class="sn-studio-glass-brand" dir="ltr"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg>ServerNet <b>Studio</b></span><span>{{ __('studio_carousel.preview') }}</span></div>
+        <div class="sn-studio-glass-head"><span class="sn-studio-glass-brand" dir="ltr"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg>ServerNet <b>AI Studio</b></span><span>{{ __('studio_carousel.preview') }}</span></div>
         <div class="sn-studio-modes" data-studio-modes aria-label="{{ __('studio_carousel.capabilities') }}">
           @foreach($studioModes as $mode => $icon)
           <button type="button" data-studio-mode="{{ $mode }}" aria-controls="studio-panel-{{ $mode }}" aria-pressed="{{ $mode === 'image' ? 'true' : 'false' }}" hidden><svg class="icon" aria-hidden="true"><use href="#i-{{ $icon }}"/></svg>{{ __('studio_carousel.'.$mode) }}</button>

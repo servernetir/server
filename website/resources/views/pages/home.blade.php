@@ -4,6 +4,7 @@
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/studio-carousel.css') }}">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/home-gpu-slide.css') }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/email-showcase.css') }}">
 <script src="{{ asset_ver('assets/js/studio-carousel.js') }}" defer></script>
 @endpush
 @section('content')
@@ -40,6 +41,7 @@
 @include('partials.home-gpu-slide')
 @include('partials.studio-carousel')
 @include('partials.home-service-slides')
+@include('partials.home-email-slide')
 </div>
 @include('partials.studio-carousel-controls')
 </div>

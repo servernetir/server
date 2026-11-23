@@ -96,7 +96,7 @@ class StudioSsoTest extends TestCase
         $this->get('/account/studio/authorize?'.http_build_query($this->requestData()))->assertRedirect();
         [$customer] = $this->greenKey();
         $consent = $this->actingAs($customer, 'customer')->get('/account/studio/authorize?'.http_build_query($this->requestData()))
-            ->assertOk()->assertSee('ServerNet Studio')->assertSee('code_challenge');
+            ->assertOk()->assertSee(__('studio.title'))->assertSee('code_challenge');
         $this->assertMatchesRegularExpression(
             '~form-action [^;]+ https://studio\.servernet\.test(?: |;)~',
             $consent->headers->get('Content-Security-Policy') ?? ''

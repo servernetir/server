@@ -76,7 +76,7 @@ class GoogleAuthTest extends TestCase
         $this->runCallback($prefix)->assertRedirect($target);
         $this->assertAuthenticatedAs($c, 'customer');
         $this->assertSame(1, Customer::count());
-        $this->get($target)->assertOk()->assertSee('ServerNet Studio');
+        $this->get($target)->assertOk()->assertSee(__('studio.title'));
         $this->assertSame(0, DB::table('studio_authorization_codes')->count());
         $this->assertSame(0, $c->apiTokens()->count());
     }

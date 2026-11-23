@@ -32,17 +32,18 @@ function setup(locale='fa', reduced=false, withoutStudio=false) {
     hidden:value=>{visibility=value;doc.dispatchEvent(new w.Event('visibilitychange'));}};
 }
 for (const locale of ['fa','en','tr']) {
-  test(locale+': original globe is first; GPU appears after six seconds; five services loop in order',()=>{
+  test(locale+': original globe is first; GPU appears after six seconds; six services loop in order',()=>{
     const e=setup(locale);try{
       assert.equal(e.slide(),'infrastructure');assert.equal(e.doc.getElementById('studio').inert,true);
       let previous='infrastructure';
-      for(const name of ['gpu','studio','n8n','hosting','infrastructure']){
+      for(const name of ['gpu','studio','n8n','hosting','email','infrastructure']){
         e.tick(5999);assert.equal(e.slide(),previous);e.tick(1);assert.equal(e.slide(),name);
         const active=e.doc.querySelector('[data-hero-slide="'+name+'"]');
         assert.equal(active.inert,false);assert.equal(active.getAttribute('aria-hidden'),'false');
         previous=name;
       }
-      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,5);
+      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,6);
+      assert.equal(e.doc.querySelector('#hero-email .btn-primary').getAttribute('href'),(locale==='fa'?'':'/'+locale)+'/transactional-email');
       assert.doesNotMatch(e.doc.body.textContent,/studio_carousel\./);
       assert.equal(e.doc.querySelector('.sn-studio-launch').href,'https://studio.servernet.cloud/');
       assert.equal(e.doc.querySelector('.sn-studio-install').getAttribute('href'),(locale==='fa'?'':'/'+locale)+'/studio/download#studio-web-install');
@@ -112,7 +113,7 @@ test('the static first frame remains useful before scripts initialize',()=>{
     assert.equal(d.getElementById('studio').getAttribute('aria-hidden'),'true');
     assert.equal(d.querySelectorAll('[data-studio-mode]:not([hidden])').length,0);
     assert.equal(d.querySelectorAll('form,input,textarea').length,0);
-    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/gpu','/cloud/n8n','/hosting/linux','https://studio.servernet.cloud/']);
+    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/gpu','/cloud/n8n','/hosting/linux','/transactional-email','https://studio.servernet.cloud/']);
   }finally{dom.window.close();}
 });
 test('unrelated pages do not need a carousel',()=>{
@@ -122,7 +123,7 @@ test('unrelated pages do not need a carousel',()=>{
 
 test('every service can be selected directly with a single matching visible and accessible slide',()=>{
   const e=setup();try{
-    for(const name of ['hosting','n8n','studio','gpu','infrastructure']){
+    for(const name of ['email','hosting','n8n','studio','gpu','infrastructure']){
       e.select(name);e.tick(20000);assert.equal(e.slide(),name);
       assert.equal(e.doc.querySelectorAll('[data-hero-slide][aria-hidden="false"]').length,1);
       assert.equal(e.doc.querySelectorAll('[data-hero-target][aria-pressed="true"]').length,1);
@@ -130,10 +131,10 @@ test('every service can be selected directly with a single matching visible and 
     }
   }finally{e.w.close();}
 });
-test('unconfigured Studio leaves a working four-service loop',()=>{
+test('unconfigured Studio leaves a working five-service loop',()=>{
   const e=setup('fa',false,true);try{
     assert.equal(e.slide(),'infrastructure');e.tick(6000);assert.equal(e.slide(),'gpu');e.tick(6000);assert.equal(e.slide(),'n8n');
-    e.tick(6000);assert.equal(e.slide(),'hosting');e.tick(6000);assert.equal(e.slide(),'infrastructure');
+    e.tick(6000);assert.equal(e.slide(),'hosting');e.tick(6000);assert.equal(e.slide(),'email');e.tick(6000);assert.equal(e.slide(),'infrastructure');
   }finally{e.w.close();}
 });
 

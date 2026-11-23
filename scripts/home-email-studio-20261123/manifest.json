@@ -1,0 +1,278 @@
+{
+  "files": [
+    {
+      "source": "website/public/assets/css/email-showcase.css",
+      "destination": "servernet_app/public/assets/css/email-showcase.css",
+      "new": true,
+      "before": null,
+      "after": "4c312b317b2eb634371aaeaa086b4fbd9fdc9ac7acbb20e73ade609db8cf7f0c"
+    },
+    {
+      "source": "website/public/assets/css/email-showcase.css",
+      "destination": "public_html/assets/css/email-showcase.css",
+      "new": true,
+      "before": null,
+      "after": "4c312b317b2eb634371aaeaa086b4fbd9fdc9ac7acbb20e73ade609db8cf7f0c"
+    },
+    {
+      "source": "website/resources/views/partials/email-product-choice.blade.php",
+      "destination": "servernet_app/resources/views/partials/email-product-choice.blade.php",
+      "new": true,
+      "before": null,
+      "after": "35478932aee7682fb6c061cebb72eaab8b25bc2a66a2a065fee6d2f66a1fd8f2"
+    },
+    {
+      "source": "website/resources/views/partials/home-email-slide.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-email-slide.blade.php",
+      "new": true,
+      "before": null,
+      "after": "d447609d94fa189591bded8faa5f48227d0d85ce34812a84d603af3161b75924"
+    },
+    {
+      "source": "website/resources/views/partials/transactional-email-visual.blade.php",
+      "destination": "servernet_app/resources/views/partials/transactional-email-visual.blade.php",
+      "new": true,
+      "before": null,
+      "after": "1770653a1dd3c24e42f57bb24df45a277a732b82b695c6bc552f1d541c01d9bd"
+    },
+    {
+      "source": "website/lang/en/ai_studio.php",
+      "destination": "servernet_app/lang/en/ai_studio.php",
+      "patch": true,
+      "before": "e2e804c67f8a6e463a5450dcee32ae23e2c91f3637597213d79390cf46489564",
+      "after": "8ba2d80cc973340c8dd678dea8bf849a5a91f61497a656368cab99d01bdaec1a"
+    },
+    {
+      "source": "website/lang/en/home_slides.php",
+      "destination": "servernet_app/lang/en/home_slides.php",
+      "patch": true,
+      "before": "a046e0481e686969e5323381174dded0e69160aff74c779b81a348476209ddc9",
+      "after": "71115492d1ec5c7952ce44835327a89b471bd1077c29c9d52bd5e10b21b6abcd"
+    },
+    {
+      "source": "website/lang/en/studio.php",
+      "destination": "servernet_app/lang/en/studio.php",
+      "patch": true,
+      "before": "584bfcbf6adfa28ac7e644c461703b9d8e4ee85a9055795d9e18fc36517a3d5d",
+      "after": "d2d8e022a6d588697e376d7154b366f809c86f44bdb636651e23e139dab9b565"
+    },
+    {
+      "source": "website/lang/en/studio_carousel.php",
+      "destination": "servernet_app/lang/en/studio_carousel.php",
+      "patch": true,
+      "before": "f68de5adeb307609fe388857a10593714bfe66f9a63b2b7e7a514050c498ea39",
+      "after": "21fc5d96d3a7636e2d5343683052a6cdbee8920cde94687372bfdc73acf92984"
+    },
+    {
+      "source": "website/lang/en/studio_download.php",
+      "destination": "servernet_app/lang/en/studio_download.php",
+      "patch": true,
+      "before": "c5b9ffc570b38e5a924a0e6c55a267250014112d9eb55d0c967d085b90507447",
+      "after": "20729a643c694e0dfdb05b5233711d29b81850cf0048f0604ef1a341bf43b13c"
+    },
+    {
+      "source": "website/lang/en/transactional-email.php",
+      "destination": "servernet_app/lang/en/transactional-email.php",
+      "patch": true,
+      "before": "3536ab4219a90711374fae44e7c0f15d9b67db04c1b66da352c9ce392112d0d2",
+      "after": "24882c67c219973831888ca65ee733db4467144f0ade1632a4b391a7daff3275"
+    },
+    {
+      "source": "website/lang/fa/home_slides.php",
+      "destination": "servernet_app/lang/fa/home_slides.php",
+      "patch": true,
+      "before": "f4b6d93ab9507817deb8bf958a0f94b6588c081ea02b8a34acfc50519bd71936",
+      "after": "24b0ca6ade2c32be2b08cd81236ddcf0ff2576b2c63b2906880a3845b8bc733d"
+    },
+    {
+      "source": "website/lang/fa/studio.php",
+      "destination": "servernet_app/lang/fa/studio.php",
+      "patch": true,
+      "before": "5ce2dafbe5120c594a028a13f8bd299fe921621629d50cb5b1738443400f5787",
+      "after": "730baed9e36f05268985a5025445ba32e5a106280e68ed7f32aa0d1a51536827"
+    },
+    {
+      "source": "website/lang/fa/studio_carousel.php",
+      "destination": "servernet_app/lang/fa/studio_carousel.php",
+      "patch": true,
+      "before": "a3185b8c11b7783c2ff1bdb81517282f38eba5ea279e54e26ced25e132029d9f",
+      "after": "2ba98572fdce9533bd4ce8a90da55dec536dc02e090fa833b1f5cf471bc12a3b"
+    },
+    {
+      "source": "website/lang/fa/studio_download.php",
+      "destination": "servernet_app/lang/fa/studio_download.php",
+      "patch": true,
+      "before": "22c31fd7596694d8d781824109c608d8d104a6c5585d465934e2fe0df8d5726d",
+      "after": "84aebfa351507fdaaa2249423610db561c2b6788a3dadea0fe29f159ba783f1a"
+    },
+    {
+      "source": "website/lang/fa/transactional-email.php",
+      "destination": "servernet_app/lang/fa/transactional-email.php",
+      "patch": true,
+      "before": "656ad6e55eac902aa6f9e835efc006120424f68fb8fefd867e2664d31e9f38a0",
+      "after": "dff6a8c71818d5daec2c181c0b51ff06359bef89ed07e6b66da0a1b78f0ee32d"
+    },
+    {
+      "source": "website/lang/tr/ai_studio.php",
+      "destination": "servernet_app/lang/tr/ai_studio.php",
+      "patch": true,
+      "before": "1cb8a48a59457759c0d49b54ef8ad3c5d8e470b938cd0aa760050cbb5ab980b7",
+      "after": "ac626de574e5dd4a26f4734192036f82556eee62f81071772e9b36b065834747"
+    },
+    {
+      "source": "website/lang/tr/home_slides.php",
+      "destination": "servernet_app/lang/tr/home_slides.php",
+      "patch": true,
+      "before": "f70bf5cb0ae8128cea542eddaa3df0ec75740436c210969d0442771674f9bd00",
+      "after": "cd19bc42737f96764dd25a70a76fdca997bf1a486253399606e7bcdd1fccb534"
+    },
+    {
+      "source": "website/lang/tr/studio.php",
+      "destination": "servernet_app/lang/tr/studio.php",
+      "patch": true,
+      "before": "d501978b5d56eafd1b0f116b6642a4b267140dff8ddcb71f15afff13777fb1dd",
+      "after": "6326618e7897772b4dec918ab3ce9f398f118aa5f954444c7d10ba35991ddcc6"
+    },
+    {
+      "source": "website/lang/tr/studio_carousel.php",
+      "destination": "servernet_app/lang/tr/studio_carousel.php",
+      "patch": true,
+      "before": "1fe538393eb1a647098cddc180120df5acb9735d535b6c60a5498ab50c148f08",
+      "after": "64b1a2537ca3d3693a0e4ce7bb39c4e1b0edc65bd47710b57cd9a440ffe2e7cb"
+    },
+    {
+      "source": "website/lang/tr/studio_download.php",
+      "destination": "servernet_app/lang/tr/studio_download.php",
+      "patch": true,
+      "before": "d19b816671adc04a0c00e7a4a37dbcdb61e734fcf8bc27ebe01036679798de46",
+      "after": "56a2d71d2db225c453e9579bd48bf0eaf35159ef243711f833ed9c97d7e61ba0"
+    },
+    {
+      "source": "website/lang/tr/transactional-email.php",
+      "destination": "servernet_app/lang/tr/transactional-email.php",
+      "patch": true,
+      "before": "6f1fe190910f93581ace418be30e4fb618207087f0a3d3a059dc641e2fe5ca97",
+      "after": "3d940dab202e1044ba94568f2a56b2d6f9176072169b2da5542750ddaefb4089"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "patch": true,
+      "before": "4dfe9c4ca7182e8b9d1f8a67867364c794d91c514d3c964d962ce75c84d5efe4",
+      "after": "aa67283ed9230bdedf4ad30b85d691528676db13a45b28f731c72bf471790a05"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "patch": true,
+      "before": "4dfe9c4ca7182e8b9d1f8a67867364c794d91c514d3c964d962ce75c84d5efe4",
+      "after": "aa67283ed9230bdedf4ad30b85d691528676db13a45b28f731c72bf471790a05"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "patch": true,
+      "before": "082d982b47f7d0da02b3d6e1c9a31b2690f0483075c0c7feec4b41281d08eb53",
+      "after": "e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "patch": true,
+      "before": "082d982b47f7d0da02b3d6e1c9a31b2690f0483075c0c7feec4b41281d08eb53",
+      "after": "e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8"
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "patch": true,
+      "before": "ab06f5fe29d12e38f0cafdd2315747400b6fbe38d9e2e8862bd1058b0d83e7bf",
+      "after": "d3bd77504fa18edd979259ee03fa6c3c02c8b6909db6eb2e51fadb9c03a0ee60"
+    },
+    {
+      "source": "website/resources/views/pages/hosting.blade.php",
+      "destination": "servernet_app/resources/views/pages/hosting.blade.php",
+      "patch": true,
+      "before": "233501312e99e8048390dc23335fc3b85d6b9288c559e23d5500c8edb7644316",
+      "after": "0ac4e2c75174f0f32f46ca96395474486d1120bccf2848222b9afad65edf2bf1"
+    },
+    {
+      "source": "website/resources/views/pages/transactional-email.blade.php",
+      "destination": "servernet_app/resources/views/pages/transactional-email.blade.php",
+      "patch": true,
+      "before": "cce5df5324a28fe32cf654209a60fb3643b17f97bd3d90378d44c99a963fa4eb",
+      "after": "9a6dc68bd27ecea6139240f526bc16c4c611d601219c7041bfa5b844f91c3227"
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "patch": true,
+      "before": "62414a315ad3479d1e238a669373192583ba9f58606ab5196409bb9663f52a09",
+      "after": "4333d4b0461a9b3c8fe06506602d279a4a03aa6e4d4b6b86b6b03624599a02a9"
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel.blade.php",
+      "patch": true,
+      "before": "0763339c09a37281d5b51ffb27d41d49e611f7b48b91d3be18dc9a6183a20e4e",
+      "after": "98e830d0e5520c55dacb4c0dd46d9073c5641a344af467d00e42ded316ff5262"
+    },
+    {
+      "source": "website/resources/views/partials/studio-home.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-home.blade.php",
+      "patch": true,
+      "before": "21f7a3b115a8a85cde27d24b997d23c695692de5be961d585605dbbd65eba71c",
+      "after": "2698dc925ec684968b1f6272910da52ed219e88e9a4d59cec5145421569a0e33"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-email-studio-20261123/activate.php",
+      "sha256": "71f5a7b2b5946a3d45277c9f838227a71481f88b4728b78ca6483fd7cfedd747"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/home-email-studio-20261123/review.html",
+      "sha256": "4ce4860a381cd19c423a042c62a64ada3f5129533a74d4067a3562cc5dfb9613"
+    },
+    {
+      "name": "carousel-preview.css",
+      "source": "website/public/assets/css/studio-carousel.css",
+      "sha256": "aa67283ed9230bdedf4ad30b85d691528676db13a45b28f731c72bf471790a05"
+    },
+    {
+      "name": "mail-preview.css",
+      "source": "website/public/assets/css/email-showcase.css",
+      "sha256": "4c312b317b2eb634371aaeaa086b4fbd9fdc9ac7acbb20e73ade609db8cf7f0c"
+    },
+    {
+      "name": "carousel-preview.js",
+      "source": "website/public/assets/js/studio-carousel.js",
+      "sha256": "e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8"
+    }
+  ],
+  "preview_partials": {
+    "fa": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-fa.html",
+      "sha256": "57efc2b84589dc5040e9d81a071c58588d2c8bd4e565efc468b69aea23d969b0"
+    },
+    "en": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-en.html",
+      "sha256": "af4876417ae40ff71c26219c4f675b996622b18ff1630e82f21c2ca4479fd77b"
+    },
+    "tr": {
+      "source": "scripts/home-email-studio-20261123/preview/partial-tr.html",
+      "sha256": "ef9b17e1c65cbea740adcb1884425ec432afd304f2b07bfd79416a8ccbf2992a"
+    }
+  }
+}
