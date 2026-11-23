@@ -7,6 +7,7 @@ use App\Models\Service;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -20,11 +21,14 @@ class ManagedN8n
         $lock = Cache::lock('n8n-install-'.$service->id, 240);
         if (! $lock->get()) { return false; }
         try {
+            $service->refresh();
+            if ($service->isDead() || $service->status !== 'active' || $service->provision_status !== 'done') { return false; }
             $instance = CloudInstance::where('service_id', $service->id)->first();
             if (! $instance || ! in_array($instance->status, CloudInstance::READY_STATUSES, true)
                 || blank($instance->provider_ref) || blank($instance->ipv4)) { return false; }
             $state = (array) data_get($instance->meta, 'n8n', []);
             if (($state['state'] ?? '') === 'ready') { return true; }
+            if (($state['state'] ?? '') === 'failed') { return false; }
             if (! isset($state['hostname'], $state['nonce'], $state['password_enc'], $state['started_at'])) {
                 $domain = $instance->hasPrivateIp() ? app(NpmClient::class)->baseDomain() : config('managed_n8n.domain');
                 if (! $domain || ! filter_var($domain, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
@@ -37,7 +41,6 @@ class ManagedN8n
                     'started_at' => now()->toIso8601String(), 'attempts' => 0];
                 $this->save($instance, $state);
             }
-            if (($state['state'] ?? '') === 'failed') { return false; }
             if (now()->diffInMinutes(\Illuminate\Support\Carbon::parse($state['started_at']), true)
                 > (int) config('managed_n8n.install_timeout_minutes', 30)) {
                 throw new \RuntimeException('installation_timeout');
@@ -99,18 +102,30 @@ class ManagedN8n
 
     private function save(CloudInstance $instance, array $state): void
     {
-        $pinned = data_get($instance->fresh()->meta, 'n8n.ssh_key_sha256');
-        if ($pinned) { $state['ssh_key_sha256'] = $pinned; }
-        CloudInstance::whereKey($instance->id)->update(['meta->n8n' => $state]);
+        DB::transaction(function () use ($instance, $state) {
+            $fresh = CloudInstance::whereKey($instance->id)->lockForUpdate()->firstOrFail();
+            $meta = (array) $fresh->meta;
+            $pinned = data_get($meta, 'n8n.ssh_key_sha256');
+            if ($pinned) { $state['ssh_key_sha256'] = $pinned; }
+            $meta['n8n'] = $state;
+            // Avoid dialect-specific JSON object casts and NULL JSON_SET. Merge
+            // under the row lock so no transport state or peer metadata is lost.
+            $fresh->update(['meta' => $meta]);
+        });
     }
 
     /** Remove every public route before this allocation or its IP can be reused. */
     public function removeGateway(CloudInstance $instance): bool
     {
-        $host = data_get($instance->meta, 'n8n.hostname');
-        if (! $host) { return true; }
-        if ($instance->hasPrivateIp()
-            && ! (app(NpmClient::class)->removeProxyHost($host)['ok'] ?? false)) { return false; }
-        return app(\App\Services\Dns\CloudflareDns::class)->removeSubdomain($host)['ok'] ?? false;
+        $lock = Cache::lock('n8n-install-'.$instance->service_id, 240);
+        if (! $lock->get()) { return false; }
+        try {
+            $instance->refresh();
+            $host = data_get($instance->meta, 'n8n.hostname');
+            if (! $host) { return true; }
+            if ($instance->hasPrivateIp()
+                && ! (app(NpmClient::class)->removeProxyHost($host)['ok'] ?? false)) { return false; }
+            return app(\App\Services\Dns\CloudflareDns::class)->removeSubdomain($host)['ok'] ?? false;
+        } finally { $lock->release(); }
     }
 }

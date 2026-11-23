@@ -216,9 +216,20 @@ class ManagedN8nTest extends TestCase
         [$s, $i] = $this->allocated(['state' => 'failed']);
         $this->mock(ManagedN8nSsh::class)->shouldNotReceive('step');
         $this->assertFalse(app(ManagedN8n::class)->advance($s));
+        $this->assertSame(['state' => 'failed'], data_get($i->fresh()->meta, 'n8n'));
         $s->update(['status' => 'cancelled']);
         $this->assertFalse(app(ManagedN8n::class)->advance($s));
         Http::assertNothingSent();
+    }
+
+    public function test_cleanup_waits_for_the_installer_before_removing_routes(): void
+    {
+        [$s, $i] = $this->allocated(['hostname' => 'n8n-fixture.servernet.cloud']);
+        $this->mock(\App\Services\Dns\CloudflareDns::class)->shouldNotReceive('removeSubdomain');
+        $lock = \Illuminate\Support\Facades\Cache::lock('n8n-install-'.$s->id, 240);
+        $this->assertTrue($lock->get());
+        try { $this->assertFalse(app(ManagedN8n::class)->removeGateway($i)); }
+        finally { $lock->release(); }
     }
 
     public function test_bootstrap_secret_never_serializes_or_appears_on_normal_get(): void
