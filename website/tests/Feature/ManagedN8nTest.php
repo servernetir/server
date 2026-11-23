@@ -110,6 +110,29 @@ class ManagedN8nTest extends TestCase
         $this->assertGreaterThan(0, $catalog->hourly($ir));
     }
 
+    public function test_owned_iran_n8n_sales_do_not_reopen_ordinary_vps_or_quarantined_plans(): void
+    {
+        $iran = $this->plan('proxmox'); $this->plan('vpstc');
+        Setting::put('cloud_disabled_providers', 'proxmox,hetzner');
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $this->assertFalse(CloudPlan::sellable()->whereKey($iran->id)->exists());
+        $this->assertTrue(app(ManagedN8nCatalog::class)->plans()->contains('id', $iran->id));
+        $customer = $this->customer(); $customer->update(['phone' => '09121234567']);
+        \App\Models\CustomerProfile::create(['customer_id' => $customer->id, 'is_default' => true,
+            'type' => 'individual', 'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone]);
+        $customer->identityVerification()->create(['national_id_enc' => 'synthetic',
+            'national_id_hash' => hash('sha256', $customer->email), 'birth_date' => '1990-01-01',
+            'mobile' => $customer->phone, 'status' => 'verified', 'shahkar_matched' => true]);
+        $this->order($iran, $customer)->assertSessionHasNoErrors();
+        $this->assertSame(1200000, Service::firstOrFail()->price);
+        $this->assertFalse(CloudPlan::sellable()->whereKey($iran->id)->exists());
+        $iran->update(['admin_disabled' => true]);
+        $this->assertFalse(app(ManagedN8nCatalog::class)->plans()->contains('id', $iran->id));
+        $iran->update(['admin_disabled' => false]);
+        Setting::put('n8n_iran_sales_enabled', '0');
+        $this->assertFalse(app(ManagedN8nCatalog::class)->plans()->contains('id', $iran->id));
+    }
+
     public function test_no_iran_price_without_a_comparable_turkish_plan(): void
     {
         $ir = $this->plan('proxmox');

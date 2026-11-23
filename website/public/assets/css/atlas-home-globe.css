@@ -1,8 +1,0 @@
-/* ServerNet: cloud-store globe, adapted only to the homepage container. */
-.sn-home .sn-home-globe{aspect-ratio:1.2;cursor:grab;touch-action:pan-y;outline-offset:5px;isolation:isolate}
-.sn-home .sn-home-globe.is-dragging{cursor:grabbing}
-.sn-home .sn-home-globe.is-marker-hover{cursor:pointer}
-.sn-home .sn-home-globe:focus-visible{outline:2px solid var(--sn-cyan,#5de5ed);border-radius:12px}
-.sn-home .sn-home-globe canvas{pointer-events:none}
-.sn-home .sn-home-globe .sn-globe-fallback[hidden]{display:none}
-@media(max-width:540px){.sn-home .sn-home-globe{aspect-ratio:1.18}}

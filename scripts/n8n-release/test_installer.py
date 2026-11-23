@@ -68,6 +68,20 @@ class InstallerTest(unittest.TestCase):
         self.assertFalse(any(call.args[0][-1] == 'caddy' for call in run.call_args_list))
         self.assertFalse((self.root / 'ready.json').exists())
 
+    def test_docker_repository_403_uses_signed_ubuntu_packages(self):
+        error = urllib.error.HTTPError('https://download.docker.com', 403, 'blocked', {}, None)
+        with patch.object(installer, 'ROOT', self.root), \
+                patch.object(Path, 'read_text', return_value='ID=ubuntu\nVERSION_CODENAME=noble\n'), \
+                patch.object(Path, 'mkdir'), \
+                patch.object(installer.subprocess, 'check_output', return_value='amd64'), \
+                patch.object(installer.urllib.request, 'urlopen', side_effect=error), \
+                patch.object(installer, 'run') as run:
+            installer.install_docker()
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertIn(['apt-get', 'install', '-y', '-qq', 'docker.io', 'docker-compose-v2'], commands)
+        self.assertNotIn(['apt-get', 'install', '-y', '-qq', 'docker-ce'], commands)
+        self.assertIn(['systemctl', 'enable', '--now', 'docker'], commands)
+
 
 if __name__ == '__main__':
     unittest.main()

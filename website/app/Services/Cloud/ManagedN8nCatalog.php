@@ -86,8 +86,18 @@ class ManagedN8nCatalog
     /** @return Collection<int, CloudPlan> */
     public function plans(): Collection
     {
-        return CloudPlan::query()->sellable()->whereIn('provider', ['proxmox', 'hetzner', 'vpstc'])
-            ->orderBy('ram_mb')->orderBy('vcpu')->orderBy('price_irt')->get()
+        $plans = CloudPlan::query()->sellable()->whereIn('provider', ['proxmox', 'hetzner', 'vpstc'])->get();
+        // The owned n8n product has its own switch; ordinary Proxmox VPS sales
+        // can remain closed. Stock, exact-plan quarantine and prices still apply.
+        if (Setting::get('n8n_iran_sales_enabled') === '1'
+            && app(CloudPricingSnapshot::class)->current('proxmox')) {
+            $owned = CloudPlan::where('provider', 'proxmox')->where('location_code', 'like', 'ir-%')
+                ->where('is_active', true)->where('in_stock', true)->where('admin_disabled', false)
+                ->where('cost_eur_cents', '>', 0)->where('price_irt', '>', 0)
+                ->whereNotIn('id', CloudPricingSnapshot::excludedPlanIds())->get();
+            $plans = $plans->merge($owned);
+        }
+        return $plans->sortBy([['ram_mb', 'asc'], ['vcpu', 'asc'], ['price_irt', 'asc']])
             ->filter(fn (CloudPlan $p) => $this->eligible($p) && $this->image($p) !== null
                 && $this->quote($p, newOrder: true) > 0)
             ->unique(fn (CloudPlan $p) => $p->location_code.'|'.$p->slug)->values();

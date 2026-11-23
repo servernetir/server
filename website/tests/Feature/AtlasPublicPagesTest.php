@@ -14,14 +14,10 @@ class AtlasPublicPagesTest extends TestCase
             $this->assertStringContainsString('assets/js/atlas.min.js', $home);
             $this->assertStringContainsString('id="sn-atlas-css"', $home);
             $this->assertStringContainsString('atlas-earth.svg', $home);
-            $this->assertStringContainsString('id="discovery-domain-form"', $home);
+            $this->assertStringContainsString('id="domain-form"', $home);
             $this->assertStringContainsString('name="q"', $home);
             $this->assertStringContainsString('action="'.lroute('domain.search').'" method="get"', $home);
-            if ($locale === 'fa') {
-                $this->assertStringContainsString('/vps/iran', $home);
-            } else {
-                $this->assertStringNotContainsString($prefix.'/vps/iran', $home);
-            }
+            $this->assertStringContainsString($prefix.'/vps/iran', $home);
             $this->assertStringNotContainsString('>atlas.', $home);
             $this->assertStringContainsString('href="'.lroute('ai.home').'"', $home);
             $this->assertSeoIdentity($home, lroute('home'));
