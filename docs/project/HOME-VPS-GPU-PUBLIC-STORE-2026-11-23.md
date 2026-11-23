@@ -1,6 +1,6 @@
 # VPS/GPU homepage and public server configurator — 23 November 2026
 
-Base: `49d4928d808c190bb8ca1581e419cdcd19a58fae` (develop, including concurrent managed-n8n work). Source candidate; production acceptance is pending.
+Base: `49d4928d808c190bb8ca1581e419cdcd19a58fae` (develop, including concurrent managed-n8n work). Homepage and guest configurator installed and verified in production at `9656515e3f6cd50224b1bc93055a674c5b9b4820` (PRs #393 and #395).
 
 The owner requested a VPS-specific first hero, a dedicated GPU second hero, Studio/n8n/hosting afterwards, six-second rotation, and browsing the real console server configurator before login.
 
@@ -28,4 +28,21 @@ The owner requested a VPS-specific first hero, a dedicated GPU second hero, Stud
 
 Activation failure restores previous sources/routes before retiring dependencies. No general cache flush, migration, financial/customer data change, service provisioning or external purchase is part of installation.
 
-Production install and browser acceptance: pending.
+## Production acceptance
+
+The 24-file release passed exact-byte verification and both owned PHP-FPM pools reported six compiled views, the expected public GET/private POST contract and no general cache flush. Source release: `9656515e3f6cd50224b1bc93055a674c5b9b4820`; private rollback is in the matching `home-vps-gpu-public-store-20261123-9656515e3f6c` deployment stage.
+
+A first activation audit incorrectly bootstrapped only the console kernel when resolving HTTP middleware aliases. The release automatically restored existing source. The recovery audit initialized the HTTP kernel, confirmed the old authenticated contract in both pools and retired only the twelve hash-matching new dependencies. PR #395 fixed that audit before the successful release. No purchase, migration, financial mutation or provisioning occurred.
+
+Production browser acceptance confirmed the new VPS copy/links, five controls in the requested order and a 6000 ms interval. In the actual anonymous console configurator, resources and OS selection worked, the form posted to `/account/cloud-store/continue`, and final confirmation led to the normal login page without placing an order. No credentials or OTP were entered.
+
+## Public catalog render performance follow-up
+
+The guest acceptance uncovered an existing catalog bottleneck: an actual anonymous application GET returned the correct configurator but took 28.39 seconds and 5,605 SQL queries (5,596 to `cloud_plans`). Sampled application call sites isolated repeated regional OS eligibility `exists` queries in `deliverable()`.
+
+`CloudImageRegionLookup` reuses only identical `(slug, provider, region)` eligibility predicates inside one index render. The original SQL sellable scope and regional predicates are unchanged. No price, order result or state is cached across requests, and normal order/image eligibility calls start fresh. This avoids changing database collation or prefix semantics by replacing SQL with string membership. Both true and false results are reused within the render.
+
+Current isolated verification: 49 focused PHP tests / 768 assertions pass, including 13 public-store cases, 60 same-region OS images requiring one regional query, a fresh query on the next request, stock removal and independent provider/slug/region checks. Four disposable release safety cases pass for the two-file performance release. Performance installation and measured result are recorded after acceptance below.
+
+The existing live controller has production-only delivery-access and catalog-pricing changes; the follow-up applies five unique exact source anchors and preserves those lines. Its deployment is limited to the new lookup and the existing controller through `scripts/cloud-store-catalog-performance-20261123/`.
+

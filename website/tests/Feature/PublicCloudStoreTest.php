@@ -46,6 +46,57 @@ class PublicCloudStoreTest extends TestCase
             'status' => 'active', 'locale' => 'fa']);
     }
 
+    public function test_regional_image_catalog_reuses_checks_and_rechecks_the_next_request(): void
+    {
+        config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => true]);
+        $plan = CloudPlan::firstOrFail();
+        $plan->update(['provider' => 'lightnode', 'provider_ref' => '12|de|fixture-size', 'provider_location' => '12|de']);
+        for ($i = 0; $i < 60; $i++) {
+            CloudImage::create(['provider' => 'lightnode', 'provider_ref' => '12|image-'.$i,
+                'key' => 'regional-os-'.$i, 'kind' => 'os', 'family' => 'ubuntu', 'label' => 'Regional OS '.$i,
+                'arch' => 'x86', 'min_disk_gb' => 5, 'min_ram_mb' => 0, 'is_active' => true]);
+        }
+        $this->seedCatalogPricing();
+        $queries = 0;
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$queries) {
+            if (str_starts_with(strtolower($query->sql), 'select exists')
+                && in_array('lightnode', $query->bindings, true) && in_array('12|%', $query->bindings, true)) {
+                $queries++;
+            }
+        });
+
+        $response = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk();
+        $response->assertViewHas('imageMap', fn ($map) => count($map[$plan->slug]['os']) === 60);
+        $this->assertSame(1, $queries, 'One eligibility query for all 60 images in the same region.');
+
+        // The next render gets a new lookup; no stock result survives a request.
+        $this->get('/account/cloud-store?location=de-frankfurt')->assertOk();
+        $this->assertSame(2, $queries);
+        $plan->update(['in_stock' => false]);
+        $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()
+            ->assertViewHas('imageMap', fn ($map) => $map === []);
+        $this->assertSame([], \App\Http\Controllers\Account\CloudStoreController::imageKeysFor($plan));
+        $this->assertDatabaseCount('services', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_regional_lookup_separates_missing_regions_and_slugs_and_refreshes_outside_render(): void
+    {
+        config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => true]);
+        $plan = CloudPlan::firstOrFail();
+        $plan->update(['provider' => 'lightnode', 'provider_ref' => '12|de|fixture-size', 'provider_location' => '12|de']);
+        $this->seedCatalogPricing();
+        $lookup = new \App\Services\Cloud\CloudImageRegionLookup;
+        $this->assertTrue($lookup->exists($plan, 'lightnode', '12'));
+        $this->assertFalse($lookup->exists($plan, 'lightnode', '123'));
+        $this->assertFalse($lookup->exists($plan, 'arvan', '12'));
+        $other = $plan->replicate(); $other->slug = 'other-slug';
+        $this->assertFalse($lookup->exists($other, 'lightnode', '12'));
+        $plan->update(['in_stock' => false]);
+        $this->assertFalse((new \App\Services\Cloud\CloudImageRegionLookup)->exists($plan, 'lightnode', '12'));
+        Http::assertNothingSent();
+    }
+
     public function test_guests_can_browse_the_real_configurator_in_all_three_locales(): void
     {
         $this->mock(Wallet::class, fn ($mock) => $mock->shouldNotReceive('availableOf'));

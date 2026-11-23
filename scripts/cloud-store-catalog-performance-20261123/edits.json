@@ -1,0 +1,29 @@
+{
+  "website/app/Http/Controllers/Account/CloudStoreController.php": [
+    {
+      "old": "     * @param  Collection<int,CloudImage>  $rows  همهٔ ردیف‌های همین کلید (هر زیرساخت یک ردیف)\n     */\n    private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows): bool\n    {\n        foreach ($rows as $row) {\n",
+      "new": "     * @param  Collection<int,CloudImage>  $rows  همهٔ ردیف‌های همین کلید (هر زیرساخت یک ردیف)\n     */\n    private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows,\n        ?\\App\\Services\\Cloud\\CloudImageRegionLookup $regions = null): bool\n    {\n        foreach ($rows as $row) {\n",
+      "count": 1
+    },
+    {
+      "old": "                if (\\App\\Services\\Cloud\\ArvanApplicationImages::imageId($region, (string) $row->provider_ref) === null\n                    || (int) $offer->vcpu < \\App\\Services\\Cloud\\ArvanApplicationImages::minCpu((string) $row->family)\n                    || ! CloudPlan::query()->sellable()->where('slug', $offer->slug)\n                        ->where('provider', 'arvan')->where('provider_location', $region)->exists()) {\n                    continue;\n                }\n",
+      "new": "                if (\\App\\Services\\Cloud\\ArvanApplicationImages::imageId($region, (string) $row->provider_ref) === null\n                    || (int) $offer->vcpu < \\App\\Services\\Cloud\\ArvanApplicationImages::minCpu((string) $row->family)\n                    || ! ($regions ?? new \\App\\Services\\Cloud\\CloudImageRegionLookup)->exists($offer, 'arvan', $region)) {\n                    continue;\n                }\n",
+      "count": 1
+    },
+    {
+      "old": "                }\n                $region = explode('|', (string) $row->provider_ref)[0];\n                if (! CloudPlan::query()->sellable()->where('slug', $offer->slug)\n                    ->where('provider', 'lightnode')->where('provider_location', 'like', $region.'|%')->exists()) {\n                    continue;\n                }\n",
+      "new": "                }\n                $region = explode('|', (string) $row->provider_ref)[0];\n                if (! ($regions ?? new \\App\\Services\\Cloud\\CloudImageRegionLookup)->exists($offer, 'lightnode', $region)) {\n                    continue;\n                }\n",
+      "count": 1
+    },
+    {
+      "old": "            ? app(HourlyStartCredit::class)->existingRate($customerId) * CloudPlan::HOURLY_START_MIN_HOURS : 0;\n\n        foreach ($offers as $slug => $offer) {\n            $rows = $sellableRows->get((string) $slug, collect());\n",
+      "new": "            ? app(HourlyStartCredit::class)->existingRate($customerId) * CloudPlan::HOURLY_START_MIN_HOURS : 0;\n\n        // A region has many OS images; keep its identical SQL eligibility check\n        // within this render, without caching prices or a later order's gates.\n        $imageRegions = new \\App\\Services\\Cloud\\CloudImageRegionLookup;\n        foreach ($offers as $slug => $offer) {\n            $rows = $sellableRows->get((string) $slug, collect());\n",
+      "count": 1
+    },
+    {
+      "old": "\n                foreach ($catalog as $img) {\n                    if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()))) {\n                        $keys[] = (string) $img->key;\n                    } else {\n",
+      "new": "\n                foreach ($catalog as $img) {\n                    if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()), $imageRegions)) {\n                        $keys[] = (string) $img->key;\n                    } else {\n",
+      "count": 1
+    }
+  ]
+}

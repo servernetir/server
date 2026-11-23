@@ -2,7 +2,7 @@ name: Studio homepage presentation
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/resources/views/pages/home.blade.php', 'website/resources/views/partials/home-gpu-slide.blade.php', 'website/public/assets/css/home-gpu-slide.css', 'website/app/Http/Middleware/CloudStoreBrowse.php', 'website/app/Http/Controllers/Account/CloudStoreGuestController.php', 'website/app/Services/Cloud/CloudStoreDraft.php', 'website/tests/Feature/PublicCloudStoreTest.php', 'scripts/home-vps-gpu-public-store-20261123/**', 'website/resources/views/partials/studio-carousel*.blade.php', 'website/public/assets/*/studio-*', 'website/public/assets/js/atlas*', 'website/scripts/build-atlas-land-points.py', 'scripts/home-glass-fine-globe-20261123/**', 'website/lang/*/studio_carousel.php', 'website/lang/*/home_slides.php', 'website/resources/views/partials/home-service-slides.blade.php', 'website/tests/Fixtures/StudioHomePreview.php', 'website/tests/js/studio-home.test.cjs', 'website/tests/Feature/StudioHomeHeroTest.php', 'scripts/studio-carousel-20261122/**', 'scripts/home-four-slides-20261123/**', '.github/workflows/studio-home.yml']
+    paths: ['website/resources/views/pages/home.blade.php', 'website/resources/views/partials/home-gpu-slide.blade.php', 'website/public/assets/css/home-gpu-slide.css', 'website/app/Http/Middleware/CloudStoreBrowse.php', 'website/app/Http/Controllers/Account/CloudStoreGuestController.php', 'website/app/Services/Cloud/CloudStoreDraft.php', 'website/app/Services/Cloud/CloudImageRegionLookup.php', 'scripts/cloud-store-catalog-performance-20261123/**', 'website/tests/Feature/PublicCloudStoreTest.php', 'scripts/home-vps-gpu-public-store-20261123/**', 'website/resources/views/partials/studio-carousel*.blade.php', 'website/public/assets/*/studio-*', 'website/public/assets/js/atlas*', 'website/scripts/build-atlas-land-points.py', 'scripts/home-glass-fine-globe-20261123/**', 'website/lang/*/studio_carousel.php', 'website/lang/*/home_slides.php', 'website/resources/views/partials/home-service-slides.blade.php', 'website/tests/Fixtures/StudioHomePreview.php', 'website/tests/js/studio-home.test.cjs', 'website/tests/Feature/StudioHomeHeroTest.php', 'scripts/studio-carousel-20261122/**', 'scripts/home-four-slides-20261123/**', '.github/workflows/studio-home.yml']
 permissions:
   contents: read
 jobs:
@@ -53,6 +53,8 @@ jobs:
           python3 scripts/home-glass-fine-globe-20261123/test_release.py
           php -l scripts/home-vps-gpu-public-store-20261123/activate.php
           python3 scripts/home-vps-gpu-public-store-20261123/test_release.py
+          php -l scripts/cloud-store-catalog-performance-20261123/activate.php
+          python3 scripts/cloud-store-catalog-performance-20261123/test_release.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: studio-home-preview
