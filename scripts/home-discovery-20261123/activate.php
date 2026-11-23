@@ -5,6 +5,8 @@ header('Content-Type: application/json');
 $release = 'home-discovery-20261123';
 if (PHP_SAPI !== 'fpm-fcgi' || getenv('SERVERNET_LOCAL_RELEASE') !== $release
     || ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1') { http_response_code(404); exit; }
+$step = 'manifest';
+try {
 $root = '/home/servernetcloud/servernet_app';
 $plan = (string) getenv('SERVERNET_STUDIO_PLAN');
 if (!preg_match('~\A/home/servernetcloud/deploy-backups/home-discovery-20261123-[a-f0-9]{12}/prepared\.json\z~', $plan) || is_link($plan)) {
@@ -28,6 +30,7 @@ $actual = array_column($records, 'destination'); sort($expected); sort($actual);
 if ($expected !== $actual) throw new RuntimeException('invalid_scope');
 $phase = getenv('SERVERNET_STUDIO_PHASE');
 if (!in_array($phase, ['before','after'], true)) throw new RuntimeException('invalid_phase');
+$step = 'source_checks';
 foreach ($records as $row) {
     $path = '/home/servernetcloud/'.$row['destination'];
     $hash = $phase === 'before' && $row['before'] === null ? $row['after'] : $row[$phase];
@@ -36,10 +39,12 @@ foreach ($records as $row) {
         if (!opcache_invalidate($path, true)) throw new RuntimeException('targeted_opcache_invalidation_failed');
     }
 }
+$step = 'bootstrap';
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
 if ($app->configurationIsCached() || $app->routesAreCached()) throw new RuntimeException('unexpected_bootstrap_cache');
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$step = 'route_registry';
 $app->make(Illuminate\Contracts\Http\Kernel::class);
 $router = $app['router'];
 foreach ([''=>'', 'en.'=>'/en', 'tr.'=>'/tr'] as $name => $prefix) {
@@ -53,18 +58,21 @@ foreach ([''=>'', 'en.'=>'/en', 'tr.'=>'/tr'] as $name => $prefix) {
         }
     }
 }
+$step = 'crawler_policy';
 if ($phase === 'after') {
     $robots = App\Support\RobotsPolicy::render((array) config('seo.crawler_policy'));
     foreach ([$root.'/public/robots.txt', '/home/servernetcloud/public_html/robots.txt'] as $path) {
         if (!hash_equals($robots, (string) file_get_contents($path))) throw new RuntimeException('crawler_policy_mismatch');
     }
 }
+$step = 'compile_views';
 foreach ($views as $view) {
     $source = $app['view']->getFinder()->find($view);
     $app['blade.compiler']->compile($source);
     $compiled = $app['blade.compiler']->getCompiledPath($source);
     if (function_exists('opcache_is_script_cached') && opcache_is_script_cached($compiled)) opcache_invalidate($compiled, true);
 }
+$step = 'homepage_cache';
 $cache = $app['cache']->store();
 $generation = (int) $cache->get('page:gen', 0);
 $paths = ['/', 'en', 'tr', 'llms.txt', 'sitemap.xml', 'sitemap-index.xml', 'sitemaps/ai.xml'];
@@ -76,3 +84,13 @@ foreach (['servernet.cloud','console.servernet.cloud'] as $host) {
 }
 echo json_encode(['release'=>$release, 'compiled_views'=>count($views), 'phase'=>$phase,
     'route_cache_rebuilt'=>false, 'general_cache_flush'=>false, 'studio_public_route'=>$phase === 'after'], JSON_THROW_ON_ERROR);
+} catch (Throwable $error) {
+    // Report only a controlled failure code and source position, never log data,
+    // configuration values, stack arguments or exception payloads.
+    $known = ['invalid_plan','invalid_scope','invalid_phase','installed_source_changed',
+        'targeted_opcache_invalidation_failed','unexpected_bootstrap_cache','studio_route_contract_changed',
+        'studio_public_route_not_matched','studio_landing_requires_auth','crawler_policy_mismatch'];
+    $reason = in_array($error->getMessage(), $known, true) ? $error->getMessage() : get_class($error);
+    echo json_encode(['release'=>$release, 'status'=>'stopped','step'=>$step,'reason'=>$reason,
+        'file'=>basename($error->getFile()),'line'=>$error->getLine()], JSON_THROW_ON_ERROR);
+}

@@ -78,5 +78,22 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(self.target.read_bytes(), b'newer live work')
         self.assertTrue((self.home / self.manifest['files'][0]['destination']).exists())
 
+    def test_recovery_activates_old_views_before_retiring_only_exact_new_dependencies(self):
+        release.run('prepare', 'a' * 40, self.stage)
+        dependency = self.home / self.manifest['files'][0]['destination']
+        release.write(dependency, self.partial)
+        release.write(self.stage / 'backup' / '1', self.original, 0o600)
+        recovered = self.home / 'recover'
+        recovered.mkdir()
+        with patch.object(release, 'activate', side_effect=RuntimeError('synthetic second failure')):
+            with self.assertRaisesRegex(RuntimeError, 'synthetic second failure'):
+                release.recover_interrupted('b' * 40, recovered, self.stage)
+        self.assertEqual(dependency.read_bytes(), self.partial)
+        self.assertEqual(self.target.read_bytes(), self.original)
+        release.recover_interrupted('b' * 40, recovered, self.stage)
+        self.assertFalse(dependency.exists())
+        self.assertEqual((self.stage / 'retired-dependencies' / '0').read_bytes(), self.partial)
+        self.assertEqual(self.target.read_bytes(), self.original)
+
 
 if __name__ == '__main__': unittest.main()
