@@ -108,6 +108,9 @@ class AccountController extends Controller
      */
     public function profile(): View
     {
+        if (request()->query('tab') === 'security') {
+            return app(SecurityController::class)->index(request());
+        }
         $customer = Auth::guard('customer')->user();
         $profile = app(VerificationController::class)->profileFor($customer);
 
@@ -137,7 +140,6 @@ class AccountController extends Controller
             'pnlNav' => [
                 ['label' => null, 'items' => [
                     ['key' => 'dash', 'icon' => 'gauge', 'label' => __('ui.nav_dash'), 'url' => lroute('account.home')],
-                    ['key' => 'store', 'icon' => 'box', 'label' => __('ui.nav_store'), 'url' => lroute('account.store')],
                 ]],
                 /*
                 | «دارایی‌های من» — چهار نوعِ سرویس، چهار در.
@@ -146,10 +148,9 @@ class AccountController extends Controller
                 | خدمات باشه.» یک فهرستِ تخت، چهار محصولِ بی‌هم‌پوشانی را در یک
                 | شکلِ ردیف می‌ریخت و نتیجه‌اش «همه چی توهم» بود.
                 |
-                | ⚠️ آیتمِ «همه» با کلیدِ `services` می‌مانَد، چون
-                | `ServiceController::index()` (فایلِ قفل‌شده) `shell('services')`
-                | می‌فرستد؛ با حذفِ این کلید، صفحهٔ اصلیِ سرویس‌ها هیچ آیتمی را
-                | روشن نمی‌کرد.
+                | نمای تجمیعی و فروشگاه نشانی‌های قبلی خود را حفظ می‌کنند؛
+                | بنا به چیدمان جدید، ورودی جدا در سایدبار ندارند. خرید هر
+                | محصول از فضای همان محصول شروع می‌شود.
                 |
                 | ⚠️ همه `<a>` می‌مانند: کشوی موبایل (≤۱۰۰۰px) فقط با کلیک روی
                 | `a` بسته می‌شود (panel/layout.blade.php)، پس یک `<button>` یا
@@ -161,7 +162,6 @@ class AccountController extends Controller
                 | سوییچرِ خودِ صفحه‌اند که مجموعه‌اش از قبل در حافظه است.
                 */
                 ['label' => __('ui.nav_my_services'), 'items' => [
-                    ['key' => 'services', 'icon' => 'layout', 'label' => __('ui.nav_all_services'), 'url' => lroute('account.services')],
                     ['key' => 'hosting', 'icon' => 'hdd', 'label' => __('ui.nav_hosting'), 'url' => lroute('account.hosting')],
                     ['key' => 'servers', 'icon' => 'cloud', 'label' => __('ui.nav_servers'), 'url' => lroute('account.servers')],
                     // ⚠️ تا امروز این آیتم `url` نداشت و ویو به `'#'` برمی‌گرداند:
@@ -211,7 +211,6 @@ class AccountController extends Controller
                     ['key' => 'ai', 'icon' => 'code', 'label' => __('ai.usage'), 'url' => lroute('account.ai')],
                     ['key' => 'identity', 'icon' => 'shield', 'label' => __('identity.menu'), 'url' => lroute('account.identity')],
                     ...(\Illuminate\Support\Facades\Route::has('account.api') ? [['key' => 'api', 'icon' => 'code', 'label' => __('customer-api.title'), 'url' => lroute('account.api')]] : []),
-                    ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],
         ];

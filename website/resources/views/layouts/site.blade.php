@@ -232,7 +232,7 @@ if ($ids) {
 {{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
      محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)
      دست‌نخورده بمانند. قاعده‌هایش انتهای site.css است. --}}
-<body @class(['imp-on' => $impBar, 'sn-public' => $atlasPublic])>
+<body @class(['imp-on' => $impBar, 'sn-public' => $atlasPublic, 'sn-console' => $__env->hasSection('console')])>
 @unless(\Illuminate\Support\Facades\View::hasSection('private_report'))@include('partials.gtm-body')@endunless
 
 <a class="skip-link" href="#main">{{ __('ui.skip') }}</a>

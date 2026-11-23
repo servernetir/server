@@ -297,6 +297,82 @@ class ManagedN8nTest extends TestCase
                 ->assertSee('application=n8n', false)->assertDontSee('N8N-START')->assertDontSee('n8n.title');
         }
     }
+    public function test_managed_application_appears_in_services_with_flag_and_access_while_vps_stays_in_servers(): void
+    {
+        [$s, $i, $c] = $this->allocated(['state' => 'ready', 'hostname' => 'n8n-workspace.example.test',
+            'owner_email' => 'login@example.test', 'password_enc' => Crypt::encryptString('CARD_PRIVATE_SECRET')]);
+        $s->update(['name' => 'My automation workspace']);
+        $vps = Service::create(['customer_id' => $c->id, 'name' => 'Independent ordinary VPS', 'price' => 1000000,
+            'tax_percent' => 0, 'currency_code' => 'IRT', 'cycle' => 'monthly', 'status' => 'active',
+            'cloud_plan_id' => $s->cloud_plan_id, 'provision_status' => 'none']);
+        $other = $this->actingAs($c, 'customer')->get('/account/other')->assertOk()
+            ->assertSee('My automation workspace')->assertSee('n8n-workspace.example.test')
+            ->assertSee('login@example.test')->assertSee('assets/flags/de.svg')
+            ->assertDontSee('Independent ordinary VPS')->assertDontSee('CARD_PRIVATE_SECRET');
+        $this->assertStringContainsString('n8n.css', $other->getContent());
+        $this->get('/account/servers')->assertOk()->assertSee('Independent ordinary VPS')->assertDontSee('My automation workspace');
+        $this->get('/account/services')->assertOk()->assertSee('My automation workspace')->assertSee('Independent ordinary VPS');
+        $this->assertTrue($s->fresh()->isCloud(), 'This is a presentation category, not a provider or billing conversion.');
+    }
+
+    public function test_card_password_reveal_is_owner_only_post_json_and_never_enters_a_later_get(): void
+    {
+        [$s, $i, $c] = $this->allocated(['state' => 'ready', 'hostname' => 'n8n-secret.example.test',
+            'password_enc' => Crypt::encryptString('JSON_OWNER_ONLY_SECRET')]);
+        $r = $this->actingAs($c, 'customer')->postJson(route('account.cloud.n8n-access', $s, false));
+        $r->assertOk()->assertJsonPath('password', 'JSON_OWNER_ONLY_SECRET');
+        $this->assertStringContainsString('no-store', $r->headers->get('Cache-Control'));
+        $this->get('/account/other')->assertOk()->assertDontSee('JSON_OWNER_ONLY_SECRET');
+        $this->actingAs($this->customer(), 'customer')->postJson(route('account.cloud.n8n-access', $s, false))->assertNotFound();
+        $s->update(['status' => 'cancelled']);
+        $this->actingAs($c, 'customer')->postJson(route('account.cloud.n8n-access', $s, false))->assertNotFound();
+    }
+
+    public function test_country_plan_term_and_name_are_retained_before_an_explicit_order_submit(): void
+    {
+        $p = $this->plan();
+        $query = ['country' => 'DE', 'plan' => $p->slug, 'location' => $p->location_code, 'cycle' => 'yearly', 'label' => 'My workflow'];
+        $r = $this->get('/cloud/n8n?'.http_build_query($query))->assertOk();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$r->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//form[@data-n8n-order][@method="get"]')->length);
+        $this->assertSame(1, $xpath->query('//input[@name="cycle"][@value="yearly"][@checked]')->length);
+        $this->assertSame('My workflow', $xpath->query('//input[@name="label"]')->item(0)->getAttribute('value'));
+        $this->assertSame($p->slug, $xpath->query('//input[@name="plan"]')->item(0)->getAttribute('value'));
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->get('/account/cloud-store?'.http_build_query(['application'=>'n8n']+$query))->assertRedirect(route('login'));
+        $this->assertStringContainsString('cycle=yearly', session('url.intended'));
+        $this->assertStringContainsString('label=My%20workflow', session('url.intended'));
+    }
+
+    public function test_turkish_package_never_presents_an_enabled_hourly_choice_and_keeps_the_paid_period(): void
+    {
+        $p = $this->plan('vpstc'); $c = $this->customer();
+        $r = $this->actingAs($c, 'customer')->get('/account/cloud-store?'.http_build_query([
+            'application'=>'n8n','location'=>$p->location_code,'plan'=>$p->slug,'cycle'=>'semiannual','billing_mode'=>'hourly',
+        ]))->assertOk();
+        $dom = new \DOMDocument; @$dom->loadHTML($r->getContent()); $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//label[@data-n8n-hourly-choice][@hidden]')->length);
+        $this->assertSame(1, $xpath->query('//input[@name="billing_mode"][@disabled]')->length);
+        $this->assertSame(0, $xpath->query('//input[@name="billing_mode"][@checked]')->length);
+        $this->assertSame(1, $xpath->query('//input[@name="cycle"][@value="semiannual"][@checked]')->length);
+    }
+
+    public function test_unselected_and_closed_catalogues_cannot_submit_and_malformed_selections_render_safely(): void
+    {
+        $p = $this->plan();
+        $r = $this->get('/cloud/n8n?country[]=DE&cycle[]=yearly&label[]=unsafe')->assertOk();
+        $dom = new \DOMDocument; @$dom->loadHTML($r->getContent()); $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//*[@data-n8n-details][@hidden]')->length);
+        $this->assertSame(1, $xpath->query('//form[@data-n8n-order]//button[@type="submit"][@disabled]')->length);
+        Setting::put('n8n_sales_enabled', '0');
+        $r = $this->get('/cloud/n8n?'.http_build_query(['location'=>$p->location_code,'plan'=>$p->slug]))->assertOk();
+        @$dom->loadHTML($r->getContent()); $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//form[@data-n8n-order]//button[@type="submit"][@disabled]')->length);
+    }
+
     public function test_ssh_installer_pins_key_and_uploads_private_configuration_before_launching_one_unit(): void
     {
         $state = ['state' => 'waiting_ssh', 'hostname' => 'n8n-test.servernet.cloud', 'nonce' => 'marker',

@@ -112,7 +112,7 @@ class CloudServerController extends Controller
     }
 
     /** Explicit, owner-only, repeatable reveal; ordinary GET never decrypts this secret. */
-    public function n8nAccess(Service $service): RedirectResponse
+    public function n8nAccess(Request $request, Service $service): RedirectResponse|JsonResponse
     {
         $this->ownedService($service);
         abort_unless(\App\Services\Cloud\ManagedN8nCatalog::handles($service) && ! $service->isDead(), 404);
@@ -122,6 +122,10 @@ class CloudServerController extends Controller
         abort_unless(is_string($secret) && $secret !== '', 404);
         $password = \Illuminate\Support\Facades\Crypt::decryptString($secret);
         ActivityLog::forService($service, 'access', 'Initial n8n password revealed by its owner.', 'customer');
+        if ($request->expectsJson()) {
+            return response()->json(['password' => $password])
+                ->withHeaders(['Cache-Control' => 'no-store, private', 'Pragma' => 'no-cache']);
+        }
         return redirect(lroute('account.cloud.show', $service))
             ->with('revealed_n8n_'.$instance->id, $password)
             ->withHeaders(['Cache-Control' => 'no-store, private']);
@@ -177,7 +181,7 @@ class CloudServerController extends Controller
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
-        return response()->view('account.cloud-server', AccountController::shell('servers') + [
+        return response()->view('account.cloud-server', AccountController::shell(\App\Services\Cloud\ManagedN8nCatalog::handles($service) ? 'other' : 'servers') + [
             'service' => $service,
             'instance' => $instance,
             'caps' => $caps,

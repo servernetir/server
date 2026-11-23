@@ -35,7 +35,7 @@ class SecurityController extends Controller
     {
         $c = $this->customer();
 
-        return view('account.security', AccountController::shell('security') + [
+        return view('account.security', AccountController::shell('profile') + [
             'customer'    => $c,
             'ipRules'     => $c->ipRules()->orderByDesc('id')->get(),
             'ipMode'      => $c->ip_restriction_mode ?? 'off',

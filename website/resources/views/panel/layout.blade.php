@@ -4,10 +4,12 @@
   پنل باید ادامهٔ سایت حس شود، نه یک محصول جدا.
 --}}
 @extends('layouts.site')
+@section('console', '1')
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/birthday-rewards.css') }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/console-workspace.css') }}">
 @endpush
 
 @section('content')
@@ -18,7 +20,7 @@
      نه دیده می‌شد و نه کلیک را می‌گرفت؛ مدیر راهِ بازگشت نداشت.
      نگهبانش: tests/Feature/ImpersonateBannerTest.php --}}
 <section class="pnl-wrap">
-  <div class="container">
+  <div class="container console-container">
     {{-- نوار موبایل: فقط زیر ۱۰۰۰px دیده می‌شود --}}
     <div class="pnl-mobar">
       <div class="pnl-mobar-me">
@@ -89,5 +91,6 @@
 </section>
 
 <script src="{{ asset_ver('assets/js/panel-navigation.js') }}" defer></script>
+<script src="{{ asset_ver('assets/js/n8n-access.js') }}" defer></script>
 @include('partials.ui-dialog')
 @endsection

@@ -14,17 +14,13 @@
   و نام تأمین‌کننده اطلاعات داخلی ماست نه چیزی که به او مربوط باشد.
 --}}
 
-<div class="pnl-head">
-  <div>
-    <h1 class="dash-h">{{ __('ui.auth_s_identity') }}</h1>
-    <p>{{ __('ui.pnl_profile_sub') }}</p>
-  </div>
-</div>
+@include('account.partials.profile-heading', ['profileTab' => 'profile'])
+<div class="cw-profile-grid">
 
 {{-- ══ هویت ══ --}}
 @php $ok = $identity?->status === 'verified'; @endphp
 
-<section class="pnl-sec" style="border-color:{{ $ok ? 'var(--ok-line)' : 'var(--warn-line)' }}">
+<section class="pnl-sec" id="identity" style="border-color:{{ $ok ? 'var(--ok-line)' : 'var(--warn-line)' }}">
   <div class="pnl-sec-h" style="background:{{ $ok ? 'var(--ok-bg)' : 'var(--warn-bg)' }}">
     <h2 style="color:{{ $ok ? 'var(--ok)' : 'var(--warn)' }}">{{ __('ui.auth_s_identity') }}</h2>
     <span class="pnl-pill {{ $ok ? 'ok' : 'warn' }}">
@@ -247,6 +243,7 @@
   </div>
 </section>
 
+</div>
 <style>
 .vf-note{ font-size:13.5px; color:var(--muted); line-height:2; margin:0 0 14px; }
 .vf-note.ok{ color:var(--ok); } .vf-note.bad{ color:var(--danger); }
