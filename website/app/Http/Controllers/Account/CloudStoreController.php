@@ -1234,8 +1234,10 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['location' => \App\Services\Customer\IranSalesGate::message()]);
         }
 
+        $n8n = ($data['application'] ?? null) === 'n8n';
+        $n8nCatalog = app(\App\Services\Cloud\ManagedN8nCatalog::class);
         // ── مکان باید همین حالا موجودی داشته باشد ──
-        $codes = [];
+        $codes = $n8n ? $n8nCatalog->plans()->pluck('location_code')->unique()->all() : [];
         foreach ($this->locationGroups() as $g) {
             foreach ($g['locations'] as $l) {
                 $codes[] = (string) $l->code;
@@ -1259,8 +1261,6 @@ class CloudStoreController extends Controller
         | زیرساخت اصلاً ساعتی نفروشدش. آن‌وقت نرخِ نمایش‌داده‌شده مالِ ردیفی
         | بود که سفارش رویش رد می‌شد، و پولِ کیفِ پول قبلِ کشفِ آن کم شده بود.
         */
-        $n8n = ($data['application'] ?? null) === 'n8n';
-        $n8nCatalog = app(\App\Services\Cloud\ManagedN8nCatalog::class);
         $offer = $n8n
             ? $n8nCatalog->find($data['plan'], $data['location'], $wantsHourly)
             : CloudPlan::offers($data['location'], $wantsHourly)->get($data['plan']);
@@ -1284,7 +1284,7 @@ class CloudStoreController extends Controller
         // ── ایمیج باید روی همین پلن قابلِ تحویل باشد ──
         // ورودیِ دلخواهِ کاربر هرگز مستقیم به API نمی‌رود؛ فقط کلیدی که خودمان
         // ساخته‌ایم و دستِ‌کم یک زیرساختِ فروشندهٔ همین اسلاگ داردش.
-        $allowed = array_merge(
+        $allowed = $n8n ? [$n8nCatalog->image($offer)] : array_merge(
             self::imageKeysFor($offer, 'os'),
             self::imageKeysFor($offer, 'app'),
         );

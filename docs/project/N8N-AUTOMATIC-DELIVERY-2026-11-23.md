@@ -93,3 +93,27 @@ no invoice and no wallet operations. A private durable receipt binds creation,
 HTTPS/owner-login verification and cleanup to that one allocation. Unknown
 allocation responses cannot authorize a second purchase. It is not a paid
 external-provider acceptance run.
+
+## Live acceptance follow-up
+
+Core release `3e147d67d96b56b989ec16bc58a0116e98f83cca` installed 34 exact
+files and activated both account-owned FPM pools. PR #389 merged as
+`49d4928d808c190bb8ca1581e419cdcd19a58fae`. All 41 checks passed; the birthday
+MariaDB job needed a retry because GitHub timed out downloading setup-php
+before any tests ran. The delivery matrix passed 167 tests / 855 assertions.
+
+Internal Proxmox acceptance service #989 / VM #108 was newly allocated with
+2 cores, 2048 MiB fixed memory and a verified 40 GiB disk. No customer invoice
+or wallet debit was created. Runtime sales remain closed while acceptance runs.
+The guest revealed an HTTP 403 from download.docker.com in Iran. Ubuntu's
+signed docker.io and docker-compose-v2 packages provide the bounded fallback;
+TLS errors and other unexpected repository failures remain errors.
+
+Ordinary Proxmox VPS sales were already globally disabled. The explicit
+`n8n_iran_sales_enabled` switch permits the owned n8n product independently,
+while retaining stock, exact-plan quarantine, current prices and Shahkar checks.
+It does not reopen ordinary VPS products or disabled foreign providers.
+
+The follow-up manifest contains only its three changed production files, with
+preimages bound to the installed core release. The original full manifest and
+its rollback recipe remain available at the immutable core release SHA.

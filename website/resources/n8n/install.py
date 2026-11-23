@@ -52,8 +52,18 @@ def install_docker():
         raise RuntimeError('unsupported_architecture')
     Path('/etc/apt/keyrings').mkdir(mode=0o755, exist_ok=True)
     key = Path('/etc/apt/keyrings/servernet-docker.asc')
-    with urllib.request.urlopen('https://download.docker.com/linux/' + distro + '/gpg', timeout=30) as response:
-        key.write_bytes(response.read())
+    try:
+        with urllib.request.urlopen('https://download.docker.com/linux/' + distro + '/gpg', timeout=30) as response:
+            key.write_bytes(response.read())
+    except urllib.error.HTTPError as error:
+        # Docker's repository returns HTTP 403 in Iran. Ubuntu's signed
+        # distribution packages provide Docker and Compose v2 without it.
+        if error.code != 403 or distro != 'ubuntu':
+            raise
+        write('phase', 'distribution_docker_packages')
+        run(['apt-get', 'install', '-y', '-qq', 'docker.io', 'docker-compose-v2'])
+        run(['systemctl', 'enable', '--now', 'docker'])
+        return
     key.chmod(0o644)
     Path('/etc/apt/sources.list.d/servernet-docker.list').write_text(
         f'deb [arch={architecture} signed-by={key}] https://download.docker.com/linux/{distro} {codename} stable\n')
@@ -71,6 +81,7 @@ def install():
     if os.cpu_count() < spec['vcpu'] or memory + 256 < spec['ram_mb'] \
             or disk.f_blocks * disk.f_frsize < spec['disk_gb'] * 10**9 * 0.85:
         raise RuntimeError('allocated_resources_mismatch')
+    write('phase', 'docker_setup')
     install_docker()
     if not (ROOT / '.env').exists():
         write('.env', 'POSTGRES_PASSWORD=' + secrets.token_hex(32) + '\nN8N_ENCRYPTION_KEY='
@@ -143,6 +154,7 @@ volumes:
     write('compose.yaml', compose)
     command = ['docker', 'compose', '--project-name', 'servernet-n8n', '--project-directory', str(ROOT)]
     # Public routing starts only AFTER the owner is initialized on loopback.
+    write('phase', 'application_containers')
     run(command + ['up', '-d', 'postgres', 'n8n'], timeout=900)
     for _ in range(120):
         try:
@@ -152,6 +164,7 @@ volumes:
             time.sleep(3)
     else:
         raise RuntimeError('n8n_not_ready')
+    write('phase', 'owner_setup')
     if not (ROOT / 'owner-initialized').exists():
         # Pinned n8n version: its OwnerSetupRequestDto accepts these fields.
         try:
@@ -182,8 +195,10 @@ volumes:
 }}
 ''')
     # Caddy is the only public listener; PostgreSQL and n8n remain private.
+    write('phase', 'public_listener')
     run(command + ['up', '-d', 'caddy'], timeout=300)
     write('ready.json', json.dumps(receipt))
+    write('phase', 'ready')
     (ROOT / 'request.json').unlink(missing_ok=True)
 
 
