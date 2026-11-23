@@ -1,0 +1,82 @@
+name: Hardware homepage viewport
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/public/assets/css/home-parts-slide.css'
+      - 'website/public/assets/css/studio-carousel.css'
+      - 'website/public/assets/css/site*.css'
+      - 'website/public/assets/css/atlas*.css'
+      - 'website/public/assets/js/studio-carousel.js'
+      - 'website/resources/views/layouts/site.blade.php'
+      - 'website/resources/views/partials/header.blade.php'
+      - 'website/resources/views/partials/home-parts-slide.blade.php'
+      - 'website/resources/views/pages/home.blade.php'
+      - 'website/lang/*/home_slides.php'
+      - 'website/tests/Feature/StudioHomeHeroTest.php'
+      - 'website/tests/js/home-parts-viewport.test.cjs'
+      - 'website/tests/js/package*.json'
+      - 'scripts/home-hardware-hero-fit-20261123/**'
+      - '.github/workflows/home-parts-viewport.yml'
+permissions:
+  contents: read
+jobs:
+  viewport:
+    # The WebKit runtime has many GTK/media dependencies. Use the official
+    # matching prebuilt browser image instead of repeating slow apt downloads
+    # on the moving ubuntu-latest image; keep a stable host fallback.
+    runs-on: ${{ matrix.engine == 'webkit' && 'ubuntu-24.04' || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked test dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          npm ci --prefix tests/js --ignore-scripts
+      - name: Prepare matching browser engine
+        working-directory: website
+        env:
+          HOME_PARTS_ENGINE: ${{ matrix.engine }}
+        run: |
+          if [ "$HOME_PARTS_ENGINE" = webkit ] && timeout 240 docker pull mcr.microsoft.com/playwright:v1.62.1-noble; then
+            echo 'HOME_PARTS_WEBKIT_CONTAINER=1' >> "$GITHUB_ENV"
+          else
+            tests/js/node_modules/.bin/playwright install --with-deps "$HOME_PARTS_ENGINE"
+          fi
+      - name: Test full rendered homepage at laptop sizes, narrow viewports and zoom
+        working-directory: website
+        env:
+          STUDIO_HOME_BROWSER_FIXTURES: ${{ runner.temp }}/studio-home-browser-fixtures
+          HOME_PARTS_ENGINE: ${{ matrix.engine }}
+        run: |
+          mkdir -p "$STUDIO_HOME_BROWSER_FIXTURES"
+          php artisan test tests/Feature/StudioHomeHeroTest.php
+          python3 ../scripts/home-hardware-hero-fit-20261123/test_release.py
+          if [ "${HOME_PARTS_WEBKIT_CONTAINER:-0}" = 1 ]; then
+            docker run --rm --network none --shm-size=1g \
+              -v "$PWD:/app:ro" -v "$STUDIO_HOME_BROWSER_FIXTURES:/fixtures:ro" \
+              -e HOME_PARTS_ENGINE=webkit -e STUDIO_HOME_BROWSER_FIXTURES=/fixtures \
+              -w /app mcr.microsoft.com/playwright:v1.62.1-noble \
+              node --test tests/js/home-parts-viewport.test.cjs
+          else
+            node --test tests/js/home-parts-viewport.test.cjs
+          fi

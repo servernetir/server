@@ -1,5 +1,71 @@
 (function () {
   'use strict';
+  function fitPartsViewport(root) {
+    var intro = root.closest('.sn-home-intro'), main = root.closest('#main');
+    var parts = root.querySelector('[data-hero-slide="parts"]');
+    if (!intro || !main || !parts || !window.matchMedia) return;
+    var copy = parts.querySelector('.sn-parts-copy'), scene = parts.querySelector('.sn-parts-scene');
+    var head = parts.querySelector('.sn-parts-scene-head'), foot = parts.querySelector('.sn-parts-scene-foot');
+    var visual = parts.querySelector('.sn-parts-visual'), controls = root.querySelector('.sn-hero-controls');
+    var proof = intro.querySelector('.sn-proof-rail'), header = document.getElementById('header-wrap');
+    if (!copy || !scene || !head || !foot || !visual || !controls || !proof) return;
+    var desktop = window.matchMedia('(min-width:1000px) and (min-height:580px)');
+    var pending = false;
+    function pixels(value) { return parseFloat(value) || 0; }
+    function setPixels(element, name, value) {
+      var next = Math.ceil(value) + 'px';
+      if (element.style.getPropertyValue(name) !== next) element.style.setProperty(name, next);
+    }
+    function padding(element) {
+      var style = window.getComputedStyle(element);
+      return pixels(style.paddingTop) + pixels(style.paddingBottom);
+    }
+    function outerHeight(element) {
+      var style = window.getComputedStyle(element);
+      return element.offsetHeight + pixels(style.marginTop) + pixels(style.marginBottom);
+    }
+    function fit() {
+      if (!desktop.matches || (window.CSS && typeof window.CSS.supports === 'function' && !window.CSS.supports('height', '100svh'))) {
+        main.style.removeProperty('--sn-home-header-space');
+        intro.style.removeProperty('--sn-home-parts-min-intro');
+        visual.style.removeProperty('--sn-parts-art-limit');
+        return;
+      }
+      // The header and both glass rails occupy their actual rendered space.
+      // Reserve more height only when intrinsic content cannot fit the viewport;
+      // the overlapping slides still share one stable stage while cycling.
+      var headerSpace = pixels(window.getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 112;
+      if (header && !document.body.classList.contains('imp-on')) headerSpace = Math.max(headerSpace, header.offsetHeight);
+      setPixels(main, '--sn-home-header-space', headerSpace);
+      var labelHeight = 0;
+      parts.querySelectorAll('.sn-parts-hotspot-label').forEach(function (label) {
+        labelHeight = Math.max(labelHeight, label.offsetHeight);
+      });
+      // Leave room for a readable piece label and its upward bob. At very
+      // large text sizes, grow in normal page flow instead of cropping text.
+      var minArt = Math.min(scene.clientWidth / 1.5, Math.max(210, (labelHeight + 16) / .168));
+      var minScene = outerHeight(head) + outerHeight(foot) + minArt + padding(visual);
+      var minSlide = Math.max(outerHeight(copy), minScene) + padding(parts) + 8;
+      setPixels(intro, '--sn-home-parts-min-intro', headerSpace + outerHeight(controls) + outerHeight(proof) + minSlide);
+      // Container height units do this automatically in current browsers.
+      // Keep an exact measured fallback for engines with svh but without cqh.
+      var artHeight = Math.max(1, visual.clientHeight - padding(visual));
+      setPixels(visual, '--sn-parts-art-limit', Math.floor(artHeight * 1.5));
+    }
+    function requestFit() {
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(function () { pending = false; fit(); });
+    }
+    fit();
+    window.addEventListener('resize', requestFit, {passive: true});
+    if (desktop.addEventListener) desktop.addEventListener('change', requestFit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(requestFit);
+    if ('ResizeObserver' in window) {
+      var observer = new ResizeObserver(requestFit);
+      [header, copy, head, foot, visual, controls, proof].forEach(function (element) { if (element) observer.observe(element); });
+    }
+  }
   document.querySelectorAll('[data-hero-carousel]').forEach(function (root) {
     if (root.dataset.carouselReady) return;
     var slides = Array.from(root.querySelectorAll('[data-hero-slide]'));
@@ -167,6 +233,7 @@
       slide.inert = index !== 0;
     });
     schedule();
+    fitPartsViewport(root);
   });
 
   document.querySelectorAll('[data-studio-home]').forEach(function (root) {

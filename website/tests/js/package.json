@@ -5,6 +5,7 @@
     "test:chat": "node --test chat-morph.test.cjs"
   },
   "devDependencies": {
-    "jsdom": "26.1.0"
+    "jsdom": "26.1.0",
+    "playwright": "1.62.1"
   }
 }

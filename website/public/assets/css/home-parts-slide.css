@@ -1,6 +1,6 @@
 /* A freestanding physical server, with no surrounding panel. The halo is a
    slide-level backdrop so it can continue behind the glass controls/proof rail. */
-.sn-parts-hero{--parts-ink:#e5f5ff;--parts-muted:#a4bacd;--parts-rim:#7bcce520;--parts-glow:#237ab34a;--parts-ground:#26739f35;--parts-shadow:#020a12c2;isolation:isolate;background:none}
+.sn-parts-hero{--parts-ink:#e5f5ff;--parts-muted:#a4bacd;--parts-rim:#7bcce520;--parts-glow:#237ab34a;--parts-ground:#26739f35;--parts-shadow:#020a12c2;isolation:isolate;background:none;overflow:visible}
 .sn-parts-hero .sn-service-layout{position:relative;z-index:1;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(26px,4vw,78px)}
 .sn-parts-halo{position:absolute;z-index:-1;inset-block:0 -8%;inset-inline-end:-7%;width:72%;pointer-events:none;background:radial-gradient(ellipse 53% 72% at 50% 66%,var(--parts-glow),transparent 93%),radial-gradient(ellipse 51% 45% at 50% 100%,var(--parts-ground),transparent 95%)}
 .sn-parts-halo::before{content:"";position:absolute;inset:5% 7% -7%;background:radial-gradient(ellipse 50% 50% at 50% 50%,transparent 36%,var(--parts-ground) 60%,var(--parts-rim) 73%,transparent 99%),radial-gradient(ellipse 50% 50% at 50% 55%,var(--parts-glow),transparent 94%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 57%,#000a 77%,transparent 100%);pointer-events:none}
@@ -15,7 +15,7 @@
 .sn-parts-gen-links>a{display:inline-flex;align-items:center;justify-content:center;min-height:35px;min-width:54px;padding:6px 9px;border:1px solid rgba(127,200,233,.18);background:rgba(57,111,154,.085);border-radius:8px;font:550 .75rem/1.2 system-ui,sans-serif;color:var(--sn-copy);white-space:nowrap;text-decoration:none;transition:background .2s,color .2s,border-color .2s}
 .sn-parts-gen-links>a:is(:hover,:focus-visible){color:var(--sn-cyan);background:#2499ce1c;border-color:#65c4e68f}
 .sn-parts-scene{position:relative;min-width:0;width:100%;max-width:840px;justify-self:center;margin-inline:auto;color:var(--parts-ink)}
-.sn-parts-scene-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;padding-inline:clamp(4px,2vw,18px)}
+.sn-parts-scene-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;margin-bottom:7px;padding-inline:clamp(4px,2vw,18px)}
 .sn-parts-collection{display:flex;align-items:center;gap:10px;min-width:0}
 .sn-parts-collection>span:last-child{display:grid;gap:4px}
 .sn-parts-collection b{font:650 1rem/1.15 system-ui,sans-serif;letter-spacing:-.025em}
@@ -47,8 +47,8 @@
 .sn-parts-hotspot-label::after{content:"";position:absolute;top:100%;left:50%;width:1px;height:8px;background:#83e5f4a6;pointer-events:none}
 .sn-parts-hotspot:is(:hover,:focus-visible){border-color:#80e8f576}
 .sn-parts-hotspot:is(:hover,:focus-visible) .sn-parts-hotspot-label{background:linear-gradient(130deg,#235a7b,#10606b);border-color:#97f3ff;box-shadow:0 0 20px #3bd4ee55}
-.sn-parts-scene-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px;padding-inline:clamp(4px,2vw,18px);color:var(--parts-muted);font-size:.75rem;line-height:1.6}
-.sn-parts-scene-note{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px}
+.sn-parts-scene-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-top:9px;padding-inline:clamp(4px,2vw,18px);color:var(--parts-muted);font-size:.75rem;line-height:1.6}
+.sn-parts-scene-note{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;min-width:0}
 .sn-parts-art-caption{font-size:.625rem;color:var(--sn-quiet)}
 .sn-parts-art-caption::after{content:"·";margin-inline-start:10px;color:var(--parts-muted)}
 .sn-parts-chassis{color:#80dce9;white-space:nowrap;text-decoration:underline;text-decoration-color:#72d6e574;text-underline-offset:4px}
@@ -72,18 +72,35 @@ html[data-theme=light] .sn-parts-emblem{color:#167ca4;filter:none}
 html[data-theme=light] .sn-parts-proliant i,html[data-theme=light] .sn-parts-chassis{color:#087ca4}
 html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-color:#5daacb4d}
 @media(min-width:1000px) and (min-height:580px){
-  .sn-home-intro .sn-parts-hero{overflow:visible}
+  /* Reserve the fixed header's real height. If larger fonts or wrapped copy
+     need more room, the shared stage can grow instead of hiding content under
+     the glass controls. The runtime measures only these intrinsic boxes. */
+  .sn-public #main{padding-block-start:var(--sn-home-header-space,var(--header-h,112px))}
+  .sn-public .sn-home .sn-home-intro{margin-block-start:calc(-1 * var(--sn-home-header-space,var(--header-h,112px)));padding-block-start:var(--sn-home-header-space,var(--header-h,112px));min-height:var(--sn-home-parts-min-intro,0px);overflow:clip}
   .sn-home-intro .sn-parts-halo{inset-block:-9svh -210px;inset-inline-end:-8vw;width:min(77vw,1180px)}
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 300px)*1.5))}
+  /* The collection title and caption are ordinary grid rows. Only the art
+     is scalable; its available height is the actual remaining middle row,
+     not the viewport minus an estimated number of pixels. */
+  .sn-home-intro .sn-parts-scene{display:grid;grid-template-rows:auto minmax(0,1fr) auto;align-self:stretch;min-height:0;max-width:min(840px,110svh)}
+  .sn-home-intro .sn-parts-visual{display:grid;place-items:center;min-height:0;padding-block:5px 7px}
+  .sn-home-intro .sn-parts-art{width:min(100%,var(--sn-parts-art-limit,100%));height:auto;aspect-ratio:3/2}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(30px,3.2vw,54px);line-height:1.46}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:clamp(15px,1.12vw,18px)}
 }
-@media(min-width:1000px) and (min-height:580px) and (max-height:720px){
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 326px)*1.5))}
-  .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4}
-  .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem}
+@supports (container-type:size) and (width:1cqh){
+  @media(min-width:1000px) and (min-height:580px){
+    .sn-home-intro .sn-parts-visual{container-type:size}
+    .sn-home-intro .sn-parts-art{width:min(100%,150cqh)}
+  }
+}
+@media(min-width:1000px) and (min-height:580px) and (max-height:820px){
+  .sn-home-intro .sn-parts-copy .sn-service-eyebrow{margin-bottom:10px;font-size:.875rem}
+  .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4;margin-bottom:12px}
+  .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem;line-height:1.78;margin-bottom:14px}
+  .sn-home-intro .sn-parts-benefits{gap:8px 15px;margin-bottom:10px}
+  .sn-home-intro .sn-parts-copy .sn-service-actions .btn{min-height:42px;padding-block:8px;font-size:.8125rem}
   .sn-parts-mark{width:33px;height:33px;border-radius:9px}.sn-parts-mark .icon{width:19px;height:19px}
-  .sn-parts-generations{margin-top:13px;gap:6px 9px}
+  .sn-parts-generations{margin-top:10px;gap:6px 9px}
   .sn-parts-gen-label{font-size:.75rem}.sn-parts-gen-links>a{min-height:30px;min-width:47px;padding:5px 7px;font-size:.6875rem}
   .sn-parts-scene-head{margin-bottom:4px;padding-inline:8px}
   .sn-parts-collection{gap:7px}.sn-parts-collection b{font-size:.875rem}.sn-parts-collection small{font-size:.55rem;letter-spacing:.045em}
@@ -93,7 +110,6 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-parts-scene-foot{margin-top:4px;padding-inline:8px;font-size:.6875rem}
 }
 @media(min-width:1000px) and (min-height:580px) and (max-height:650px){
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 356px)*1.5))}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(25px,2.45vw,32px);line-height:1.35}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.8125rem;line-height:1.72}
   .sn-home-intro .sn-parts-benefits{display:none}
@@ -101,6 +117,28 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-parts-generations{margin-top:10px;gap:5px 8px}
   .sn-parts-scene-foot{gap:6px;font-size:.625rem}.sn-parts-scene-note{gap:2px 6px}.sn-parts-art-caption::after{margin-inline-start:6px}
   .sn-parts-label-full{display:none}.sn-parts-label-short{display:inline}
+}
+/* Clipping a decorative halo must not make a hidden scroll container. Focus
+   and scrollIntoView can otherwise move the entire hero under the fixed nav. */
+@media(max-width:999px),(max-height:579px){
+  .sn-home-intro .sn-hero-carousel{overflow:clip}
+}
+@supports not (overflow:clip){
+  @media(min-width:1000px) and (min-height:580px){.sn-public .sn-home .sn-home-intro{overflow:visible;clip-path:inset(0)}}
+  @media(max-width:999px),(max-height:579px){.sn-home-intro .sn-hero-carousel{overflow:visible;clip-path:inset(0)}}
+}
+/* An older engine without small-viewport units should scroll the shared
+   carousel in normal flow rather than infer the available height. */
+@supports not (height:100svh){
+  @media(min-width:1000px) and (min-height:580px){
+    .sn-public .sn-home .sn-home-intro{height:auto;min-height:0}
+    .sn-home-intro .sn-hero-carousel,.sn-home-intro .sn-hero-slides{flex:auto;min-height:auto;grid-template-rows:auto}
+    .sn-home-intro .sn-hero-slides>[data-hero-slide]{height:auto;min-height:auto}
+    .sn-home-intro .sn-studio-layout,.sn-home-intro .sn-service-layout{height:auto;min-height:0;grid-template-rows:auto}
+    .sn-home-intro .sn-parts-scene{display:block;align-self:center}
+    .sn-home-intro .sn-parts-visual{display:block;padding:0}
+    .sn-home-intro .sn-parts-art{width:100%}
+  }
 }
 @media(max-width:999px){
   .sn-parts-hero .sn-service-layout{grid-template-columns:minmax(0,1fr);gap:25px}
