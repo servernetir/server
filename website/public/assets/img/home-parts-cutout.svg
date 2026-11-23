@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <!-- Open chassis only. The cover is omitted and parts use independent crops. -->
+  <defs>
+    <filter id="edge" x="-3%" y="-3%" width="106%" height="106%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+  </defs>
+  <g fill="white" filter="url(#edge)">
+    <!-- Open rack chassis, front panel, and mounting ears. -->
+    <path d="M46 561 91 554 249 344 861 346 1024 553 1134 559 1140 568 1140 726 1132 739 56 739 48 731Z"/>
+  </g>
+</svg>
