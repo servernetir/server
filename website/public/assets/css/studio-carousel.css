@@ -139,7 +139,7 @@ html[data-theme="light"] .sn-service-mark{color:#087e9d;background:#1ca5b30a;bor
 html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#eefaffc9,#dbeef8a8);border-color:#418aac4d;box-shadow:0 25px 60px #476f8726}html[data-theme="light"] .sn-hosting-browser-bar{border-color:#418aac26;color:#4a7089}html[data-theme="light"] .sn-hosting-site>strong{color:#254a67}html[data-theme="light"] .sn-hosting-site-eyebrow{color:#087e9d}html[data-theme="light"] .sn-hosting-site-preview .icon{color:#198da8}html[data-theme="light"] .sn-hosting-float{background:linear-gradient(135deg,#f1fbfff0,#dbeff9f0);color:#325975;border-color:#5892ac40}html[data-theme="light"] .sn-hosting-float small{color:#5c7e95}html[data-theme="light"] .sn-hosting-float>.icon{color:#128aa6}
 @keyframes sn-flow-top{to{transform:translateY(-15px)}}@keyframes sn-flow-mid{to{transform:translateY(-6px)}}@keyframes sn-flow-route{to{stroke-dashoffset:-44}}@keyframes sn-flow-pulse{to{opacity:.35}}
 
-@media(min-width:1024px) and (min-height:600px){
+@media(min-width:1000px) and (min-height:580px){
   .sn-home-intro{height:calc(100svh - var(--header-h,112px));display:flex;flex-direction:column;min-height:0}
   .sn-home-intro .sn-hero-carousel{flex:1;min-height:0;display:flex;flex-direction:column}
   .sn-home-intro .sn-hero-slides{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
@@ -174,7 +174,7 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
   .sn-home-intro .sn-service-eyebrow{margin-bottom:15px}.sn-home-intro .sn-service-benefits{gap:10px 18px;margin-bottom:23px}
   .sn-home-intro .sn-flow-scene{max-width:min(660px,calc((100svh - 270px)*1.4))}.sn-home-intro .sn-hosting-scene{max-width:clamp(360px,calc((100svh - 270px)*1.1),560px);padding-block:28px}
 }
-@media(min-width:1024px) and (min-height:600px) and (max-height:720px){
+@media(min-width:1000px) and (min-height:580px) and (max-height:720px){
   .sn-home-intro .sn-proof-grid{min-height:62px;padding-block:11px}.sn-home-intro .sn-proof-grid b{font-size:22px}
   .sn-home-intro .sn-studio-copy h2,.sn-home-intro .sn-service-copy h2{font-size:31px;line-height:1.4;margin-bottom:12px}
   .sn-home-intro .sn-studio-brand,.sn-home-intro .sn-service-eyebrow{margin-bottom:10px;font-size:.875rem}
@@ -187,8 +187,8 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
   .sn-home-intro .sn-hosting-site{padding:15px 20px 0}.sn-home-intro .sn-hosting-site-nav{margin-bottom:19px}.sn-home-intro .sn-hosting-site-preview>div{height:48px}.sn-home-intro .sn-hosting-float{padding:9px 13px}
   .sn-public .sn-home .sn-home-intro .sn-hero-heading h1{font-size:32px}.sn-public .sn-home .sn-home-intro .sn-hero-copy .lead{font-size:14px}
 }
-@media(max-width:1023px){.sn-service-hero{padding-block:36px}.sn-service-layout{grid-template-columns:1fr;gap:30px}.sn-service-copy{width:100%;max-width:650px;justify-self:center;text-align:center}.sn-service-eyebrow,.sn-service-actions,.sn-service-benefits{justify-content:center}.sn-service-copy h2{font-size:38px}.sn-service-lead{margin-inline:auto}.sn-hosting-categories{margin-inline:auto;text-align:start}.sn-flow-scene{max-width:570px;margin-bottom:20px}.sn-hosting-scene{max-width:500px}}
-@media(min-width:1024px) and (min-height:600px) and (max-height:650px){
+@media(max-width:999px){.sn-service-hero{padding-block:36px}.sn-service-layout{grid-template-columns:1fr;gap:30px}.sn-service-copy{width:100%;max-width:650px;justify-self:center;text-align:center}.sn-service-eyebrow,.sn-service-actions,.sn-service-benefits{justify-content:center}.sn-service-copy h2{font-size:38px}.sn-service-lead{margin-inline:auto}.sn-hosting-categories{margin-inline:auto;text-align:start}.sn-flow-scene{max-width:570px;margin-bottom:20px}.sn-hosting-scene{max-width:500px}}
+@media(min-width:1000px) and (min-height:580px) and (max-height:650px){
   .sn-home-intro .sn-studio-copy h2,.sn-home-intro .sn-service-copy h2{font-size:28px;line-height:1.35;margin-bottom:10px}
   .sn-home-intro .sn-studio-brand,.sn-home-intro .sn-service-eyebrow{font-size:.75rem;margin-bottom:8px}
   .sn-home-intro .sn-service-mark{font-size:18px;padding:5px 8px}
@@ -206,7 +206,7 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
 @media(prefers-reduced-motion:reduce){.sn-service-hero *{animation:none!important;transition:none!important}}
 
 /* The first slide uses the whole stage as a geographic backdrop. */
-@media(min-width:1024px) and (min-height:600px){
+@media(min-width:1000px) and (min-height:580px){
   .sn-public .sn-home .sn-home-intro{position:relative;isolation:isolate;overflow:hidden;height:100svh;margin-block-start:calc(-1 * var(--header-h,112px));padding-block-start:var(--header-h,112px)}
   .sn-public .sn-home .sn-home-intro .sn-hero-carousel{overflow:visible}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure{isolation:isolate;overflow:visible}
@@ -237,6 +237,13 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
 }
 
 /* All six destinations stay reachable without horizontal scrolling. */
+@media(max-width:999px){
+  .sn-home-intro .sn-service-hero,.sn-home-intro .sn-studio-hero{align-items:flex-start}
+}
+/* Avoid a one-pixel/zoom gap at the narrow desktop breakpoint. */
+@media(min-width:1000px) and (max-width:1023px) and (min-height:580px){
+  .sn-home-intro .sn-gpu-scene{max-width:min(610px,calc((100svh - 270px)*1.25))}
+}
 @media(max-width:720px){
   .sn-hero-controls{align-items:center;gap:12px;padding-block:9px!important}
   .sn-hero-selectors{display:grid;flex:1;min-width:0;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 12px}

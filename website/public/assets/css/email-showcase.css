@@ -52,10 +52,10 @@ html[data-theme="light"] .sn-mail-auth{background:#e1f4fae0;color:#086d90;border
 .sn-email-choice-grid p{font-size:.9375rem;color:var(--muted);line-height:1.9;margin:0 0 21px;max-width:530px}
 .sn-email-choice-grid .btn{font-size:.875rem;white-space:normal;text-align:center;min-height:42px}
 
-@media(min-width:1024px) and (min-height:600px){
+@media(min-width:1000px) and (min-height:580px){
   .sn-home-intro .sn-mail-visual{max-width:min(680px,calc((100svh - 260px)*1.5))}
 }
-@media(min-width:1024px) and (max-height:710px){
+@media(min-width:1000px) and (max-height:710px){
   .sn-home-intro .sn-mail-signal{gap:7px;padding:9px 12px}
   .sn-home-intro .sn-mail-signal-icon{width:30px;height:30px}
   .sn-home-intro .sn-mail-signal-icon .icon{width:17px;height:17px}

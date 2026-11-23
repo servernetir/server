@@ -184,12 +184,12 @@
     {
       "name": "carousel-preview.css",
       "source": "website/public/assets/css/studio-carousel.css",
-      "sha256": "f5a345fed879d393804124f05ba5af3faecb9a5c24011470a7367b23382a6785"
+      "sha256": "aa67283ed9230bdedf4ad30b85d691528676db13a45b28f731c72bf471790a05"
     },
     {
       "name": "mail-preview.css",
       "source": "website/public/assets/css/email-showcase.css",
-      "sha256": "f252eaaa1879169230ba6b34c27dc2fdabcfc3764cdc96c7b62438326409471d"
+      "sha256": "4c312b317b2eb634371aaeaa086b4fbd9fdc9ac7acbb20e73ade609db8cf7f0c"
     },
     {
       "name": "carousel-preview.js",
