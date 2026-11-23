@@ -18,6 +18,11 @@ class StudioHomeHeroTest extends TestCase
             'studio.redirect_uri' => 'https://studio.servernet.test/auth/callback']);
         foreach (['/' => 'fa', '/en' => 'en', '/tr' => 'tr'] as $path => $locale) {
             $html = $this->get($path)->assertOk()->getContent();
+            // The browser geometry suite uses the real rendered header, font
+            // declarations and stylesheet order, not the design-review shell.
+            if ($browserFixtures = getenv('STUDIO_HOME_BROWSER_FIXTURES')) {
+                $this->assertSame(strlen($html), file_put_contents($browserFixtures.'/'.$locale.'.html', $html));
+            }
             $this->assertLessThan(strpos($html, 'id="studio"'), strpos($html, 'id="hero-infrastructure"'));
             $this->assertStringContainsString('data-hero-carousel', $html);
             $this->assertStringContainsString('data-interval="6000"', $html);

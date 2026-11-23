@@ -15,7 +15,7 @@
 .sn-parts-gen-links>a{display:inline-flex;align-items:center;justify-content:center;min-height:35px;min-width:54px;padding:6px 9px;border:1px solid rgba(127,200,233,.18);background:rgba(57,111,154,.085);border-radius:8px;font:550 .75rem/1.2 system-ui,sans-serif;color:var(--sn-copy);white-space:nowrap;text-decoration:none;transition:background .2s,color .2s,border-color .2s}
 .sn-parts-gen-links>a:is(:hover,:focus-visible){color:var(--sn-cyan);background:#2499ce1c;border-color:#65c4e68f}
 .sn-parts-scene{position:relative;min-width:0;width:100%;max-width:840px;justify-self:center;margin-inline:auto;color:var(--parts-ink)}
-.sn-parts-scene-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;padding-inline:clamp(4px,2vw,18px)}
+.sn-parts-scene-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;margin-bottom:7px;padding-inline:clamp(4px,2vw,18px)}
 .sn-parts-collection{display:flex;align-items:center;gap:10px;min-width:0}
 .sn-parts-collection>span:last-child{display:grid;gap:4px}
 .sn-parts-collection b{font:650 1rem/1.15 system-ui,sans-serif;letter-spacing:-.025em}
@@ -47,8 +47,8 @@
 .sn-parts-hotspot-label::after{content:"";position:absolute;top:100%;left:50%;width:1px;height:8px;background:#83e5f4a6;pointer-events:none}
 .sn-parts-hotspot:is(:hover,:focus-visible){border-color:#80e8f576}
 .sn-parts-hotspot:is(:hover,:focus-visible) .sn-parts-hotspot-label{background:linear-gradient(130deg,#235a7b,#10606b);border-color:#97f3ff;box-shadow:0 0 20px #3bd4ee55}
-.sn-parts-scene-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px;padding-inline:clamp(4px,2vw,18px);color:var(--parts-muted);font-size:.75rem;line-height:1.6}
-.sn-parts-scene-note{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px}
+.sn-parts-scene-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-top:9px;padding-inline:clamp(4px,2vw,18px);color:var(--parts-muted);font-size:.75rem;line-height:1.6}
+.sn-parts-scene-note{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;min-width:0}
 .sn-parts-art-caption{font-size:.625rem;color:var(--sn-quiet)}
 .sn-parts-art-caption::after{content:"·";margin-inline-start:10px;color:var(--parts-muted)}
 .sn-parts-chassis{color:#80dce9;white-space:nowrap;text-decoration:underline;text-decoration-color:#72d6e574;text-underline-offset:4px}
@@ -72,14 +72,29 @@ html[data-theme=light] .sn-parts-emblem{color:#167ca4;filter:none}
 html[data-theme=light] .sn-parts-proliant i,html[data-theme=light] .sn-parts-chassis{color:#087ca4}
 html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-color:#5daacb4d}
 @media(min-width:1000px) and (min-height:580px){
+  /* Reserve the fixed header's real height. If larger fonts or wrapped copy
+     need more room, the shared stage can grow instead of hiding content under
+     the glass controls. The runtime measures only these intrinsic boxes. */
+  .sn-public #main{padding-block-start:var(--sn-home-header-space,var(--header-h,112px))}
+  .sn-public .sn-home .sn-home-intro{margin-block-start:calc(-1 * var(--sn-home-header-space,var(--header-h,112px)));padding-block-start:var(--sn-home-header-space,var(--header-h,112px));min-height:var(--sn-home-parts-min-intro,0px)}
   .sn-home-intro .sn-parts-hero{overflow:visible}
   .sn-home-intro .sn-parts-halo{inset-block:-9svh -210px;inset-inline-end:-8vw;width:min(77vw,1180px)}
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 300px)*1.5))}
+  /* The collection title and caption are ordinary grid rows. Only the art
+     is scalable; its available height is the actual remaining middle row,
+     not the viewport minus an estimated number of pixels. */
+  .sn-home-intro .sn-parts-scene{display:grid;grid-template-rows:auto minmax(0,1fr) auto;align-self:stretch;min-height:0;max-width:min(840px,110svh)}
+  .sn-home-intro .sn-parts-visual{display:grid;place-items:center;min-height:0;padding-block:5px 7px}
+  .sn-home-intro .sn-parts-art{width:min(100%,var(--sn-parts-art-limit,100%));height:auto;aspect-ratio:3/2}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(30px,3.2vw,54px);line-height:1.46}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:clamp(15px,1.12vw,18px)}
 }
+@supports (container-type:size) and (width:1cqh){
+  @media(min-width:1000px) and (min-height:580px){
+    .sn-home-intro .sn-parts-visual{container-type:size}
+    .sn-home-intro .sn-parts-art{width:min(100%,150cqh)}
+  }
+}
 @media(min-width:1000px) and (min-height:580px) and (max-height:720px){
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 326px)*1.5))}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem}
   .sn-parts-mark{width:33px;height:33px;border-radius:9px}.sn-parts-mark .icon{width:19px;height:19px}
@@ -93,7 +108,6 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-parts-scene-foot{margin-top:4px;padding-inline:8px;font-size:.6875rem}
 }
 @media(min-width:1000px) and (min-height:580px) and (max-height:650px){
-  .sn-home-intro .sn-parts-scene{max-width:min(840px,calc((100svh - 356px)*1.5))}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(25px,2.45vw,32px);line-height:1.35}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.8125rem;line-height:1.72}
   .sn-home-intro .sn-parts-benefits{display:none}
@@ -101,6 +115,19 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-parts-generations{margin-top:10px;gap:5px 8px}
   .sn-parts-scene-foot{gap:6px;font-size:.625rem}.sn-parts-scene-note{gap:2px 6px}.sn-parts-art-caption::after{margin-inline-start:6px}
   .sn-parts-label-full{display:none}.sn-parts-label-short{display:inline}
+}
+/* An older engine without small-viewport units should scroll the shared
+   carousel in normal flow rather than infer the available height. */
+@supports not (height:100svh){
+  @media(min-width:1000px) and (min-height:580px){
+    .sn-public .sn-home .sn-home-intro{height:auto;min-height:0}
+    .sn-home-intro .sn-hero-carousel,.sn-home-intro .sn-hero-slides{flex:auto;min-height:auto;grid-template-rows:auto}
+    .sn-home-intro .sn-hero-slides>[data-hero-slide]{height:auto;min-height:auto}
+    .sn-home-intro .sn-studio-layout,.sn-home-intro .sn-service-layout{height:auto;min-height:0;grid-template-rows:auto}
+    .sn-home-intro .sn-parts-scene{display:block;align-self:center}
+    .sn-home-intro .sn-parts-visual{display:block;padding:0}
+    .sn-home-intro .sn-parts-art{width:100%}
+  }
 }
 @media(max-width:999px){
   .sn-parts-hero .sn-service-layout{grid-template-columns:minmax(0,1fr);gap:25px}

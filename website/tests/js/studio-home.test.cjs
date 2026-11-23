@@ -60,6 +60,38 @@ test('manual selection automatically resumes rotation exactly two seconds after 
     e.tick(5999);assert.equal(e.slide(),'studio');e.tick(1);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
+test('hardware fit reserves the measured header and rails, with a width fallback and natural mobile flow',()=>{
+  const markup=fs.readFileSync(path.join(fixtures,'partial-fa.html'),'utf8');
+  const dom=new JSDOM('<div id="header-wrap"></div><main id="main">'+markup+'</main>',{runScripts:'outside-only',pretendToBeVisual:true,url:'https://servernet.cloud/'});
+  const w=dom.window,d=w.document,desktop={matches:true,addEventListener(){}};let resized;
+  const box=(selector,values,style='')=>{const el=d.querySelector(selector);Object.keys(values).forEach(k=>Object.defineProperty(el,k,{get:()=>values[k],configurable:true}));el.style.cssText=style;return values;};
+  w.matchMedia=query=>query.includes('min-width')?desktop:{matches:true,addEventListener(){}};
+  w.CSS={supports:()=>true};w.requestAnimationFrame=fn=>{fn();return 1;};
+  w.ResizeObserver=class{constructor(callback){resized=callback;}observe(){}};
+  d.documentElement.style.setProperty('--header-h','112px');
+  const header=box('#header-wrap',{offsetHeight:140}), copy=box('.sn-parts-copy',{offsetHeight:360});
+  box('.sn-parts-scene',{clientWidth:620});box('.sn-parts-scene-head',{offsetHeight:36},'margin-bottom:7px');
+  box('.sn-parts-scene-foot',{offsetHeight:40},'margin-top:9px');box('#hero-parts',{},'padding:12px 0');
+  box('.sn-hero-controls',{offsetHeight:60});box('.sn-proof-rail',{offsetHeight:74});
+  const visual=box('.sn-parts-visual',{clientHeight:400},'padding:5px 0 7px');
+  d.querySelectorAll('.sn-parts-hotspot-label').forEach(el=>Object.defineProperty(el,'offsetHeight',{value:20}));
+  const root=d.querySelector('.sn-home-intro'), main=d.getElementById('main'), art=d.querySelector('.sn-parts-visual');
+  try{
+    w.eval(code);
+    assert.equal(main.style.getPropertyValue('--sn-home-header-space'),'140px');
+    assert.equal(root.style.getPropertyValue('--sn-home-parts-min-intro'),'666px');
+    assert.equal(art.style.getPropertyValue('--sn-parts-art-limit'),'582px');
+    header.offsetHeight=150;copy.offsetHeight=410;visual.clientHeight=350;resized();
+    assert.equal(main.style.getPropertyValue('--sn-home-header-space'),'150px');
+    assert.equal(root.style.getPropertyValue('--sn-home-parts-min-intro'),'726px');
+    assert.equal(art.style.getPropertyValue('--sn-parts-art-limit'),'507px');
+    desktop.matches=false;w.dispatchEvent(new w.Event('resize'));
+    assert.equal(main.style.getPropertyValue('--sn-home-header-space'),'');
+    assert.equal(root.style.getPropertyValue('--sn-home-parts-min-intro'),'');
+    assert.equal(art.style.getPropertyValue('--sn-parts-art-limit'),'');
+    assert.equal(d.querySelector('[data-hero-slide].is-active').dataset.heroSlide,'infrastructure');
+  }finally{w.close();}
+});
 test('each new click postpones the resume deadline by another two seconds',()=>{
   const e=setup();try{
     e.select('gpu');e.tick(1500);e.select('studio');e.tick(1500);
