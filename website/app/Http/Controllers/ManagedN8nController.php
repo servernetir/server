@@ -11,7 +11,9 @@ class ManagedN8nController extends Controller
 {
     public function landing(): View
     {
-        return view('pages.n8n', $this->data());
+        $data = $this->data();
+        return view('pages.n8n', $data + ['n8nSeo' => app(\App\Services\Cloud\ManagedN8nSeo::class)
+            ->present($data['n8nCards'], $data['n8nEnabled'], $data['n8nCountries'])]);
     }
 
     public function store(Request $request): View

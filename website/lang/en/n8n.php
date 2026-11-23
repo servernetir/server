@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'title' => 'Dedicated n8n, automatically delivered',
-    'description' => 'Dedicated n8n servers in Iran, Germany and Türkiye. Automatic installation, a private subdomain, HTTPS and access in your account. Hourly or prepaid billing.',
+    'title' => 'n8n Hosting in Germany & Turkey | Hourly & Monthly',
+    'description' => 'Independent n8n servers in Germany and Turkey. Automatic installation, a dedicated subdomain, HTTPS and account delivery. Hourly in Germany or prepaid periods.',
     'eyebrow' => 'Automation on your own server',
     'intro' => 'Choose a location and resources. After payment, we create your server, install n8n, and deliver its dedicated HTTPS address and login in your account.',
     'IR' => 'Iran',

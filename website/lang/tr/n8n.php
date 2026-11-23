@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'title' => 'Otomatik teslim edilen özel n8n',
-    'description' => 'İran, Almanya ve Türkiye konumlarında özel n8n sunucusu. Otomatik kurulum, özel alt alan adı, HTTPS ve panelden erişim. Saatlik veya dönemlik ödeme.',
+    'title' => 'Almanya ve Türkiye n8n Sunucusu | Saatlik ve Aylık',
+    'description' => 'Almanya ve Türkiye konumlarında bağımsız n8n sunucusu. Otomatik kurulum, özel alt alan adı, HTTPS ve panelden teslim. Almanya saatlik, Türkiye dönemlik.',
     'eyebrow' => 'Kendi sunucunuzda otomasyon',
     'intro' => 'Konum ve kaynakları seçin. Ödemeden sonra sunucunuzu oluşturuyor, n8n kuruyor ve özel HTTPS adresiyle giriş bilgilerini panelinize teslim ediyoruz.',
     'IR' => 'İran',

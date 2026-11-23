@@ -178,6 +178,8 @@ class CloudPlan extends Model
 
         $unverifiedPrices = \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds();
         return $q->when($unverifiedPrices !== [], fn ($qq) => $qq->whereNotIn('cloud_plans.id', $unverifiedPrices))
+            ->where(fn ($qq) => $qq->where('provider', '!=', 'proxmox')
+                ->orWhere('provider_ref', 'not like', \App\Services\Cloud\ManagedN8nIranCatalog::PREFIX.'%'))
             ->where('is_active', true)
             ->where('cost_eur_cents', '>', 0)
             ->where('in_stock', true)

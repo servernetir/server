@@ -6,6 +6,9 @@
 @endpush
 @section('content')
 <div class="n8n-page">
+  <script type="application/ld+json">{!! schema_ld($n8nSeo['service'], 'Service') !!}</script>
+  <script type="application/ld+json">{!! schema_ld($n8nSeo['faq'], 'FAQPage') !!}</script>
+  <script type="application/ld+json">{!! schema_ld($n8nSeo['crumbs'], 'BreadcrumbList') !!}</script>
   @include('partials.n8n-hero', ['n8nConsole' => false])
   @include('partials.n8n-configurator', ['n8nConsole' => false])
   <section class="n8n-delivery" aria-labelledby="n8n-delivery-heading">
@@ -16,6 +19,7 @@
       @endforeach
     </ol>
   </section>
+  @include('partials.n8n-guide', ['copy' => $n8nSeo['copy'], 'rates' => $n8nSeo['rates']])
   <p class="n8n-footnote">{{ __('n8n.scope') }}</p>
 </div>
 @endsection

@@ -155,15 +155,16 @@ class CloudImage extends Model
     }
 
     /** شناسهٔ ایمیج فقط وقتی که واقعاً روی منابع این پلن قابل نصب باشد. */
-    public static function compatibleRefFor(CloudPlan $plan, string $key): ?string
+    public static function compatibleRefFor(CloudPlan $plan, string $key, ?\Illuminate\Support\Collection $prefetched = null): ?string
     {
-        $rows = static::query()
+        $rows = $prefetched ?? static::query()
             ->usable()
             ->where('provider', (string) $plan->provider)
             ->where('key', $key)
             ->get();
 
-        $match = $rows->first(function (CloudImage $row) use ($plan) {
+        $match = $rows->first(function (CloudImage $row) use ($plan, $key) {
+            if (! $row->is_active || $row->provider !== $plan->provider || $row->key !== $key) { return false; }
             if ($plan->provider === 'vpstc'
                 && ! str_starts_with((string) $row->provider_ref, $plan->provider_ref.'|')) {
                 return false;
