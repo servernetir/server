@@ -1079,6 +1079,19 @@ class ProxmoxClient implements CloudProvider
         try {
             ['node' => $node, 'kind' => $kind] = $this->locate($ref);
 
+            $path = '/nodes/'.rawurlencode($node).'/'.$kind.'/'.rawurlencode($ref);
+            $state = $this->req('GET', $path.'/status/current');
+            if ($state['ok'] && in_array($state['body']['data']['status'] ?? '', ['running', 'paused'], true)) {
+                $stop = $this->req('POST', $path.'/status/stop');
+                if (! $stop['ok']) { return ['ok' => false, 'message' => 'توقف سرور پیش از حذف تأیید نشد.']; }
+                $task = $stop['body']['data'] ?? '';
+                $this->waitForTask($node, is_string($task) ? $task : '');
+                $after = $this->req('GET', $path.'/status/current');
+                if (! $after['ok'] || ($after['body']['data']['status'] ?? '') !== 'stopped') {
+                    return ['ok' => false, 'message' => 'سرور هنوز متوقف نشده؛ حذف در تلاش بعدی ادامه می‌یابد.'];
+                }
+            }
+
             // ⚠️ `destroy-unreferenced-disks` فقط پارامترِ QEMU است؛ فرستادنش به
             // مسیرِ LXC خطای «پارامترِ ناشناخته» می‌دهد و حذف اصلاً انجام نمی‌شود.
             $params = $kind === self::KIND_LXC
