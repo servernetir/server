@@ -117,7 +117,7 @@
           const step=narrow.matches?3:detailStep;
           for(let i=0;i<landVectors.length;i+=step){
             const p=project(landVectors[i]);if(p.z<.025)continue;
-            const size=Math.max(.62,radius/205)*(.7+p.z*.3)*Math.sqrt(narrow.matches?1:detailStep),bucket=Math.min(5,Math.floor(p.z*6)),path=dots[bucket];
+            const size=Math.max(.55,Math.min(1.15,radius/360))*(.72+p.z*.28),bucket=Math.min(5,Math.floor(p.z*6)),path=dots[bucket];
             path.moveTo(p.x+size,p.y);path.arc(p.x,p.y,size,0,Math.PI*2);
           }
           for(let i=0;i<dots.length;i++){ctx.globalAlpha=.11+((i+.5)/6)*.64;ctx.fillStyle=i===5?theme.light:theme.land;ctx.fill(dots[i]);}
