@@ -40,6 +40,15 @@ def api(path, payload=None):
         return json.load(response)
 
 
+def wait_bootstrap():
+    if not shutil.which('cloud-init'):
+        return
+    result = subprocess.run(['cloud-init', 'status', '--wait'], timeout=900,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if result.returncode not in [0, 2]:
+        raise RuntimeError('guest_bootstrap_failed')
+
+
 def pull_image(image, official_mirror=None):
     if subprocess.run(['docker', 'image', 'inspect', image], stdout=subprocess.DEVNULL,
                       stderr=subprocess.DEVNULL, timeout=15).returncode == 0:
@@ -114,6 +123,9 @@ def install_docker(private=False):
 
 def install():
     spec = json.loads((ROOT / 'request.json').read_text())
+    write('phase', 'bootstrap')
+    wait_bootstrap()
+    write('phase', 'resources_check')
     # Verify actual resources before announcing delivery. Allow normal kernel/filesystem overhead.
     memory = int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines()
                       if line.startswith('MemTotal:'))) // 1024

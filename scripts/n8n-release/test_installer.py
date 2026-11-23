@@ -30,11 +30,14 @@ class InstallerTest(unittest.TestCase):
             calls.append(path)
             return {'status': 'ok'} if path.startswith('/health') else {'data': {'email': self.spec['email']}}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image') as images, \
+        with patch.object(installer, 'ROOT', self.root), \
+                patch.object(installer, 'wait_bootstrap', side_effect=lambda: calls.append('boot_finished')), \
+                patch.object(installer, 'install_docker', side_effect=lambda _: calls.append('docker_setup')), patch.object(installer, 'pull_image') as images, \
                 patch.object(installer, 'api', side_effect=api), \
                 patch.object(installer, 'run', side_effect=lambda command, **kw: calls.append(command)):
             installer.install()
         images.assert_any_call('docker.n8n.io/n8nio/n8n:2.48.7', 'ghcr.io/n8n-io/n8n:2.48.7')
+        self.assertLess(calls.index('boot_finished'), calls.index('docker_setup'))
         setup = calls.index('/rest/owner/setup')
         public = next(i for i, value in enumerate(calls) if isinstance(value, list) and value[-1] == 'caddy')
         self.assertLess(setup, public)
@@ -55,14 +58,14 @@ class InstallerTest(unittest.TestCase):
                 return {'data': {'email': self.spec['email']}}
             return {'status': 'ok'}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'wait_bootstrap'), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
                 patch.object(installer, 'api', side_effect=api), patch.object(installer, 'run'):
             installer.install()
         self.assertIn('EXISTING_KEY', (self.root / '.env').read_text())
         self.assertTrue((self.root / 'owner-initialized').exists())
 
     def test_wrong_owner_receipt_never_opens_the_public_listener(self):
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'wait_bootstrap'), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
                 patch.object(installer, 'api', return_value={'data': {'email': 'someone-else@example.test'}}), \
                 patch.object(installer, 'run') as run:
             with self.assertRaisesRegex(RuntimeError, 'owner_setup_unconfirmed'):
@@ -98,6 +101,16 @@ class InstallerTest(unittest.TestCase):
                 patch.object(installer, 'run') as run:
             installer.install_docker(private=True)
         run.assert_not_called()
+
+    def test_cloud_init_wait_accepts_completed_boot_but_rejects_a_crash(self):
+        with patch.object(installer.shutil, 'which', return_value='/usr/bin/cloud-init'), \
+                patch.object(installer.subprocess, 'run', return_value=Mock(returncode=2)) as run:
+            installer.wait_bootstrap()
+            self.assertEqual(['cloud-init', 'status', '--wait'], run.call_args.args[0])
+        with patch.object(installer.shutil, 'which', return_value='/usr/bin/cloud-init'), \
+                patch.object(installer.subprocess, 'run', return_value=Mock(returncode=1)):
+            with self.assertRaisesRegex(RuntimeError, 'guest_bootstrap_failed'):
+                installer.wait_bootstrap()
 
     def test_private_ubuntu_uses_distribution_packages_before_contacting_vendor(self):
         with patch.object(installer.shutil, 'which', return_value=None), \
