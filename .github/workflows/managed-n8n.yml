@@ -57,7 +57,17 @@ jobs:
           PY
       - name: Test pricing, payment gating, delivery and supplier reconciliation
         working-directory: website
+        env:
+          N8N_BROWSER_FIXTURES: /tmp/servernet-n8n-fixtures
         run: php vendor/bin/phpunit -c .n8n-ci.xml --filter='ManagedN8nTest|VpsTcRenewalTest|VpsTcLifecycleTest|CloudProxmoxTest|CloudProvisionTest|CloudDeliveryReadinessTest|ServiceRenewalsTest'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify hourly to monthly regression in real Blade and Chromium
+        env:
+          N8N_BROWSER_FIXTURES: /tmp/servernet-n8n-fixtures
+          TEST_CHROME: /usr/bin/google-chrome
+        run: node --test website/tests/js/n8n-configurator.browser.cjs
       - name: Validate isolated guest installer and limited release
         run: |
           node --test website/tests/js/n8n-configurator.test.cjs

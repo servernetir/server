@@ -140,6 +140,198 @@ class ManagedN8nTest extends TestCase
         $this->assertEmpty(app(ManagedN8nCatalog::class)->plans());
     }
 
+    public function test_iran_mirrors_all_supported_turkish_sizes_with_hourly_and_preserves_ordinary_products(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $legacy = $this->plan('proxmox', ['vcpu' => 2, 'ram_mb' => 2048, 'disk_gb' => 40]);
+        $before = $legacy->fresh()->getRawOriginal();
+        $sizes = [[1,2,40], [2,2,50], [3,3,70], [4,4,80], [6,8,160], [8,10,200], [10,12,240]];
+        foreach ($sizes as [$cpu,$ram,$disk]) {
+            $this->plan('vpstc', ['vcpu' => $cpu, 'ram_mb' => $ram * 1024, 'disk_gb' => $disk]);
+        }
+        $this->plan('vpstc', ['vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20]);
+        $sync = app(\App\Services\Cloud\ManagedN8nIranCatalog::class);
+        $this->assertSame('preview', $sync->sync()['status']);
+        $this->assertSame(1, CloudPlan::where('provider', 'proxmox')->count());
+        $this->assertSame(7, $sync->sync(true)['created']);
+        $second = $sync->sync(true);
+        $this->assertSame(0, $second['created'] + $second['updated'] + $second['retired']);
+        $catalog = app(ManagedN8nCatalog::class);
+        $plans = $catalog->plans()->where('provider', 'proxmox')->values();
+        $this->assertCount(7, $plans);
+        foreach ($sizes as [$cpu,$ram,$disk]) {
+            $p = $plans->first(fn ($p) => $p->vcpu === $cpu && $p->ram_mb === $ram * 1024 && $p->disk_gb === $disk);
+            $this->assertNotNull($p);
+            $this->assertSame(1200000, $catalog->quote($p));
+            $this->assertSame(1700, $catalog->hourly($p));
+            $this->assertFalse(CloudPlan::sellable()->whereKey($p->id)->exists());
+        }
+        $this->assertSame($before, $legacy->fresh()->getRawOriginal());
+        $this->assertSame(0, Service::count());
+        $this->assertSame(0, Invoice::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_mirror_prices_are_exact_live_tiers_and_respect_manual_quarantine_and_retirement(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $this->plan('proxmox');
+        $source = $this->plan('vpstc');
+        $sync = app(\App\Services\Cloud\ManagedN8nIranCatalog::class);
+        $sync->sync(true);
+        $mirror = CloudPlan::where('provider_ref', 'like', 'n8n-ir-%')->firstOrFail();
+        $catalog = app(ManagedN8nCatalog::class);
+        $this->plan('vpstc', ['vcpu' => 8, 'ram_mb' => 16384, 'disk_gb' => 400, 'price_irt' => 100000]);
+        $this->assertSame($source->id, $catalog->source($mirror)->id);
+        $source->update(['price_irt' => 2000000]);
+        $this->assertSame(2400000, $catalog->quote($mirror));
+        $catalog->cards();
+        $source->update(['price_irt' => 3000000]);
+        $this->assertSame(3600000, $catalog->quote($mirror));
+        $mirror->update(['admin_disabled' => true, 'admin_note' => 'Manual decision']);
+        $sync->sync(true);
+        $this->assertTrue($mirror->fresh()->admin_disabled);
+        $this->assertSame('Manual decision', $mirror->fresh()->admin_note);
+        $this->assertFalse($catalog->plans()->contains('id', $mirror->id));
+        $mirror->update(['admin_disabled' => false]);
+        Setting::put(CloudPricingSnapshot::KEY, json_encode(['excluded_plans' => [$mirror->id]]));
+        $sync->sync(true);
+        $this->assertFalse($catalog->plans()->contains('id', $mirror->id));
+        $source->update(['is_active' => false]);
+        $sync->sync(true);
+        $this->assertFalse($mirror->fresh()->is_active);
+        $this->assertNotNull(CloudPlan::find($mirror->id));
+        Http::assertNothingSent();
+    }
+
+    public function test_cards_batch_compatible_images_and_sources_without_stale_prices_or_get_writes(): void
+    {
+        foreach (range(1, 35) as $i) { $this->plan('hetzner', ['disk_gb' => 40 + $i]); }
+        $queries = 0; $writes = 0;
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$queries, &$writes) {
+            $queries++;
+            if (preg_match('/^\s*(insert|update|delete|replace)\b/i', $query->sql)) { $writes++; }
+        });
+        $catalog = app(ManagedN8nCatalog::class);
+        $cards = $catalog->cards();
+        $this->assertCount(35, $cards);
+        $this->assertLessThan(18, $queries);
+        $this->assertSame(0, $writes);
+        $plan = CloudPlan::firstOrFail();
+        $plan->update(['price_irt' => 2000000]);
+        $this->assertSame(2400000, $catalog->quote($plan));
+        CloudImage::where('provider', 'hetzner')->update(['is_active' => false]);
+        $this->assertEmpty($catalog->cards());
+        Http::assertNothingSent();
+    }
+
+    public function test_existing_delivery_schedule_syncs_the_owned_catalogue_without_buying_a_server(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $this->plan('proxmox'); $this->plan('vpstc');
+        $this->artisan('cloud:n8n')->assertExitCode(0);
+        $progress = \Illuminate\Support\Facades\Cache::get('n8n:delivery-progress');
+        $this->assertSame('applied', $progress['catalog']['status']);
+        $this->assertSame(1, $progress['catalog']['created']);
+        $this->assertSame(0, $progress['attempted']);
+        $this->assertSame(0, CloudInstance::count());
+        $this->assertSame(0, Invoice::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_unverified_pricing_cannot_rewrite_or_retire_iranian_catalogue_rows(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $this->plan('proxmox'); $this->plan('vpstc');
+        $sync = app(\App\Services\Cloud\ManagedN8nIranCatalog::class);
+        $sync->sync(true);
+        $mirror = CloudPlan::where('provider_ref', 'like', 'n8n-ir-%')->firstOrFail();
+        $before = $mirror->getRawOriginal();
+        $this->mock(CloudPricingSnapshot::class)->shouldReceive('current')->andReturn(false);
+        $this->assertSame('waiting_for_verified_prices', $sync->sync(true)['status']);
+        $this->assertSame($before, $mirror->fresh()->getRawOriginal());
+        Setting::put('n8n_iran_sales_enabled', '0');
+        $this->assertSame('disabled', $sync->sync(true)['status']);
+        Http::assertNothingSent();
+    }
+
+    public function test_ordinary_proxmox_catalogue_sync_does_not_retire_owned_n8n_sizes(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $legacy = $this->plan('proxmox'); $this->plan('vpstc');
+        app(\App\Services\Cloud\ManagedN8nIranCatalog::class)->sync(true);
+        $mirror = CloudPlan::where('provider_ref', 'like', 'n8n-ir-%')->firstOrFail();
+        $driver = \Mockery::mock(\App\Services\Cloud\CloudProvider::class);
+        $driver->shouldReceive('fetchCatalog')->once()->andReturn(['ok' => true, 'locations' => [], 'images' => [],
+            'plans' => [['provider_ref' => $legacy->provider_ref, 'location_code' => 'ir-tehran',
+                'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 40, 'cost_eur_cents' => 300]]]);
+        $this->mock(\App\Services\Cloud\CloudManager::class)->shouldReceive('configured')->andReturn(['proxmox' => $driver]);
+        $this->partialMock(\App\Services\Cloud\CloudPricing::class)->shouldReceive('eurToToman')->andReturn(100000);
+        $report = app(\App\Services\Cloud\CloudCatalogSync::class)->sync('proxmox');
+        $this->assertTrue($report['ok'], json_encode($report));
+        $this->assertTrue($mirror->fresh()->is_active);
+        Http::assertNothingSent();
+    }
+
+    public function test_public_seo_matches_visible_faq_prices_canonical_and_locales(): void
+    {
+        $this->partialMock(\App\Services\Cloud\CloudPricing::class)->shouldReceive('eurToToman')->andReturn(100000);
+        $this->plan('hetzner'); $this->plan('vpstc');
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->get($prefix.'/cloud/n8n?country=DE')->assertOk()->getContent();
+            $doc = new \DOMDocument; @$doc->loadHTML('<?xml encoding="UTF-8">'.$html);
+            $x = new \DOMXPath($doc);
+            $this->assertSame(1, $x->query('//h1')->length);
+            $this->assertSame(url($prefix.'/cloud/n8n'), $x->evaluate('string(//link[@rel="canonical"]/@href)'));
+            $this->assertSame(7, $x->query('//*[@id="n8n-faq"]//details')->length);
+            $schemas = [];
+            foreach ($x->query('//script[@type="application/ld+json"]') as $script) {
+                $d = json_decode($script->textContent, true, 512, JSON_THROW_ON_ERROR);
+                $schemas[$d['@type']] = $d;
+            }
+            $this->assertSame(rtrim(config('app.url'), '/').'/#organization', $schemas['Service']['provider']['@id']);
+            $copy = $this->app->make(\App\Services\Cloud\ManagedN8nSeo::class)->present([], false, [])['copy'];
+            foreach ($schemas['FAQPage']['mainEntity'] as $i => $question) {
+                $this->assertSame($copy['faqs'][$i]['q'], $question['name']);
+                $this->assertStringContainsString(e($question['acceptedAnswer']['text']), $html);
+            }
+            $this->assertArrayHasKey('offers', $schemas['Service'], $locale);
+            foreach ($schemas['Service']['offers'] as $offer) {
+                $this->assertSame($locale === 'fa' ? 'IRR' : 'EUR', $offer['priceCurrency']);
+                $this->assertSame($locale === 'fa' ? '12000000' : '12.00', $offer['price']);
+                $this->assertSame('MON', $offer['priceSpecification']['unitCode']);
+                $this->assertFalse($offer['priceSpecification']['valueAddedTaxIncluded']);
+            }
+            $this->assertStringContainsString('href="'.url($prefix.'/blog/n8n-backup-migration-guide').'"', $html);
+            $this->assertStringNotContainsString('n8n-seo.', $html);
+        }
+        Setting::put('n8n_sales_enabled', '0');
+        $schemas = $this->get('/cloud/n8n')->assertOk()->viewData('n8nSeo');
+        $this->assertArrayNotHasKey('offers', $schemas['service']);
+        Http::assertNothingSent();
+    }
+
+    public function test_real_configurator_markup_can_drive_an_isolated_browser_regression(): void
+    {
+        $this->partialMock(\App\Services\Cloud\CloudPricing::class)->shouldReceive('eurToToman')->andReturn(100000);
+        $de = $this->plan('hetzner'); $this->plan('vpstc');
+        $this->plan('proxmox');
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->get($prefix.'/cloud/n8n?'.http_build_query(['country'=>'DE',
+                'plan'=>$de->slug, 'location'=>$de->location_code]))->assertOk()->getContent();
+            $doc = new \DOMDocument; @$doc->loadHTML('<?xml encoding="UTF-8">'.$html);
+            $x = new \DOMXPath($doc);
+            $section = $x->query('//*[@data-n8n-config]')->item(0);
+            $this->assertNotNull($section);
+            $this->assertSame(1, $x->query('//*[@data-n8n-config]//input[@name="cycle"][@value="monthly"][@checked]')->length);
+            if ($directory = getenv('N8N_BROWSER_FIXTURES')) {
+                if (! is_dir($directory)) { mkdir($directory, 0700, true); }
+                file_put_contents($directory.'/'.$locale.'.html', $doc->saveHTML($section));
+            }
+        }
+        Http::assertNothingSent();
+    }
+
     public function test_turkey_hourly_is_rejected_before_service_or_invoice_creation(): void
     {
         $p = $this->plan('vpstc', ['cost_hour_eur_micro' => 1000]);

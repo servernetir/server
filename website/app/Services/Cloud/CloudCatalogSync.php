@@ -413,8 +413,9 @@ class CloudCatalogSync
         if ($seen !== [] || in_array($provider, ['lightnode', 'vpstc'], true)) {
             $unverifiedIds = [];
             CloudPlan::where('provider', $provider)
-                ->get(['id', 'provider_ref', 'provider_location', 'location_code', 'is_active'])
+                ->get(['id', 'provider', 'provider_ref', 'provider_location', 'location_code', 'is_active'])
                 ->each(function (CloudPlan $p) use ($seen, $provider, $unverifiedLocations, &$unverifiedIds) {
+                    if (ManagedN8nIranCatalog::owns($p)) { return; }
                     if (! in_array($p->provider_ref.'@'.$p->location_code, $seen, true) && $p->is_active) {
                         if ($unverifiedLocations !== [] && LightNodeClient::hasUnverifiedLocation($p, $unverifiedLocations)) {
                             $unverifiedIds[] = (int) $p->id;

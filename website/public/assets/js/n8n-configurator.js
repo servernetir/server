@@ -85,7 +85,13 @@
       event.preventDefault();chosenIndex = Number(link.dataset.n8nPlan);
       render();remember(link);goToStep('#n8n-details');
     }));
-    form.querySelectorAll('input[name="cycle"]').forEach(radio => radio.addEventListener('change', () => { hourly.checked = false;render(); }));
+    // A checked monthly radio does not emit change when hourly is selected
+    // separately. Clicking it must still leave hourly mode; arrows emit change.
+    form.querySelectorAll('input[name="cycle"]').forEach(radio => {
+      const selectCycle = () => { hourly.checked = false;render(); };
+      radio.addEventListener('click', selectCycle);
+      radio.addEventListener('change', selectCycle);
+    });
     hourly.addEventListener('change', render);
     form.addEventListener('submit', () => { if (form.checkValidity()) form.querySelector('button[type="submit"]').disabled = true; });
     window.addEventListener('pageshow', render);
