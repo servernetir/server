@@ -1,5 +1,174 @@
 {
-  "files": [],
+  "files": [
+    {
+      "source": "website/app/Services/Cloud/CloudStoreDraft.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudStoreDraft.php",
+      "new": true,
+      "before": null,
+      "after": "1b1c64be8144016524aeb4d79c231d874216a272502e19f5fc2a70a03926c743"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreGuestController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreGuestController.php",
+      "new": true,
+      "before": null,
+      "after": "0f7bbe06d1dd943d75249595029b4189276eeb124cf2a27b3dfcd9d8d436fba7"
+    },
+    {
+      "source": "website/app/Http/Middleware/CloudStoreBrowse.php",
+      "destination": "servernet_app/app/Http/Middleware/CloudStoreBrowse.php",
+      "new": true,
+      "before": null,
+      "after": "e87febca7a8f9ef463ab9d40ec7b19cc098a77865b9209cfc87b43ba8bd98f3c"
+    },
+    {
+      "source": "website/resources/views/layouts/cloud-store.blade.php",
+      "destination": "servernet_app/resources/views/layouts/cloud-store.blade.php",
+      "new": true,
+      "before": null,
+      "after": "9400e1730c5aa14c644b8e8fa0368e0e61e4b3c9d278009e57d54ff029ff7bba"
+    },
+    {
+      "source": "website/resources/views/partials/home-gpu-slide.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-gpu-slide.blade.php",
+      "new": true,
+      "before": null,
+      "after": "aa6182d3de04251fdae2a2bb0b793609920f3ca792c3fbe839ba4dd01bd7504b"
+    },
+    {
+      "source": "website/lang/fa/cloud_store_guest.php",
+      "destination": "servernet_app/lang/fa/cloud_store_guest.php",
+      "new": true,
+      "before": null,
+      "after": "8bf86bd4ede4229ae8e43159e8993ac4b12e52837d62a1a6fbe3d484b50a0c2c"
+    },
+    {
+      "source": "website/lang/en/cloud_store_guest.php",
+      "destination": "servernet_app/lang/en/cloud_store_guest.php",
+      "new": true,
+      "before": null,
+      "after": "edb5d1084e5f9162bcfc16a7ae708eef63f5474cc1e1f600ece1a5f4d04e3e67"
+    },
+    {
+      "source": "website/lang/tr/cloud_store_guest.php",
+      "destination": "servernet_app/lang/tr/cloud_store_guest.php",
+      "new": true,
+      "before": null,
+      "after": "2d827c20caf67e3b57dd1b82fe8e1550e9332f33abf29dbeb32bdcc3f9179492"
+    },
+    {
+      "source": "website/public/assets/css/home-gpu-slide.css",
+      "destination": "servernet_app/public/assets/css/home-gpu-slide.css",
+      "new": true,
+      "before": null,
+      "after": "8de7f41d12ffd25aff3e55aac2b64d5164974a7ca46ac7ba28d8d4225db501d5"
+    },
+    {
+      "source": "website/public/assets/css/home-gpu-slide.css",
+      "destination": "public_html/assets/css/home-gpu-slide.css",
+      "new": true,
+      "before": null,
+      "after": "8de7f41d12ffd25aff3e55aac2b64d5164974a7ca46ac7ba28d8d4225db501d5"
+    },
+    {
+      "source": "website/public/assets/css/cloud-store-public.css",
+      "destination": "servernet_app/public/assets/css/cloud-store-public.css",
+      "new": true,
+      "before": null,
+      "after": "710f3b6ee21eec4ec8b05325399ead0fa2f78990cc1dc3e987437ae39f7a888f"
+    },
+    {
+      "source": "website/public/assets/css/cloud-store-public.css",
+      "destination": "public_html/assets/css/cloud-store-public.css",
+      "new": true,
+      "before": null,
+      "after": "710f3b6ee21eec4ec8b05325399ead0fa2f78990cc1dc3e987437ae39f7a888f"
+    },
+    {
+      "source": "website/lang/fa/home_slides.php",
+      "destination": "servernet_app/lang/fa/home_slides.php",
+      "patch": true,
+      "before": "e44f691588a8c85b401659215b83fa92f082045fa754794d86c7111e74485b19",
+      "after": "f4b6d93ab9507817deb8bf958a0f94b6588c081ea02b8a34acfc50519bd71936"
+    },
+    {
+      "source": "website/lang/en/home_slides.php",
+      "destination": "servernet_app/lang/en/home_slides.php",
+      "patch": true,
+      "before": "d485f68c495708b3a84d412c9d0ac7a80172627f669aa4ef05ef08cebc133514",
+      "after": "a046e0481e686969e5323381174dded0e69160aff74c779b81a348476209ddc9"
+    },
+    {
+      "source": "website/lang/tr/home_slides.php",
+      "destination": "servernet_app/lang/tr/home_slides.php",
+      "patch": true,
+      "before": "1344f316f199c9a85ecbd501deaf38b3661e26225f890df4c71284ce6235c7ff",
+      "after": "f70bf5cb0ae8128cea542eddaa3df0ec75740436c210969d0442771674f9bd00"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "patch": true,
+      "before": "feea7b1be9fa54ca47a6706e257cc8f4e11ee53abeaae4ad4898c75ca8be781b",
+      "after": "4dfe9c4ca7182e8b9d1f8a67867364c794d91c514d3c964d962ce75c84d5efe4"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "patch": true,
+      "before": "feea7b1be9fa54ca47a6706e257cc8f4e11ee53abeaae4ad4898c75ca8be781b",
+      "after": "4dfe9c4ca7182e8b9d1f8a67867364c794d91c514d3c964d962ce75c84d5efe4"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "patch": true,
+      "before": "e60d726fd7b78d25e63d3ea198c3e0ad51e468c898a4c4db0450bff5e357acf5",
+      "after": "082d982b47f7d0da02b3d6e1c9a31b2690f0483075c0c7feec4b41281d08eb53"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "patch": true,
+      "before": "e60d726fd7b78d25e63d3ea198c3e0ad51e468c898a4c4db0450bff5e357acf5",
+      "after": "082d982b47f7d0da02b3d6e1c9a31b2690f0483075c0c7feec4b41281d08eb53"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
+      "patch": true,
+      "before": "b3be91e401499f3fc0e6d0c1623e606c959ad1e938f6b6d90d57e62c2053063d",
+      "after": "2b0f0f54acd353fb79acbe13bf2907e242e0ae311ba702d1f1ba3343cd551a18"
+    },
+    {
+      "source": "website/resources/views/account/cloud-store.blade.php",
+      "destination": "servernet_app/resources/views/account/cloud-store.blade.php",
+      "patch": true,
+      "before": "a46e61290396ae11f90ca5ce71fadc97a48769512ff0708a440444bc098f0bbe",
+      "after": "5d75032d9623ba7b496a8e16072b86eb83cf5c099af4d2da95bf1a68dca7b6ff"
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "patch": true,
+      "before": "ad88072845973a445c120619f1a186faf32583fe368e2c2ee7b7b5afd083131c",
+      "after": "62414a315ad3479d1e238a669373192583ba9f58606ab5196409bb9663f52a09"
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "patch": true,
+      "before": "03543be0bd5faf871c52fca7fde156a848bdd56ae63e9adb1ab625d2c8134fab",
+      "after": "ab06f5fe29d12e38f0cafdd2315747400b6fbe38d9e2e8862bd1058b0d83e7bf"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "patch": true,
+      "before": "1f7486f23a40fe941243b1fcacae36291339d96d24a36531c8c576a9ae24c8fa",
+      "after": "a926de2388fa515c00c3a3aeb98bdad647621d97c5e73f2edfad2a7a21ce9add"
+    }
+  ],
   "helpers": {
     "activation_common.py": {
       "path": "scripts/mcp-auto-approval-20261122/activate.py",
@@ -28,7 +197,7 @@
     {
       "name": "gpu-preview.css",
       "source": "website/public/assets/css/home-gpu-slide.css",
-      "sha256": "a04fd65233157d08a17669e46524f97c73788356145e55865b1a3ba2d448d4b2"
+      "sha256": "8de7f41d12ffd25aff3e55aac2b64d5164974a7ca46ac7ba28d8d4225db501d5"
     },
     {
       "name": "carousel-preview.js",

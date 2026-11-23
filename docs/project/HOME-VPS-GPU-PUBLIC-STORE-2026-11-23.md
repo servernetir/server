@@ -16,7 +16,11 @@ The owner requested a VPS-specific first hero, a dedicated GPU second hero, Stud
 
 ## Validation
 
-Focused rendering/auth/order tests, real-Blade carousel DOM tests, a baseline comparison of the older cloud-store financial suite, and scoped-release guard tests are run for this change. Final counts and actual limitations are recorded with acceptance.
+- 46 focused PHP tests / 745 assertions pass, including 11 public-store/auth/draft cases, actual explicit authenticated order confirmation with server-owned pricing, three-locale homepage rendering and concurrent managed-n8n coverage.
+- 15 real-Blade DOM tests pass: exact six-second transitions, five-slide order/loop, manual controls, Studio examples, focus/visibility/reduced motion and actual production globe pointer pause.
+- Four disposable release tests pass: exact preservation/rollback, activation-failure rollback ordering and refusal of concurrent edits.
+- The legacy 60-test store/GPU/auth regression selection has 34 passing and 26 existing failures/errors on both immutable base and this change; there are no new failing test names. Those older catalog-pricing fixtures are not represented as a clean baseline or fixed as part of this request.
+- Browser source-fixture review: brand glass GPU artwork/copy in Persian/English, light/dark and desktop 1024×600 and 1280×720 with statistics at the viewport bottom and zero horizontal overflow. The native production globe integration is retained and is verified after installation; the preproduction fixture intentionally uses its static illustration.
 
 ## Limited release
 
