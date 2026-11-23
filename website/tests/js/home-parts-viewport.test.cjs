@@ -39,7 +39,7 @@ async function snapshot(page) {
     return {
       viewport: {w:document.documentElement.clientWidth, h:innerHeight},
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-      internalScroll: [document.querySelector('.sn-home-intro').scrollTop, document.querySelector('.sn-hero-carousel').scrollTop],
+      internalScroll: ['.sn-home-intro','.sn-hero-carousel','#hero-parts'].map(s=>document.querySelector(s).scrollTop),
       header:box('#header-wrap'), slide:box('#hero-parts'), scene:box('.sn-parts-scene'),
       head:box('.sn-parts-scene-head'), foot:box('.sn-parts-scene-foot'),
       copy:box('.sn-parts-copy'), visual:box('.sn-parts-visual'), art:box('.sn-parts-art'),
@@ -110,6 +110,14 @@ for (const engine of engines) test(`${engine}: hardware scene fits the real head
     const pageErrors = [];
     page.on('pageerror', err => pageErrors.push(err.message));
     let count = 0;
+    const failures = [];
+    const check = async (id, fitFirstFold, clickable=true) => {
+      try {
+        assertGeometry(await snapshot(page),id,fitFirstFold);
+        if(clickable) await assertHitTarget(page,'.sn-parts-chassis');
+        count++;
+      } catch(error) { failures.push(error.message); }
+    };
     for (const locale of ['fa','en','tr']) {
       await page.setViewportSize({width:1440,height:770});
       await page.goto(origin+(locale==='fa'?'/':'/'+locale),{waitUntil:'domcontentloaded'});
@@ -122,29 +130,24 @@ for (const engine of engines) test(`${engine}: hardware scene fits the real head
         // decorative clipped halo, even when document scroll is reset.
         await page.locator('[data-hero-target="parts"]').evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
         await settle(page);
-        const g = await snapshot(page);
-        assertGeometry(g,`${engine}/${locale}/${width}x${height} ${name}`,width>=1000&&height>=650);
-        await assertHitTarget(page,'.sn-parts-chassis');
-        count++;
+        await check(`${engine}/${locale}/${width}x${height} ${name}`,width>=1000&&height>=650);
       }
       // Actual resize observer must respect a taller header and intrinsic text.
       await page.setViewportSize({width:1440,height:770});
       await page.evaluate(() => { document.documentElement.dataset.theme='light'; document.documentElement.style.fontSize='125%'; });
       const taller = await page.addStyleTag({content:'#header-wrap .topbar .container{height:68px!important}'});
       await settle(page);
-      assertGeometry(await snapshot(page),`${engine}/${locale}/light enlarged font and header`,false);
-      await assertHitTarget(page,'.sn-parts-chassis');
-      count++;
+      await check(`${engine}/${locale}/light enlarged font and header`,false);
       await taller.evaluate(el => el.remove());
       await page.evaluate(() => { document.documentElement.style.fontSize=''; });
       // Exercise the exact measured fallback, even when cqh is supported.
       const fallback = await page.addStyleTag({content:'.sn-home-intro .sn-parts-visual{container-type:normal!important}.sn-home-intro .sn-parts-art{width:min(100%,var(--sn-parts-art-limit,100%))!important}'});
       await page.setViewportSize({width:1280,height:680});
       await settle(page);
-      assertGeometry(await snapshot(page),`${engine}/${locale}/measured fallback`,true);
-      count++;
+      await check(`${engine}/${locale}/measured fallback`,true,false);
       await fallback.evaluate(el => el.remove());
     }
+    assert.deepEqual(failures,[],'geometry and hit target failures across the full matrix');
     assert.deepEqual(pageErrors,[],'no uncaught JavaScript errors in the actual homepage');
     console.log(`${engine}: ${count} responsive cases; all three languages, actual bars, zoom equivalents, light theme and measured fallback`);
     await context.close();

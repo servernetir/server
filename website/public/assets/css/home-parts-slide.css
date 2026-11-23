@@ -1,6 +1,6 @@
 /* A freestanding physical server, with no surrounding panel. The halo is a
    slide-level backdrop so it can continue behind the glass controls/proof rail. */
-.sn-parts-hero{--parts-ink:#e5f5ff;--parts-muted:#a4bacd;--parts-rim:#7bcce520;--parts-glow:#237ab34a;--parts-ground:#26739f35;--parts-shadow:#020a12c2;isolation:isolate;background:none}
+.sn-parts-hero{--parts-ink:#e5f5ff;--parts-muted:#a4bacd;--parts-rim:#7bcce520;--parts-glow:#237ab34a;--parts-ground:#26739f35;--parts-shadow:#020a12c2;isolation:isolate;background:none;overflow:visible}
 .sn-parts-hero .sn-service-layout{position:relative;z-index:1;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(26px,4vw,78px)}
 .sn-parts-halo{position:absolute;z-index:-1;inset-block:0 -8%;inset-inline-end:-7%;width:72%;pointer-events:none;background:radial-gradient(ellipse 53% 72% at 50% 66%,var(--parts-glow),transparent 93%),radial-gradient(ellipse 51% 45% at 50% 100%,var(--parts-ground),transparent 95%)}
 .sn-parts-halo::before{content:"";position:absolute;inset:5% 7% -7%;background:radial-gradient(ellipse 50% 50% at 50% 50%,transparent 36%,var(--parts-ground) 60%,var(--parts-rim) 73%,transparent 99%),radial-gradient(ellipse 50% 50% at 50% 55%,var(--parts-glow),transparent 94%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 57%,#000a 77%,transparent 100%);pointer-events:none}
@@ -77,7 +77,6 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
      the glass controls. The runtime measures only these intrinsic boxes. */
   .sn-public #main{padding-block-start:var(--sn-home-header-space,var(--header-h,112px))}
   .sn-public .sn-home .sn-home-intro{margin-block-start:calc(-1 * var(--sn-home-header-space,var(--header-h,112px)));padding-block-start:var(--sn-home-header-space,var(--header-h,112px));min-height:var(--sn-home-parts-min-intro,0px);overflow:clip}
-  .sn-home-intro .sn-parts-hero{overflow:visible}
   .sn-home-intro .sn-parts-halo{inset-block:-9svh -210px;inset-inline-end:-8vw;width:min(77vw,1180px)}
   /* The collection title and caption are ordinary grid rows. Only the art
      is scalable; its available height is the actual remaining middle row,
