@@ -22,9 +22,11 @@ use Illuminate\Support\Facades\Http;
 
 umask(0077);
 $mode = $argv[1] ?? '';
-if (! in_array($mode, ['create', 'status', 'cleanup'], true)) { exit(64); }
-$run = 'n8n-acceptance-20261123';
-$receipt = __DIR__.'/acceptance-receipt.json';
+if (! in_array($mode, ['create', 'status', 'observe', 'cleanup'], true)) { exit(64); }
+$suffix = $argv[2] ?? '';
+if (! in_array($suffix, ['', 'final'], true)) { exit(64); }
+$run = 'n8n-acceptance-20261123'.($suffix ? '-'.$suffix : '');
+$receipt = __DIR__.'/acceptance-receipt'.($suffix ? '-'.$suffix : '').'.json';
 $lock = fopen(__DIR__.'/acceptance.lock', 'c');
 if (! flock($lock, LOCK_EX | LOCK_NB)) { exit(75); }
 function recordReceipt(string $path, array $data): void {
@@ -106,10 +108,12 @@ try {
         echo json_encode(['status' => 'cleaned', 'service_id' => $service->id]).PHP_EOL;
         exit(0);
     }
-    $live = $driver->serverStatus((string) $instance->provider_ref);
-    requireCondition($live['ok'] ?? false, 'Provider status unavailable');
-    $instance->update(['status' => $live['status'], 'synced_at' => now()]);
-    app(ManagedN8n::class)->advance($service);
+    if ($mode !== 'observe') {
+        $live = $driver->serverStatus((string) $instance->provider_ref);
+        requireCondition($live['ok'] ?? false, 'Provider status unavailable');
+        $instance->update(['status' => $live['status'], 'synced_at' => now()]);
+        app(ManagedN8n::class)->advance($service);
+    }
     $instance->refresh();
     $state = (array) data_get($instance->meta, 'n8n', []);
     if (($state['state'] ?? '') === 'ready' && empty($data['verified_at'])) {

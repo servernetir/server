@@ -73,6 +73,7 @@ class InstallerTest(unittest.TestCase):
     def test_docker_repository_403_uses_signed_ubuntu_packages(self):
         error = urllib.error.HTTPError('https://download.docker.com', 403, 'blocked', {}, None)
         with patch.object(installer, 'ROOT', self.root), \
+                patch.object(installer.shutil, 'which', return_value=None), \
                 patch.object(Path, 'read_text', return_value='ID=ubuntu\nVERSION_CODENAME=noble\n'), \
                 patch.object(Path, 'mkdir'), \
                 patch.object(installer.subprocess, 'check_output', return_value='amd64'), \
