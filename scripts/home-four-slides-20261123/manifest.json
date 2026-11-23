@@ -40,13 +40,13 @@
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "servernet_app/public/assets/css/studio-carousel.css",
       "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
-      "after": "929f39db8adc8885595442a6b0f2fbb337d81f6ab0e7bb0fa9aa24244881187c"
+      "after": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e"
     },
     {
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "public_html/assets/css/studio-carousel.css",
       "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
-      "after": "929f39db8adc8885595442a6b0f2fbb337d81f6ab0e7bb0fa9aa24244881187c"
+      "after": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e"
     },
     {
       "source": "website/public/assets/js/studio-carousel.js",
@@ -109,17 +109,17 @@
     {
       "name": "preview-fa.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-fa.html",
-      "sha256": "3eb49f9307f250678745b1b7da76739eb8c1386a33de6be1abf3b595180a0582"
+      "sha256": "3ce1d9523e183b0c855a52bf86b8e743a035cf6c609f54690b74ec6115a64af1"
     },
     {
       "name": "preview-en.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-en.html",
-      "sha256": "95d82a36f76e69156690ceaa9ad28b59ca40e45e9050bed1ab08937836603098"
+      "sha256": "418e730e83ed39e67a2382f789919b8df02dd3f2f33d2c56399cac9515c73800"
     },
     {
       "name": "preview-tr.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-tr.html",
-      "sha256": "0f04d076002185e94c7d9e0d248edec9d61a2a77ded087c64961088f50d610a8"
+      "sha256": "48969ade3327153e7611e9a7b8ab1ff1a9d00240d472e8605141004b34c4b574"
     },
     {
       "name": "studio-coffee-campaign.webp",
