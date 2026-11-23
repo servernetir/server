@@ -593,4 +593,57 @@ class VpsTcRenewalTest extends TestCase
         $this->assertSame('renewal_context_changed', CloudProviderOperation::where('action', 'renew')->sole()->payload['last_issue']);
         Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
     }
+    private function prepaidN8n(): array
+    {
+        Carbon::setTestNow('2026-10-28 10:00:00');
+        [$service, $invoice] = $this->invoice(['cycle' => 'quarterly', 'next_due_at' => '2026-12-30',
+            'provision_meta' => ['application' => 'n8n']]);
+        $invoice->update(['subtotal' => 2160000, 'total' => 2160000, 'paid' => 2160000]);
+        $invoice->items()->first()->update(['unit_price' => 2160000, 'line_total' => 2160000,
+            'marketing_context' => ['operation' => 'purchase', 'provider' => 'vpstc', 'billing_cycle' => 'quarterly']]);
+        return [$service, $invoice];
+    }
+
+    public function test_managed_n8n_prepaid_term_renews_supplier_once_without_extending_customer_term(): void
+    {
+        [$service] = $this->prepaidN8n();
+        $this->supplier();
+        $renewal = app(VpsTcRenewal::class);
+        $this->assertFalse($renewal->applies($service));
+        $this->assertTrue($renewal->retainManagedN8n($service));
+        $this->assertSame('2026-12-30', $service->fresh()->next_due_at->toDateString());
+        $this->assertSame('2026-11-30', data_get($service->cloudInstance->fresh()->meta, 'vpstc_supplier_due_at'));
+        $this->assertFalse($renewal->retainManagedN8n($service));
+        $this->assertSame(1, CloudProviderOperation::where('action', 'renew')->count());
+        $this->assertCount(1, Http::recorded(fn ($request) => str_ends_with($request->url(), '/renew')));
+    }
+
+    public function test_managed_n8n_supplier_timeout_never_buys_the_same_period_twice(): void
+    {
+        [$service] = $this->prepaidN8n();
+        $this->supplier(['https://portal.vps.tc/api/service/301/renew' => fn () => throw new ConnectionException('timeout')]);
+        $renewal = app(VpsTcRenewal::class);
+        $this->assertFalse($renewal->retainManagedN8n($service));
+        $this->assertFalse($renewal->retainManagedN8n($service));
+        $this->assertSame(1, CloudProviderOperation::where('action', 'renew')->count());
+        $calls = Http::recorded(fn ($r) => str_ends_with($r->url(), '/renew'));
+        // Connection failures may not be recorded by the HTTP fake. The durable claim is authoritative.
+        $this->assertLessThanOrEqual(1, $calls->count());
+        $this->assertSame('unknown', CloudProviderOperation::where('action', 'renew')->sole()->state);
+        $this->assertSame('2026-12-30', $service->fresh()->next_due_at->toDateString());
+    }
+
+    public function test_managed_n8n_does_not_retain_unpaid_expired_or_cancelled_terms(): void
+    {
+        [$service, $invoice] = $this->prepaidN8n();
+        $invoice->update(['status' => 'unpaid', 'paid' => 0]);
+        $this->assertFalse(app(VpsTcRenewal::class)->retainManagedN8n($service));
+        $service->update(['next_due_at' => '2026-10-28']);
+        $this->assertFalse(app(VpsTcRenewal::class)->retainManagedN8n($service));
+        $service->update(['status' => 'cancelled', 'next_due_at' => '2026-12-30']);
+        $this->assertFalse(app(VpsTcRenewal::class)->retainManagedN8n($service));
+        $this->assertSame(0, CloudProviderOperation::count());
+        Http::assertNothingSent();
+    }
+
 }

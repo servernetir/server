@@ -1,0 +1,65 @@
+name: Managed n8n delivery
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/app/**/ManagedN8n*', 'website/app/**/DeliverManagedN8n*', 'website/app/Services/Cloud/VpsTcRenewal.php', 'website/app/Http/Controllers/Account/CloudStoreController.php', 'website/resources/n8n/**', 'website/resources/views/**/n8n*', 'website/tests/Feature/ManagedN8nTest.php', 'website/tests/Feature/VpsTcRenewalTest.php', 'scripts/n8n-release/**', '.github/workflows/managed-n8n.yml']
+permissions:
+  contents: read
+jobs:
+  delivery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-only
+          MARIADB_DATABASE: n8n_testing
+        ports: ['3306:3306']
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_mysql, pdo_sqlite, sodium, zip
+          tools: composer:v2
+          coverage: none
+      - name: Install locked dependencies
+        working-directory: website
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Verify isolated checkout and database-specific configuration
+        working-directory: website
+        env:
+          TEST_DATABASE: ${{ matrix.database }}
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          php artisan package:discover --ansi
+          python3 <<'PY'
+          import os, xml.etree.ElementTree as E
+          tree = E.parse('phpunit.xml')
+          data = {'DB_CONNECTION': 'mysql', 'DB_HOST': '127.0.0.1', 'DB_PORT': '3306',
+                  'DB_DATABASE': 'n8n_testing', 'DB_USERNAME': 'root', 'DB_PASSWORD': 'ci-only'}
+          if os.environ['TEST_DATABASE'] == 'sqlite':
+              data.update(DB_CONNECTION='sqlite', DB_DATABASE=':memory:')
+          for key, value in data.items():
+              node = tree.find('./php/env[@name="'+key+'"]')
+              if node is None: node = E.SubElement(tree.find('php'), 'env', name=key)
+              node.set('value', value); node.set('force', 'true')
+          tree.write('.n8n-ci.xml', encoding='unicode')
+          PY
+      - name: Test pricing, payment gating, delivery and supplier reconciliation
+        working-directory: website
+        run: php vendor/bin/phpunit -c .n8n-ci.xml --filter='ManagedN8nTest|VpsTcRenewalTest|VpsTcLifecycleTest|CloudProxmoxTest|CloudProvisionTest|CloudDeliveryReadinessTest|ServiceRenewalsTest'
+      - name: Validate isolated guest installer and limited release
+        run: |
+          python3 scripts/n8n-release/test_installer.py
+          python3 scripts/n8n-release/test_release.py
+          php -l scripts/n8n-release/activate.php

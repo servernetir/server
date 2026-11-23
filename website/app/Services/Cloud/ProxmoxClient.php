@@ -538,6 +538,14 @@ class ProxmoxClient implements CloudProvider
                 return ['ok' => false, 'message' => 'آدرسِ IP آزاد در محدوده پیدا نشد.'] + $fail;
             }
 
+            if (($spec['managed_application'] ?? null) === 'n8n') {
+                $capacity = $this->req('GET', '/nodes/'.rawurlencode($node).'/status');
+                $free = (int) ($capacity['body']['data']['memory']['free'] ?? 0);
+                if (! $capacity['ok'] || $free < ((int) ($spec['ram_mb'] ?? 0) + 2048) * 1048576) {
+                    return ['ok' => false, 'transient' => true, 'message' => 'ظرفیت حافظه برای ساخت این سرویس کافی نیست.'] + $fail;
+                }
+            }
+
             // ── (ج) کلونِ قالب ──
             // ایمیج = VMIDِ قالب (از کاتالوگ)؛ اگر نامعتبر بود، قالبِ پیش‌فرضِ تنظیمات.
             $imageRef = (string) ($spec['image_ref'] ?? '');
@@ -579,12 +587,22 @@ class ProxmoxClient implements CloudProvider
                 'description' => $this->describe($spec),
             ];
 
+            if (($spec['managed_application'] ?? null) === 'n8n') {
+                $config['cores'] = max(1, min(64, (int) ($spec['vcpu'] ?? 1)));
+                $config['memory'] = max(2048, min(524288, (int) ($spec['ram_mb'] ?? 2048)));
+                $config['balloon'] = 0;
+            }
+
             if (filled($spec['ssh_keys'] ?? null)) {
                 // Proxmox کلیدها را **url-encode‌شده** می‌خواهد (خط‌به‌خط)
                 $config['sshkeys'] = rawurlencode(implode("\n", (array) $spec['ssh_keys']));
             }
 
-            $this->req('PUT', '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($vmid).'/config', $config);
+            $configured = $this->req('PUT', '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($vmid).'/config', $config);
+            if (($spec['managed_application'] ?? null) === 'n8n' && ! $configured['ok']) {
+                return ['ok' => false, 'ref' => $vmid, 'ipv4' => $ip, 'ipv6' => null,
+                    'root_password' => $password, 'status' => 'error', 'message' => 'تنظیم منابع ماشین تأیید نشد.'];
+            }
 
             // اندازهٔ دیسک — best-effort؛ شکستش تحویل را نمی‌شکند (سرور با دیسکِ
             // پیش‌فرضِ قالب هم بالا می‌آید).

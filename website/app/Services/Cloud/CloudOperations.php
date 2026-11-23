@@ -736,6 +736,7 @@ class CloudOperations
     /** Use the same region/resource/capability guard for the picker and POST. */
     public function rebuildImageRef(Service $service, string $key): ?string
     {
+        if (ManagedN8nCatalog::handles($service)) { return null; }
         $g = $this->gate($service, 'rebuild');
         $plan = $service->cloudPlan;
         if (! $g['ok'] || $plan === null || $plan->provider !== $g['instance']->provider

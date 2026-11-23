@@ -10,6 +10,7 @@
      provider identity remains private throughout this view. --}}
 
 @section('panel')
+@include('account.partials.n8n-access')
 
 @php
   $inst  = $instance;

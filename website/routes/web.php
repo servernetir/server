@@ -533,6 +533,8 @@ $site = function (): void {
         | همین کار داخلِ GETِ صفحه انجام می‌شد و هر رفرش یا prefetch رمز را
         | پیش از دیده‌شدن می‌سوزاند — مشتری سرور داشت و راهی به داخلش نداشت.
         */
+        Route::post('/cloud/{service}/n8n-access', [Account\CloudServerController::class, 'n8nAccess'])
+            ->name('cloud.n8n-access')->middleware('throttle:6,1');
         Route::post('/cloud/{service}/reveal-password', [Account\CloudServerController::class, 'revealPassword'])
             ->name('cloud.reveal')->middleware('throttle:6,1');
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');

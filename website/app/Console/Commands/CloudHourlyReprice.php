@@ -60,8 +60,10 @@ class CloudHourlyReprice extends Command
                 continue;
             }
 
-            $newIrt = $row->hourlyIrt();
-            $newEur = $row->hourlyEurCents();
+            $n8n = \App\Services\Cloud\ManagedN8nCatalog::handles($s);
+            $catalog = app(\App\Services\Cloud\ManagedN8nCatalog::class);
+            $newIrt = $n8n ? $catalog->hourly($row) : $row->hourlyIrt();
+            $newEur = $n8n ? $catalog->hourlyEur($row) : $row->hourlyEurCents();
             $oldIrt = (int) $s->hourly_rate_irt;
             $oldEur = (int) ($s->hourly_rate_eur ?? 0);
 

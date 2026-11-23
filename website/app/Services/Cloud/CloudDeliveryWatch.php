@@ -178,6 +178,10 @@ class CloudDeliveryWatch
                 : 'هنوز هیچ سروری برایش ساخته نشده.';
         }
 
+        if (ManagedN8nCatalog::handles($service) && data_get($instance->meta, 'n8n.state') !== 'ready') {
+            return 'نصب یا تأیید HTTPS سرویس n8n تکمیل نشده است.';
+        }
+
         if ($instance->status === 'deleted') {
             return null;                       // سرور آگاهانه حذف شده
         }

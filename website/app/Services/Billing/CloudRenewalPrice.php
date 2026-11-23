@@ -28,7 +28,7 @@ class CloudRenewalPrice
         }
 
         return max($current, CloudStoreController::priceForCycle(
-            $plan, (string) $service->cycle, (array) ($service->cloud_addons ?? [])
+            $plan, (string) $service->cycle, (array) ($service->cloud_addons ?? []), \App\Services\Cloud\ManagedN8nCatalog::handles($service)
         ));
     }
 }

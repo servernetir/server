@@ -135,7 +135,7 @@ final class HourlyCycleConverter
             return 0;
         }
 
-        return CloudStoreController::priceForCycle($plan, $cycle, (array) ($service->cloud_addons ?? []));
+        return CloudStoreController::priceForCycle($plan, $cycle, (array) ($service->cloud_addons ?? []), ManagedN8nCatalog::handles($service));
     }
 
     /**

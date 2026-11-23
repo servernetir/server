@@ -1,0 +1,225 @@
+{
+  "release": "n8n-20261123",
+  "base": "3b0aebfb7940c594cd7f2729aee10bb4412187b2",
+  "files": [
+    {
+      "source": "website/app/Console/Commands/DeliverManagedN8n.php",
+      "destination": "servernet_app/app/Console/Commands/DeliverManagedN8n.php",
+      "before": null,
+      "after": "157ee9375ef75bea0e19402b6e6b92ceda427e2f048c9a994c9dfb1c382110f1"
+    },
+    {
+      "source": "website/app/Http/Controllers/ManagedN8nController.php",
+      "destination": "servernet_app/app/Http/Controllers/ManagedN8nController.php",
+      "before": null,
+      "after": "3e6f3057b24a046e495d7c34bef71b2c2e3a5e207165416741b0751f22e089aa"
+    },
+    {
+      "source": "website/app/Services/Cloud/ManagedN8n.php",
+      "destination": "servernet_app/app/Services/Cloud/ManagedN8n.php",
+      "before": null,
+      "after": "5489c6031eb0684df50a8ab7017eebd4e478dcae364c6fa6cc016af4b794d7d7"
+    },
+    {
+      "source": "website/app/Services/Cloud/ManagedN8nCatalog.php",
+      "destination": "servernet_app/app/Services/Cloud/ManagedN8nCatalog.php",
+      "before": null,
+      "after": "0521266a829ade4179e4ccca30dd4439c8ea045baa534e08dc512ad3d0ada669"
+    },
+    {
+      "source": "website/app/Services/Cloud/ManagedN8nSsh.php",
+      "destination": "servernet_app/app/Services/Cloud/ManagedN8nSsh.php",
+      "before": null,
+      "after": "be65ac0f6897869f65d88ba82bd09ff6247b947163166c216d4e4acfcd7d2454"
+    },
+    {
+      "source": "website/config/managed_n8n.php",
+      "destination": "servernet_app/config/managed_n8n.php",
+      "before": null,
+      "after": "f021385acdecfacb113129a1ddc1299c240b6067e36870c9a15cab2e12d7468f"
+    },
+    {
+      "source": "website/lang/en/n8n.php",
+      "destination": "servernet_app/lang/en/n8n.php",
+      "before": null,
+      "after": "e0b5e527b190d6b6e23541ca76265b978e02b6a1054ec5377763b5d68a711ea1"
+    },
+    {
+      "source": "website/lang/fa/n8n.php",
+      "destination": "servernet_app/lang/fa/n8n.php",
+      "before": null,
+      "after": "d557a610b2a0c9fb2f6777e928be19134da718a5f92bfb7c870dd6312010edfe"
+    },
+    {
+      "source": "website/lang/tr/n8n.php",
+      "destination": "servernet_app/lang/tr/n8n.php",
+      "before": null,
+      "after": "bd083090c981d133275988dedcb620221a2ea2a55ce430f35553efbbb348f07b"
+    },
+    {
+      "source": "website/public/assets/css/n8n.css",
+      "destination": "public_html/assets/css/n8n.css",
+      "before": null,
+      "after": "a093bb7647e14e15c79bdd677ea6f6aa8291740d07885757ef4f28d15b0f7b72"
+    },
+    {
+      "source": "website/public/assets/css/n8n.css",
+      "destination": "servernet_app/public/assets/css/n8n.css",
+      "before": null,
+      "after": "a093bb7647e14e15c79bdd677ea6f6aa8291740d07885757ef4f28d15b0f7b72"
+    },
+    {
+      "source": "website/resources/n8n/install.py",
+      "destination": "servernet_app/resources/n8n/install.py",
+      "before": null,
+      "after": "f03754090ac4333a44182a2306e1fe53c5cafe28839639bb4a85822f7c0cc17f"
+    },
+    {
+      "source": "website/resources/views/account/n8n-store.blade.php",
+      "destination": "servernet_app/resources/views/account/n8n-store.blade.php",
+      "before": null,
+      "after": "25853041c10047bcd95ebce1c07278e48c8acf0424a6059ec969004bdb4e8538"
+    },
+    {
+      "source": "website/resources/views/account/partials/n8n-access.blade.php",
+      "destination": "servernet_app/resources/views/account/partials/n8n-access.blade.php",
+      "before": null,
+      "after": "34851386a49f99a0f66ad0292cc2cca8948efa4421ab9c9d8efa8ff646c5a169"
+    },
+    {
+      "source": "website/resources/views/pages/n8n.blade.php",
+      "destination": "servernet_app/resources/views/pages/n8n.blade.php",
+      "before": null,
+      "after": "0bf2367362560f6e80dbf8860308438c565930e5d34a3adff587a42562530495"
+    },
+    {
+      "source": "website/resources/views/partials/n8n-plans.blade.php",
+      "destination": "servernet_app/resources/views/partials/n8n-plans.blade.php",
+      "before": null,
+      "after": "142de482974f34e00c74d06078aed5da56c8de6a2f0caa4993fc7b0a0e4a5a38"
+    },
+    {
+      "source": "website/app/Console/Commands/CloudHourlyReprice.php",
+      "destination": "servernet_app/app/Console/Commands/CloudHourlyReprice.php",
+      "before": "936b936343c4d8f4eea9e7c6d812fb8001d268b6fdd2d8c82e01c63c6abec761",
+      "after": "4e21384255a6ad356da702dda4a62141b89c6e032a52d93ad50231894319fda6"
+    },
+    {
+      "source": "website/app/Models/CloudInstance.php",
+      "destination": "servernet_app/app/Models/CloudInstance.php",
+      "before": "ebc2b03c242092dabbf814e4ce393f9d9f75f7579c63ecaa1c68ff127be0c76b",
+      "after": "726adce4ea4119a9b04ebe72988b2bf1708e78436b175e589c9676fccdd85262"
+    },
+    {
+      "source": "website/app/Services/Billing/CloudRenewalPrice.php",
+      "destination": "servernet_app/app/Services/Billing/CloudRenewalPrice.php",
+      "before": "ebe065841f81d57bde3e1a577131e0aec49d9a4fb5c48a2707a27c2ea3a3ff44",
+      "after": "597783785737fec5e9049bab0dd1e72fbe73ed0f3b573fea23cdf236137cff56"
+    },
+    {
+      "source": "website/app/Services/Billing/ServiceRenewals.php",
+      "destination": "servernet_app/app/Services/Billing/ServiceRenewals.php",
+      "before": "e5fadd4a5f3768514fb8f8789e6446d736ab306ab4d946b827f7f42bc474ec91",
+      "after": "85098ac54693dfdde4deadeaa855f879015a6627b9f59e8d0c97a26c3ff2366d"
+    },
+    {
+      "source": "website/app/Services/Cloud/CloudDeliveryWatch.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudDeliveryWatch.php",
+      "before": "e203ab9134b70108bf296416c042db4a5411f4f15575d82c76d8aca3a8d37164",
+      "after": "9f88d65a4d989fa1e16ab25f69eceb3e87dc97781f619aca09385ab89bad290a"
+    },
+    {
+      "source": "website/app/Services/Cloud/CloudOperations.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudOperations.php",
+      "before": "1cc241f53d6070c06eb543c43ed82ba73f38aa3a983839a646ac2bd7d98159d7",
+      "after": "4061fea2f5cbeb2702dbf66cb50e4d253e3472625b39b7d50d5617dbc04dfb69"
+    },
+    {
+      "source": "website/app/Services/Cloud/CloudProvisioner.php",
+      "destination": "servernet_app/app/Services/Cloud/CloudProvisioner.php",
+      "before": "c10aaba44e67ac256ad943224df92db39d08c1de3b16f2588b6cd493afb01b50",
+      "after": "5bcb8a0cd57f5d96eeb3d3d3dc1ea6eadd794b4fc09ec9ad74ec09602ddc67eb"
+    },
+    {
+      "source": "website/app/Services/Cloud/HourlyCycleConverter.php",
+      "destination": "servernet_app/app/Services/Cloud/HourlyCycleConverter.php",
+      "before": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9",
+      "after": "bf0e2dcedd7222545d533595372fc3cdb9d2154fd0aee86af87e9c50d555a621"
+    },
+    {
+      "source": "website/app/Services/Cloud/NpmClient.php",
+      "destination": "servernet_app/app/Services/Cloud/NpmClient.php",
+      "before": "8d659812f53eedf4c8fed3aba6051f3d5432484ac6e1905aa5689220718d9ced",
+      "after": "a78ea7edce13a779099d95c93c6205b159c90069ff3e7819c73f904e24924ae3"
+    },
+    {
+      "source": "website/app/Services/Cloud/ProxmoxClient.php",
+      "destination": "servernet_app/app/Services/Cloud/ProxmoxClient.php",
+      "before": "766890f78366a7d4bfc1359d25262ecc0e384f28145b5461ab6d60782940cdf8",
+      "after": "a2ceb6629eb3e7be078cb6ddc8590617b560d7b8c954c5c92377602a83ff061a"
+    },
+    {
+      "source": "website/app/Services/Cloud/VpsTcRenewal.php",
+      "destination": "servernet_app/app/Services/Cloud/VpsTcRenewal.php",
+      "before": "ba3a8451bbd92f7b6f581055f98b50f2f73f5a1c90cb9df10593d1cee5af2569",
+      "after": "ff13f8fdafca666ac92c77f0e269dc59a29882013292db53be1ef57817ce5ea5"
+    },
+    {
+      "source": "website/config/catalog/cloud.php",
+      "destination": "servernet_app/config/catalog/cloud.php",
+      "before": "27b170f2a07e568934cefe4b76d2a433e3aa511f1bfb8715e5043c9d205b1bb4",
+      "after": "339101b6345b4b4b1124f88877d3b9666fcb0c041ea951b4b1f86654fa25eeaa"
+    },
+    {
+      "source": "website/resources/views/account/cloud-server.blade.php",
+      "destination": "servernet_app/resources/views/account/cloud-server.blade.php",
+      "before": "b548b4a47bae7fb444a90287c913e3732a9717f24d6db1f02e7367fbe2919b34",
+      "after": "13f5e7f573913c7274ec6e03befe5d65747c40eeb287f853c4b182b7d2028b16"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudServerController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudServerController.php",
+      "before": "0878be18bbcc70b37795e945d5647108f9a1bb073d8fbbc802f0f2288f0e1346",
+      "after": "eb50d23fed0436cdcf5c9309315f18f95e132580ef656bb5eeb966f18ea04101"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/CloudStoreController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/CloudStoreController.php",
+      "before": "a68687c633fd6d6fffd32c34019ef9b2d0df8c2bab54be90bf7bed40312a959d",
+      "after": "7d7e1e5e6f9f6362267ffa85a59e2f83b581d8ee2248bb00e90664c2fcd0c1cf"
+    },
+    {
+      "source": "website/app/Http/Controllers/CatalogController.php",
+      "destination": "servernet_app/app/Http/Controllers/CatalogController.php",
+      "before": "a31ca3a0c3c0ddbb440960087075c294683e9247c25d7da2bc00268cb3fed840",
+      "after": "ce3c2d6f50d0a229e5389f7544545d9ba63ff4130c605497b111cf3c5020939b"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "before": "747d60617f5c532f9d3ee4f0cd1ba545952a1ffe91e246e1cb1e1c288492dd81",
+      "after": "1f7486f23a40fe941243b1fcacae36291339d96d24a36531c8c576a9ae24c8fa"
+    },
+    {
+      "source": "website/routes/console.php",
+      "destination": "servernet_app/routes/console.php",
+      "before": "7a240ba1939f23070461af200c97a4e87443a0d3f19fe01eefe35e626965b3d7",
+      "after": "80792e060c2ec89d11407f441135a6e7ea22b5c7afcea5b7ee1073cd235b6024"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/n8n-release/activate.php",
+      "sha256": "756d1200624942bc4a024e895e774682a1d5ea6fc9367c9e95ba09d67edb1829"
+    }
+  },
+  "overlay_sha256": "0ff133b934a5ccc203a48f12bb3a04e9ccbb009c53d3b8d579a62cacaf420303"
+}

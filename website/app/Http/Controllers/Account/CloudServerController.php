@@ -111,6 +111,22 @@ class CloudServerController extends Controller
         return app(\App\Services\Cloud\CloudPower::class)->actions($instance);
     }
 
+    /** Explicit, owner-only, repeatable reveal; ordinary GET never decrypts this secret. */
+    public function n8nAccess(Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+        abort_unless(\App\Services\Cloud\ManagedN8nCatalog::handles($service) && ! $service->isDead(), 404);
+        $instance = $this->instanceOf($service);
+        abort_unless($instance && data_get($instance->meta, 'n8n.state') === 'ready', 404);
+        $secret = data_get($instance->meta, 'n8n.password_enc');
+        abort_unless(is_string($secret) && $secret !== '', 404);
+        $password = \Illuminate\Support\Facades\Crypt::decryptString($secret);
+        ActivityLog::forService($service, 'access', 'Initial n8n password revealed by its owner.', 'customer');
+        return redirect(lroute('account.cloud.show', $service))
+            ->with('revealed_n8n_'.$instance->id, $password)
+            ->withHeaders(['Cache-Control' => 'no-store, private']);
+    }
+
     // ───────────────────────── نمایش ─────────────────────────
 
     public function show(Service $service): \Illuminate\Http\Response
@@ -135,6 +151,10 @@ class CloudServerController extends Controller
         }
         // The internal clone rebuild does not yet preserve purchased hardware.
         if ($instance?->provider === 'proxmox') {
+            $caps['rebuild'] = false;
+        }
+
+        if (\App\Services\Cloud\ManagedN8nCatalog::handles($service)) {
             $caps['rebuild'] = false;
         }
 
