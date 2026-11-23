@@ -22,7 +22,10 @@ permissions:
   contents: read
 jobs:
   viewport:
-    runs-on: ubuntu-latest
+    # The WebKit runtime has many GTK/media dependencies. Use the official
+    # matching prebuilt browser image instead of repeating slow apt downloads
+    # on the moving ubuntu-latest image; keep a stable host fallback.
+    runs-on: ${{ matrix.engine == 'webkit' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -41,7 +44,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Install locked test dependencies and browser engine
+      - name: Install locked test dependencies
         working-directory: website
         run: |
           test ! -e .env
@@ -49,7 +52,16 @@ jobs:
           composer install --prefer-dist --no-progress --no-scripts --no-plugins
           composer check-platform-reqs
           npm ci --prefix tests/js --ignore-scripts
-          tests/js/node_modules/.bin/playwright install --with-deps "${{ matrix.engine }}"
+      - name: Prepare matching browser engine
+        working-directory: website
+        env:
+          HOME_PARTS_ENGINE: ${{ matrix.engine }}
+        run: |
+          if [ "$HOME_PARTS_ENGINE" = webkit ] && timeout 240 docker pull mcr.microsoft.com/playwright:v1.62.1-noble; then
+            echo 'HOME_PARTS_WEBKIT_CONTAINER=1' >> "$GITHUB_ENV"
+          else
+            tests/js/node_modules/.bin/playwright install --with-deps "$HOME_PARTS_ENGINE"
+          fi
       - name: Test full rendered homepage at laptop sizes, narrow viewports and zoom
         working-directory: website
         env:
@@ -59,4 +71,12 @@ jobs:
           mkdir -p "$STUDIO_HOME_BROWSER_FIXTURES"
           php artisan test tests/Feature/StudioHomeHeroTest.php
           python3 ../scripts/home-hardware-hero-fit-20261123/test_release.py
-          node --test tests/js/home-parts-viewport.test.cjs
+          if [ "${HOME_PARTS_WEBKIT_CONTAINER:-0}" = 1 ]; then
+            docker run --rm --network none --shm-size=1g \
+              -v "$PWD:/app:ro" -v "$STUDIO_HOME_BROWSER_FIXTURES:/fixtures:ro" \
+              -e HOME_PARTS_ENGINE=webkit -e STUDIO_HOME_BROWSER_FIXTURES=/fixtures \
+              -w /app mcr.microsoft.com/playwright:v1.62.1-noble \
+              node --test tests/js/home-parts-viewport.test.cjs
+          else
+            node --test tests/js/home-parts-viewport.test.cjs
+          fi
