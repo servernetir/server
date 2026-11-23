@@ -27,7 +27,7 @@ return [
     'flow_result_value' => 'Daily report',
     'flow_caption' => 'One example of countless possible workflows',
     'hosting_eyebrow' => 'A home for your next online idea',
-    'hosting_title' => 'Your site. Your next chapter.',
+    'hosting_title' => 'Your next website.',
     'hosting_accent' => 'Hosted by ServerNet.',
     'hosting_lead' => 'A blog, an online store or your own application. From WordPress to Python and .NET, find hosting that fits your site.',
     'hosting_types' => 'Hosting by use case',

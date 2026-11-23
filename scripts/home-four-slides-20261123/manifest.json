@@ -10,7 +10,7 @@
       "source": "website/lang/en/home_slides.php",
       "destination": "servernet_app/lang/en/home_slides.php",
       "before": null,
-      "after": "63c3a2c97580b6d6febf41317eeb9d4ec9b3b5a10bf193beb1a073b48ecb7ce3"
+      "after": "d485f68c495708b3a84d412c9d0ac7a80172627f669aa4ef05ef08cebc133514"
     },
     {
       "source": "website/lang/tr/home_slides.php",
@@ -40,13 +40,13 @@
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "servernet_app/public/assets/css/studio-carousel.css",
       "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
-      "after": "e23d33ea1620752902e92e16a2d91992ea65f464e54b001883b3d700880a5d92"
+      "after": "929f39db8adc8885595442a6b0f2fbb337d81f6ab0e7bb0fa9aa24244881187c"
     },
     {
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "public_html/assets/css/studio-carousel.css",
       "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
-      "after": "e23d33ea1620752902e92e16a2d91992ea65f464e54b001883b3d700880a5d92"
+      "after": "929f39db8adc8885595442a6b0f2fbb337d81f6ab0e7bb0fa9aa24244881187c"
     },
     {
       "source": "website/public/assets/js/studio-carousel.js",
@@ -109,17 +109,17 @@
     {
       "name": "preview-fa.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-fa.html",
-      "sha256": "01a0f28a3170aa7295975cb90bf91b5c6ef42aaa3efcb4a4b7e6bd9e93d6c2c1"
+      "sha256": "3eb49f9307f250678745b1b7da76739eb8c1386a33de6be1abf3b595180a0582"
     },
     {
       "name": "preview-en.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-en.html",
-      "sha256": "47b2fe120e56eec069a69adb32f1d271fe1d3cbd3dc15e91ed864d314851a412"
+      "sha256": "95d82a36f76e69156690ceaa9ad28b59ca40e45e9050bed1ab08937836603098"
     },
     {
       "name": "preview-tr.html",
       "source": "docs/project/home-four-slides-2026-11-23/preview-tr.html",
-      "sha256": "9ae1d78cfe6d3e6dd26447dd24054d33448f5f7a243c0ac635f5e4f4004647d9"
+      "sha256": "0f04d076002185e94c7d9e0d248edec9d61a2a77ded087c64961088f50d610a8"
     },
     {
       "name": "studio-coffee-campaign.webp",
