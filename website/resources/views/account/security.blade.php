@@ -3,12 +3,8 @@
 
 @section('panel')
 
-<div class="pnl-head">
-  <div>
-    <h1 class="dash-h">{{ __('ui.sec_h') }}</h1>
-    <p>{{ __('ui.sec_sub') }}</p>
-  </div>
-</div>
+@include('account.partials.profile-heading', ['profileTab' => 'security'])
+<div class="cw-security-stack">
 
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
@@ -449,4 +445,5 @@ document.querySelectorAll('.copyable').forEach(function (el) {
   });
 });
 </script>
+</div>
 @endsection

@@ -27,6 +27,8 @@ class ManagedN8nController extends Controller
             $cards = array_values(array_filter($cards, fn ($p) => $p['country'] !== 'IR'));
         }
         return ['n8nCards' => $cards, 'n8nEnabled' => $catalog->enabled(),
+            'n8nCountries' => app()->getLocale() === 'fa' ? ['IR', 'DE', 'TR'] : ['DE', 'TR'],
+            'n8nIranRestricted' => \App\Services\Customer\IranSalesVisibility::restricted(),
             'n8nTax' => \App\Http\Controllers\Account\CloudStoreController::taxPercent()];
     }
 }

@@ -39,7 +39,7 @@ final class PanelSections
         $buckets = ['hosting' => collect(), 'server' => collect(), 'other' => collect()];
 
         foreach ($services as $s) {
-            $kind = $s->kind();
+            $kind = \App\Services\Cloud\ManagedN8nCatalog::handles($s) ? 'other' : $s->kind();
 
             // سطلِ ناشناخته نداریم: `kind()` سه‌مقداری است، ولی اگر روزی
             // مقدارِ چهارمی برگرداند ردیف باید در «خدمات» بیفتد نه اینکه غیب شود.

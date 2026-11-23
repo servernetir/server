@@ -46,7 +46,7 @@ class AccountApiWorkspacePresentationTest extends TestCase
 
         $form = $xpath->query('//form[@action="'.lroute('account.identity.inquire').'"]')->item(0);
         $this->assertNotNull($form);
-        foreach (['service' => 'shahkar-inquiry', 'max_charge_irt' => '1155', 'price_version' => '1'] as $name => $value) {
+        foreach (['service' => 'shahkar-inquiry', 'max_charge_irt' => '1155', 'price_version' => (string) IdentityPrice::where('service', 'shahkar-inquiry')->value('id')] as $name => $value) {
             $this->assertSame($value, $xpath->query('.//input[@name="'.$name.'"]', $form)->item(0)?->getAttribute('value'));
         }
         $idempotency = $xpath->query('.//input[@name="idempotency_key"]', $form)->item(0);
@@ -167,7 +167,7 @@ class AccountApiWorkspacePresentationTest extends TestCase
     {
         [$customer] = $this->greenKey(0, 'en', ['name' => '<script>bad-project</script>'.str_repeat('a', 80)]);
         for ($i = 0; $i < 23; $i++) {
-            $this->usage($customer, ['charged_irt' => 100, 'model_slug' => str_repeat('long-model-', 8)]);
+            $this->usage($customer, ['charged_irt' => 100, 'model_slug' => substr(str_repeat('long-model-', 8), 0, 80)]);
         }
         $html = $this->page($customer, 'en', 'ai');
         $xpath = $this->xpath($html);
@@ -209,7 +209,7 @@ class AccountApiWorkspacePresentationTest extends TestCase
     private function identityRow(Customer $customer, IdentityApplication $application, string $key, string $state, int $charged, int $hold = 0): IdentityRequest
     {
         return IdentityRequest::create(['customer_id' => $customer->id, 'application_id' => $application->id,
-            'public_id' => 'synthetic-'.$key, 'service' => 'shahkar-inquiry', 'key_hash' => hash('sha256', $key),
+            'public_id' => 'synthetic-'.substr(hash('sha256', $key), 0, 26), 'service' => 'shahkar-inquiry', 'key_hash' => hash('sha256', $key),
             'fingerprint' => hash('sha256', $key), 'processing_status' => $state === 'captured' ? 'completed' : 'accepted',
             'financial_status' => $state, 'charged_irt' => $charged, 'hold_irt' => $hold,
             'quote' => ['version' => 1, 'sell_irt' => 1050, 'tax_irt' => 105], 'decide_by' => now()->addHour(),

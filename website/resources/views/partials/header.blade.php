@@ -1,5 +1,8 @@
 @php
     $loc = app()->getLocale();
+    $brandHome = preg_match('~^(?:en/|tr/)?account(?:/|$)~', request()->path())
+        ? 'https://servernet.cloud'.($loc === 'fa' ? '' : '/'.$loc)
+        : $homeUrl;
     $mega = config('servernet.mega');
     $serverMenu = app(\App\Services\ServerMenu::class)->build($mega['vps'] ?? []);
     // ⚠️ از `MenuManager` و نه مستقیم از config: رویهٔ مدیر (خاموشی، متنِ
@@ -75,7 +78,7 @@
 
   <header id="header">
     <div class="container">
-      <a href="{{ $homeUrl }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
+      <a href="{{ $brandHome }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
 
       <nav class="desktop" id="desktop-nav" aria-label="Main">
         <div class="nav-item" data-menu="products">
@@ -326,7 +329,7 @@
 <div class="drawer-backdrop" id="drawer-backdrop" aria-hidden="true"></div>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="{{ __('ui.menu') }}" aria-hidden="true" tabindex="-1" inert>
   <div class="drawer-head">
-    <a href="{{ $homeUrl }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
+    <a href="{{ $brandHome }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
     <button type="button" class="drawer-close" id="drawer-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
   </div>
   {{-- کارتِ هویتِ کاربرِ واردشده — بالای کشو، لینک مستقیم به پنل (RTL-first) --}}
