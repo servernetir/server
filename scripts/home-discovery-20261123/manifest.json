@@ -1,0 +1,185 @@
+{
+  "files": [
+    {
+      "source": "website/app/Support/HomeServiceDirectory.php",
+      "destination": "servernet_app/app/Support/HomeServiceDirectory.php",
+      "new": true,
+      "before": null,
+      "after": "0d574283e88619f08c089d77c2cddecc614981b30094fd43ab22200b924dbbc0"
+    },
+    {
+      "source": "website/app/Http/Controllers/Ai/StudioLandingController.php",
+      "destination": "servernet_app/app/Http/Controllers/Ai/StudioLandingController.php",
+      "new": true,
+      "before": null,
+      "after": "efa1d45d32a38bea7c3763705a1d4e580c5a1bdfc04a05acd432f7d1c45bd2d7"
+    },
+    {
+      "source": "website/resources/views/partials/home-discovery-style.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-discovery-style.blade.php",
+      "new": true,
+      "before": null,
+      "after": "5ecbc4611f993a4d8058a684dda639b157d45db0d8615b21dbe2a81d70673122"
+    },
+    {
+      "source": "website/resources/views/partials/home-discovery.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-discovery.blade.php",
+      "new": true,
+      "before": null,
+      "after": "2049d92075f3d4fa59301a24cda5be635b6390b860e37082bd2b4d14bd4adcac"
+    },
+    {
+      "source": "website/resources/views/pages/ai/studio.blade.php",
+      "destination": "servernet_app/resources/views/pages/ai/studio.blade.php",
+      "new": true,
+      "before": null,
+      "after": "678b50b3c50d5fce206f93d62f4e70b3a4f125200fed55896abe0c6407181c5c"
+    },
+    {
+      "source": "website/lang/fa/home_discovery.php",
+      "destination": "servernet_app/lang/fa/home_discovery.php",
+      "new": true,
+      "before": null,
+      "after": "ec846d0cbe027feb2d1c9468f11aa959af67031e5eea735e4365ac5d656970fc"
+    },
+    {
+      "source": "website/lang/fa/studio_landing.php",
+      "destination": "servernet_app/lang/fa/studio_landing.php",
+      "new": true,
+      "before": null,
+      "after": "4cb9169602ef0cdb22f8f87b9a6074ed3b2cd74728fe84b636ea0b35d8723824"
+    },
+    {
+      "source": "website/lang/en/home_discovery.php",
+      "destination": "servernet_app/lang/en/home_discovery.php",
+      "new": true,
+      "before": null,
+      "after": "d2f63ffbc3e174f2442cf1df029c52bc85ee9a17fad76b4da7c4659d1a843f2d"
+    },
+    {
+      "source": "website/lang/en/studio_landing.php",
+      "destination": "servernet_app/lang/en/studio_landing.php",
+      "new": true,
+      "before": null,
+      "after": "26af01a2db5d72ada6ce7ab2575da673e20f1a7e18a9c4695fdc8b4c729223ac"
+    },
+    {
+      "source": "website/lang/tr/home_discovery.php",
+      "destination": "servernet_app/lang/tr/home_discovery.php",
+      "new": true,
+      "before": null,
+      "after": "29d617d709289c131f5a826d490cfc76ba87057d5655f7752fe7ffa50e74ae3a"
+    },
+    {
+      "source": "website/lang/tr/studio_landing.php",
+      "destination": "servernet_app/lang/tr/studio_landing.php",
+      "new": true,
+      "before": null,
+      "after": "6290aa459cb88f681d6d5ad2a2adb8b54cd105c410a90dc5a6555eb563828e92"
+    },
+    {
+      "source": "website/resources/views/partials/atlas-home-globe.blade.php",
+      "destination": "servernet_app/resources/views/partials/atlas-home-globe.blade.php",
+      "before": "870da830a7e13b67807fcc8693b65649ecd6ea4999d8f852aec4a1692d9d4332",
+      "after": "20ee03ae735e78aa1529bb5b641b29a4aa0cfc5ae6d4bfe91685d9795dec522d"
+    },
+    {
+      "source": "website/app/Support/RobotsPolicy.php",
+      "destination": "servernet_app/app/Support/RobotsPolicy.php",
+      "before": "11ce1cc77e53a5d3876610f62aa85f39b603a14c8f0268494073eaa43c232eb2",
+      "after": "aad66252394b5f6fe558b84c9593f4c2c1d3b9e99458e67b8ae8bbca43db1679"
+    },
+    {
+      "source": "website/config/seo.php",
+      "destination": "servernet_app/config/seo.php",
+      "patch": true,
+      "before": "fc29b2265a9dbd5af0ff6fded59fbf0192e102c1d51ef92718f9672466072638",
+      "after": "26680053f477f8de23f61be6e780b4a15911deeb28424583b6129a516dc7aa23"
+    },
+    {
+      "source": "website/public/robots.txt",
+      "destination": "servernet_app/public/robots.txt",
+      "before": "8877cbf303a893dc161853a6a3f7412de339944e236cbd70e2e95a41498f8664",
+      "after": "2069ec029ac48dca7f66ff0ef0ffeeb5590d6fe2be42088dcec3663d03e603b8"
+    },
+    {
+      "source": "website/public/robots.txt",
+      "destination": "public_html/robots.txt",
+      "before": "9f71d667110bfa5a00d99d7ff774d229585b129a7e613a4cdaca12e07d9c32a1",
+      "after": "2069ec029ac48dca7f66ff0ef0ffeeb5590d6fe2be42088dcec3663d03e603b8"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "before": "34adf43c0373609a223a02fc0996d6ebbda96589f72a0b948c5751ca14105850",
+      "after": "4adadd81951727203cbc6da996413b19f0cada750d356f8130a27482c042a4bc"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "before": "34adf43c0373609a223a02fc0996d6ebbda96589f72a0b948c5751ca14105850",
+      "after": "4adadd81951727203cbc6da996413b19f0cada750d356f8130a27482c042a4bc"
+    },
+    {
+      "source": "website/public/assets/js/atlas-home-globe.js",
+      "destination": "public_html/assets/js/atlas-home-globe.js",
+      "before": "f00f1da38d72aa3abb0113fa89c0a83b56ec764934b25d0d85c268d9a6b30b2a",
+      "after": "0b2a31e13f7588ef2eff9eb23f3dfe4949b25d5a45fffcdc28878a3754ce269d"
+    },
+    {
+      "source": "website/resources/views/partials/atlas-seo.blade.php",
+      "destination": "servernet_app/resources/views/partials/atlas-seo.blade.php",
+      "before": "692cb9e91ba3e9a754e9fadb7e5d045d563db45d9498984b43706c205ea75fbe",
+      "after": "8384aea57f7549a929023edbac147108b6bcaf80257379128b270fbca143fe97"
+    },
+    {
+      "source": "website/resources/views/partials/atlas-network.blade.php",
+      "destination": "servernet_app/resources/views/partials/atlas-network.blade.php",
+      "patch": true,
+      "before": "964e8ab8bac046d14ab953ba901ffc696d1d0c6db2965c362518a6494d09fadb",
+      "after": "bca92c73d75dd74d84c49787066fce02fbeb606b0be31f091f0826bdcfc87bf5"
+    },
+    {
+      "source": "website/resources/views/pages/ai/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/ai/home.blade.php",
+      "patch": true,
+      "before": "1d118389db47b706b64931497c02ca0cc8486804a68797c8127f9ffd61a8e63e",
+      "after": "ca0231857455c08b30b725d8d4baff57c7921348ce72db0d1967637eb9508688"
+    },
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination": "servernet_app/app/Http/Controllers/SiteController.php",
+      "patch": true,
+      "before": "bef259cffefda54c43c69f16db218656b9362810009cd7aa0844d9cde795ab8f",
+      "after": "cd795be3ad85f2b476ba47baf852dde72391c68b8c3dc9738352074fd549f312"
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "patch": true,
+      "before": "d3bd77504fa18edd979259ee03fa6c3c02c8b6909db6eb2e51fadb9c03a0ee60",
+      "after": "a0f5ec77da7229fa82a892b4f12c6aec8b3e2db0246c6de48b17cf115618ea58"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "patch": true,
+      "before": "a926de2388fa515c00c3a3aeb98bdad647621d97c5e73f2edfad2a7a21ce9add",
+      "after": "d16003b4e7ef99108fa07ebe65cf416da29316f4454dc96eb62561ee834f116e"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-discovery-20261123/activate.php",
+      "sha256": "6fddf2a4fa969c27e06e99e934650f0a78c3c487b8f53289098f8284bc7a0042"
+    }
+  }
+}

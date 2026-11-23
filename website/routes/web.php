@@ -52,6 +52,7 @@ $site = function (): void {
     Route::get('/studio/download', \App\Http\Controllers\Ai\StudioDownloadsController::class)->name('studio.download');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
+    Route::get('/ai/studio', \App\Http\Controllers\Ai\StudioLandingController::class)->name('ai.studio');
     Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
     Route::get('/ai/compare', [\App\Http\Controllers\AiStorefrontController::class, 'compare'])->name('ai.compare');
     Route::get('/ai/docs', [\App\Http\Controllers\AiStorefrontController::class, 'docs'])->name('ai.docs');

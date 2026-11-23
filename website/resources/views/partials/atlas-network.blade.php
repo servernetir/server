@@ -1,7 +1,6 @@
 @php
   // Approximate geographic centres; links and available countries come from the public menu.
-  $atlasMenuConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
-  $atlasMenu = app(\App\Services\ServerMenu::class)->build($atlasMenuConfig['vps'] ?? []);
+  $atlasMenu = $homeAtlasMenu;
   $atlasCoordinates = [
     'IR'=>[32.4,53.6], 'TR'=>[39,35], 'US'=>[39,-98], 'DE'=>[51.2,10.4], 'FR'=>[46.2,2.2], 'NL'=>[52.1,5.3],
     'GB'=>[54,-2], 'FI'=>[64,26], 'SE'=>[62,15], 'AT'=>[47.5,14.5], 'RU'=>[56,60], 'CA'=>[56,-106],
@@ -23,12 +22,16 @@
   $atlasDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>'IR' };
   $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
   $atlasPicker = array_values(array_unique(array_merge([$atlasDefault], ['US','TR','DE','FR','NL','IR'])));
+  $atlasPicker = array_values(array_filter($atlasPicker, fn ($iso) => \App\Services\Customer\IranSalesVisibility::allowsCountry($iso)));
   foreach ($atlasPicker as $iso) {
     $atlasNodes[$iso] ??= ['position'=>$atlasCoordinates[$iso], 'label'=>__('atlas.'.$atlasLabels[$iso]), 'url'=>lroute('cloud.index')];
   }
+  $atlasRouteCountries = array_keys($atlasNodes);
+  // Camera focus does not enable Iran sales or add Iran to the country picker.
+  $atlasNodes[$atlasDefault] ??= ['position'=>$atlasCoordinates[$atlasDefault], 'label'=>__('atlas.'.$atlasLabels[$atlasDefault]), 'url'=>lroute('cloud.index')];
 @endphp
 <div class="sn-atlas-display" data-sn-region-group data-sn-selected="{{ $atlasDefault }}" data-sn-nodes="{{ json_encode($atlasNodes, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) }}">
-  @include('partials.atlas-globe')
+  @include('partials.atlas-home-globe')
   <div class="sn-region-detail" aria-live="polite">
     <div><span class="sn-region-code" aria-hidden="true">REGION</span><strong data-sn-region-label>{{ $atlasNodes[$atlasDefault]['label'] }}</strong></div>
     <p data-sn-region-description>{{ __('atlas.region_'.$atlasLabels[$atlasDefault]) }}</p>

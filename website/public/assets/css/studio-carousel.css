@@ -4,6 +4,8 @@
 .sn-hero-slides>[data-hero-slide]{grid-area:1/1;min-width:0;align-self:stretch;transition:opacity .46s ease-in-out,visibility 0s .46s}
 .sn-hero-slides>[data-hero-slide]:not(:first-child){opacity:0;visibility:hidden;pointer-events:none}
 .sn-hero-carousel[data-carousel-ready] [data-hero-slide]{opacity:0;visibility:hidden;pointer-events:none}
+/* Preserve the fade, but do not animate decorative content in hidden slides. */
+.sn-hero-carousel[data-carousel-ready] [data-hero-slide][aria-hidden="true"],.sn-hero-carousel[data-carousel-ready] [data-hero-slide][aria-hidden="true"] *{animation-play-state:paused!important}
 .sn-hero-carousel[data-carousel-ready] [data-hero-slide].is-active{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .82s cubic-bezier(.2,.65,.3,1) .12s,visibility 0s}
 .sn-hero-controls{display:none;position:relative;z-index:6;align-items:center;gap:22px;min-height:68px;padding-block:10px 18px!important}
 [data-carousel-ready] .sn-hero-controls{display:flex}

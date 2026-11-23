@@ -26,7 +26,7 @@ class StudioHomeHeroTest extends TestCase
             $this->assertStringContainsString('class="sn-home-intro"', $html);
             $this->assertStringContainsString('data-hero-autoplay', $html);
             $this->assertStringContainsString('aria-hidden="true" inert', $html);
-            $this->assertStringContainsString('data-sn-globe', $html);
+            $this->assertStringContainsString('data-sn-home-globe', $html);
             $this->assertStringContainsString('href="https://studio.servernet.cloud/"', $html);
             $this->assertStringContainsString('assets/css/studio-carousel.css', $html);
             $this->assertStringContainsString('assets/js/studio-carousel.js', $html);

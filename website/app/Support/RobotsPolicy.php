@@ -22,7 +22,16 @@ final class RobotsPolicy
             }
         }
 
-        $privatePaths = array_values(array_unique($configuredPaths));
+        $crawlExclusions = (array) ($policy['crawl_exclusions'] ?? []);
+        foreach ($crawlExclusions as $pattern) {
+            // Separate public query-pattern rules from literal private paths.
+            // Never allow injected directives or another host's URL.
+            if (! is_string($pattern) || ! preg_match('~\A/(?!/)[^\x00-\x20\x7f]+\z~D', $pattern)
+                || (! str_contains($pattern, '?') && ! str_contains($pattern, '&'))) {
+                throw new \InvalidArgumentException('Robots crawl exclusions must be single-line query patterns.');
+            }
+        }
+        $privatePaths = array_values(array_unique([...$configuredPaths, ...$crawlExclusions]));
 
         $groups = [];
         foreach (['search_discovery', 'model_training'] as $kind) {
@@ -42,11 +51,13 @@ final class RobotsPolicy
 
         $groups[] = self::group('*', true, $privatePaths);
 
-        $sitemap = trim((string) ($policy['sitemap'] ?? ''));
-        if (filter_var($sitemap, FILTER_VALIDATE_URL) === false || parse_url($sitemap, PHP_URL_SCHEME) !== 'https') {
-            throw new \InvalidArgumentException('Robots policy requires an absolute HTTPS sitemap URL.');
+        $sitemaps = [$policy['sitemap'] ?? '', ...((array) ($policy['additional_sitemaps'] ?? []))];
+        foreach ($sitemaps as $sitemap) {
+            if (! is_string($sitemap) || filter_var($sitemap, FILTER_VALIDATE_URL) === false || parse_url($sitemap, PHP_URL_SCHEME) !== 'https') {
+                throw new \InvalidArgumentException('Robots policy requires absolute HTTPS sitemap URLs.');
+            }
         }
-        $groups[] = 'Sitemap: '.$sitemap;
+        $groups[] = implode("\n", array_map(fn ($url) => 'Sitemap: '.$url, array_unique($sitemaps)));
 
         return implode("\n\n", $groups)."\n";
     }

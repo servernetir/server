@@ -25,16 +25,30 @@ class SiteController extends Controller
             )->values();
         }
         $publicQuotes = app(\App\Services\Cloud\CloudPublicQuote::class);
-        $pricedOffers = $offers->filter(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan) > 0)
-            ->sortBy(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan))->values();
+        // We need only the three minima, not a second traversal and full sort.
+        // Strict comparison preserves the first representative for equal quotes.
+        $cheapest = ['vm' => null, 'metal' => null, 'all' => null];
+        $minimum = ['vm' => PHP_INT_MAX, 'metal' => PHP_INT_MAX, 'all' => PHP_INT_MAX];
+        foreach ($offers as $offer) {
+            $price = $publicQuotes->monthlyPrice($offer);
+            if ($price <= 0) {
+                continue;
+            }
+            foreach ([$offer->isMetal() ? 'metal' : 'vm', 'all'] as $kind) {
+                if ($cheapest[$kind] === null || $price < $minimum[$kind]) {
+                    $cheapest[$kind] = $offer;
+                    $minimum[$kind] = $price;
+                }
+            }
+        }
         $products = (array) config('servernet.products', []);
         $catalog = app(CatalogPricing::class);
         $quotes = [
             $catalog->minimumQuote('linux'),
             $catalog->minimumQuote('wordpress'),
-            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
-            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => $plan->isMetal())),
-            $this->cloudQuote($pricedOffers->first()),
+            $this->cloudQuote($cheapest['vm']),
+            $this->cloudQuote($cheapest['metal']),
+            $this->cloudQuote($cheapest['all']),
             $tlds[0] ?? ['contact' => true, 'quote' => true],
         ];
         foreach ($products as $index => $product) {
@@ -158,9 +172,8 @@ class SiteController extends Controller
     /**
      * `llms.txt` — کارتِ شناساییِ سرورنت برای مدل‌های زبانی.
      *
-     * بخشی از خریدارها دیگر از گوگل نمی‌پرسند؛ از ChatGPT و Perplexity
-     * می‌پرسند. آن‌ها این فایل را می‌خوانند تا بفهمند این سایت چیست و کدام
-     * صفحه‌ها معتبرند. بدونش، «سرورنت» به یک موجودیتِ واحد قفل نمی‌شود.
+     * A supplementary public reference, not an indexing or recommendation
+     * guarantee. Canonical HTML pages remain the authoritative sources.
      *
      * ⚠️ فهرست‌ها از config و دیتابیس ساخته می‌شوند نه دستی: فایلِ دست‌نویس
      * همان هفتهٔ اول از کاتالوگ عقب می‌افتد و بعد مدل، محصولی را معرفی می‌کند
@@ -173,12 +186,28 @@ class SiteController extends Controller
         $lines = [
             '# ServerNet — servernet.cloud',
             '',
-            '> ServerNet provides hosting, hourly cloud VPS, GPU applications and an AI API gateway.',
+            '> ServerNet provides web hosting, hourly and monthly cloud VPS, GPU applications, dedicated n8n, transactional email and an AI API gateway.',
             '> The public website is available in Persian, English and Turkish (fa / en / tr).',
             '> Check product pages for current locations, availability, specifications and prices.',
             '',
-            '## Products',
+            '## Choose a service',
         ];
+
+        // The same factual catalogue as the visible, non-rotating home section.
+        foreach (\App\Support\HomeServiceDirectory::entries('en') as $key => $service) {
+            $lines[] = '- ['.$service['name'].']('.$service['url'].'): '.$service['description'].' '.$service['detail'];
+        }
+        $lines[] = '';
+        $lines[] = '## Localized service guides';
+        foreach (['fa' => 'Persian', 'en' => 'English', 'tr' => 'Turkish'] as $locale => $language) {
+            $prefix = \App\Providers\AppServiceProvider::LOCALES[$locale];
+            $lines[] = '- ['.$language.' homepage]('.route($prefix.'home').')';
+            foreach (\App\Support\HomeServiceDirectory::entries($locale) as $service) {
+                $lines[] = '  - ['.$service['name'].']('.$service['url'].')';
+            }
+        }
+        $lines[] = '';
+        $lines[] = '## Products';
 
         /*
         | 🔴 کاتالوگ باید **کامل** باشد، وگرنه مدل شرکت را کوچک‌تر از آنچه هست
@@ -198,6 +227,9 @@ class SiteController extends Controller
             $items = $cat === 'hosting' ? config('hosting.products', []) : config("catalog.$cat", []);
 
             foreach ((array) $items as $slug => $p) {
+                if ($cat === 'vps' && $slug === 'gpu') {
+                    continue; // /gpu is the canonical product; the legacy URL is a redirect.
+                }
                 $title = $p['fa']['t'] ?? ($p['en']['t'] ?? $slug);
                 $path = $cat === 'hosting' ? "/hosting/$slug" : "/$cat/$slug";
                 $lines[] = "- [{$title}]({$base}{$path})";
@@ -693,6 +725,9 @@ class SiteController extends Controller
         // advertise a checkout URL that asks search engines not to index it.
 
         $add('ai.home');
+        if (app(\App\Services\Studio\StudioAuthorization::class)->configured()) {
+            $add('ai.studio');
+        }
         $add('identity.home');
         $add('identity.docs');
         $add('identity.terms');

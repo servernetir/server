@@ -8,12 +8,13 @@
     '@type' => $atlasContactPage ? 'ContactPage' : 'WebPage',
     '@id' => $atlasPageUrl.'#webpage',
     'url' => $atlasPageUrl,
-    'name' => $atlasContactPage ? __('ui.ct_title') : __('ui.meta_title'),
-    'description' => $atlasContactPage ? __('ui.ct_sub') : __('ui.meta_desc'),
+    'name' => $atlasContactPage ? __('ui.ct_title') : __('home_discovery.meta_title'),
+    'description' => $atlasContactPage ? __('ui.ct_sub') : \App\Support\HomeServiceDirectory::description(),
     'inLanguage' => app()->getLocale(),
     'isPartOf' => ['@id' => $atlasSiteUrl.'/#website'],
     'about' => ['@id' => $atlasSiteUrl.'/#organization'],
   ];
+  if (!$atlasContactPage) $atlasPageSchema['mainEntity'] = ['@id' => $atlasPageUrl.'#service-directory'];
   if ($atlasContactPage) {
     $atlasPageSchema['breadcrumb'] = ['@id' => $atlasPageUrl.'#breadcrumb'];
     $atlasBreadcrumbSchema = [

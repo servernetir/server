@@ -1,0 +1,99 @@
+{
+  "website/config/seo.php": [
+    {
+      "old": "            'allow' => env('SEO_AI_SEARCH_CRAWL', true),\n            'agents' => ['OAI-SearchBot', 'PerplexityBot', 'Googlebot', 'Bingbot'],\n        ],\n",
+      "new": "            'allow' => env('SEO_AI_SEARCH_CRAWL', true),\n            'agents' => ['OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'Claude-User', 'Googlebot', 'Bingbot'],\n        ],\n",
+      "count": 1
+    },
+    {
+      "old": "        ],\n        'sitemap' => 'https://servernet.cloud/sitemap.xml',\n    ],\n",
+      "new": "        ],\n        // Existing public-webroot rules: keep duplicate filter and legacy\n        // attachment URLs out of crawl queues, without changing page access.\n        'crawl_exclusions' => [\n            '/*?attachment_id=', '/parts/*?', '/en/parts/*?', '/tr/parts/*?',\n            '/*?tag=', '/*&tag=', '/*?q=', '/*&q=',\n        ],\n        'sitemap' => 'https://servernet.cloud/sitemap.xml',\n        'additional_sitemaps' => ['https://servernet.cloud/sitemap-index.xml'],\n    ],\n",
+      "count": 1
+    }
+  ],
+  "website/resources/views/partials/atlas-network.blade.php": [
+    {
+      "old": "  $atlasMenuConfig = app(\\App\\Services\\MenuManager::class)->mega(app(\\App\\Services\\SiteMenu::class)->mega());\n  $atlasMenu = app(\\App\\Services\\ServerMenu::class)->build($atlasMenuConfig['vps'] ?? []);\n",
+      "new": "  $atlasMenu = $homeAtlasMenu;\n",
+      "count": 1
+    }
+  ],
+  "website/resources/views/pages/ai/home.blade.php": [
+    {
+      "old": "     <a class=\"ai-btn primary\" href=\"https://studio.servernet.cloud/\">{{ __('studio_download.install_web') }}</a>\n     <a class=\"ai-btn\" href=\"{{ lroute('studio.download') }}#studio-web-install\">{{ __('studio_download.web_guide') }}</a>\n",
+      "new": "     <a class=\"ai-btn primary\" href=\"https://studio.servernet.cloud/\">{{ __('studio_download.install_web') }}</a>\n     <a class=\"ai-btn\" href=\"{{ lroute('ai.studio') }}\">{{ __('home_discovery.services.studio.cta') }}</a>\n     <a class=\"ai-btn\" href=\"{{ lroute('studio.download') }}#studio-web-install\">{{ __('studio_download.web_guide') }}</a>\n",
+      "count": 1
+    }
+  ],
+  "website/app/Http/Controllers/SiteController.php": [
+    {
+      "old": "        $publicQuotes = app(\\App\\Services\\Cloud\\CloudPublicQuote::class);\n        $pricedOffers = $offers->filter(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan) > 0)\n            ->sortBy(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan))->values();\n        $products = (array) config('servernet.products', []);\n",
+      "new": "        $publicQuotes = app(\\App\\Services\\Cloud\\CloudPublicQuote::class);\n        // We need only the three minima, not a second traversal and full sort.\n        // Strict comparison preserves the first representative for equal quotes.\n        $cheapest = ['vm' => null, 'metal' => null, 'all' => null];\n        $minimum = ['vm' => PHP_INT_MAX, 'metal' => PHP_INT_MAX, 'all' => PHP_INT_MAX];\n        foreach ($offers as $offer) {\n            $price = $publicQuotes->monthlyPrice($offer);\n            if ($price <= 0) {\n                continue;\n            }\n            foreach ([$offer->isMetal() ? 'metal' : 'vm', 'all'] as $kind) {\n                if ($cheapest[$kind] === null || $price < $minimum[$kind]) {\n                    $cheapest[$kind] = $offer;\n                    $minimum[$kind] = $price;\n                }\n            }\n        }\n        $products = (array) config('servernet.products', []);\n",
+      "count": 1
+    },
+    {
+      "old": "            $catalog->minimumQuote('wordpress'),\n            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),\n            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => $plan->isMetal())),\n            $this->cloudQuote($pricedOffers->first()),\n            $tlds[0] ?? ['contact' => true, 'quote' => true],\n",
+      "new": "            $catalog->minimumQuote('wordpress'),\n            $this->cloudQuote($cheapest['vm']),\n            $this->cloudQuote($cheapest['metal']),\n            $this->cloudQuote($cheapest['all']),\n            $tlds[0] ?? ['contact' => true, 'quote' => true],\n",
+      "count": 1
+    },
+    {
+      "old": "     *\n     * بخشی از خریدارها دیگر از گوگل نمی‌پرسند؛ از ChatGPT و Perplexity\n     * می‌پرسند. آن‌ها این فایل را می‌خوانند تا بفهمند این سایت چیست و کدام\n     * صفحه‌ها معتبرند. بدونش، «سرورنت» به یک موجودیتِ واحد قفل نمی‌شود.\n     *\n",
+      "new": "     *\n     * A supplementary public reference, not an indexing or recommendation\n     * guarantee. Canonical HTML pages remain the authoritative sources.\n     *\n",
+      "count": 1
+    },
+    {
+      "old": "            '',\n            '> ServerNet provides hosting, hourly cloud VPS, GPU applications and an AI API gateway.',\n            '> The public website is available in Persian, English and Turkish (fa / en / tr).',\n",
+      "new": "            '',\n            '> ServerNet provides web hosting, hourly and monthly cloud VPS, GPU applications, dedicated n8n, transactional email and an AI API gateway.',\n            '> The public website is available in Persian, English and Turkish (fa / en / tr).',\n",
+      "count": 1
+    },
+    {
+      "old": "            '',\n            '## Products',\n        ];\n\n",
+      "new": "            '',\n            '## Choose a service',\n        ];\n\n        // The same factual catalogue as the visible, non-rotating home section.\n        foreach (\\App\\Support\\HomeServiceDirectory::entries('en') as $key => $service) {\n            $lines[] = '- ['.$service['name'].']('.$service['url'].'): '.$service['description'].' '.$service['detail'];\n        }\n        $lines[] = '';\n        $lines[] = '## Localized service guides';\n        foreach (['fa' => 'Persian', 'en' => 'English', 'tr' => 'Turkish'] as $locale => $language) {\n            $prefix = \\App\\Providers\\AppServiceProvider::LOCALES[$locale];\n            $lines[] = '- ['.$language.' homepage]('.route($prefix.'home').')';\n            foreach (\\App\\Support\\HomeServiceDirectory::entries($locale) as $service) {\n                $lines[] = '  - ['.$service['name'].']('.$service['url'].')';\n            }\n        }\n        $lines[] = '';\n        $lines[] = '## Products';\n\n",
+      "count": 1
+    },
+    {
+      "old": "            foreach ((array) $items as $slug => $p) {\n                $title = $p['fa']['t'] ?? ($p['en']['t'] ?? $slug);\n",
+      "new": "            foreach ((array) $items as $slug => $p) {\n                if ($cat === 'vps' && $slug === 'gpu') {\n                    continue; // /gpu is the canonical product; the legacy URL is a redirect.\n                }\n                $title = $p['fa']['t'] ?? ($p['en']['t'] ?? $slug);\n",
+      "count": 1
+    },
+    {
+      "old": "        $add('ai.home');\n",
+      "new": "        $add('ai.home');\n        if (app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured()) {\n            $add('ai.studio');\n        }\n",
+      "count": 1
+    }
+  ],
+  "website/resources/views/pages/home.blade.php": [
+    {
+      "old": "@extends('layouts.site')\n@include('partials.atlas-assets')\n",
+      "new": "@extends('layouts.site')\n@section('title', __('home_discovery.meta_title'))\n@section('description', \\App\\Support\\HomeServiceDirectory::description())\n@include('partials.atlas-assets')\n",
+      "count": 1
+    },
+    {
+      "old": "  $studioCarouselAvailable = app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured();\n  $atlasLead = __('ui.hero_lead');\n",
+      "new": "  $studioCarouselAvailable = app(\\App\\Services\\Studio\\StudioAuthorization::class)->configured();\n  // Reuse the same localized, permission-filtered geography in both home sections.\n  $homeAtlasConfig = app(\\App\\Services\\MenuManager::class)->mega(app(\\App\\Services\\SiteMenu::class)->mega());\n  $homeAtlasMenu = app(\\App\\Services\\ServerMenu::class)->build($homeAtlasConfig['vps'] ?? []);\n  $atlasLead = __('ui.hero_lead');\n",
+      "count": 1
+    },
+    {
+      "old": "@include('partials.seo-hourly-choice')\n\n",
+      "new": "@include('partials.seo-hourly-choice')\n@include('partials.home-discovery')\n\n",
+      "count": 1
+    },
+    {
+      "old": "        $atlasTileConfig = app(\\App\\Services\\MenuManager::class)->mega(app(\\App\\Services\\SiteMenu::class)->mega());\n        $atlasTileMenu = app(\\App\\Services\\ServerMenu::class)->build($atlasTileConfig['vps'] ?? []);\n",
+      "new": "",
+      "count": 1
+    },
+    {
+      "old": "        $atlasNodes = $atlasTileMenu['cloud'];\n",
+      "new": "        $atlasNodes = $homeAtlasMenu['cloud'];\n",
+      "count": 1
+    }
+  ],
+  "website/routes/web.php": [
+    {
+      "old": "    Route::get('/ai', [\\App\\Http\\Controllers\\AiStorefrontController::class, 'home'])->name('ai.home');\n    Route::get('/ai/models', [\\App\\Http\\Controllers\\AiStorefrontController::class, 'models'])->name('ai.models');\n",
+      "new": "    Route::get('/ai', [\\App\\Http\\Controllers\\AiStorefrontController::class, 'home'])->name('ai.home');\n    Route::get('/ai/studio', \\App\\Http\\Controllers\\Ai\\StudioLandingController::class)->name('ai.studio');\n    Route::get('/ai/models', [\\App\\Http\\Controllers\\AiStorefrontController::class, 'models'])->name('ai.models');\n",
+      "count": 1
+    }
+  ]
+}
