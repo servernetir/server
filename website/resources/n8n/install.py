@@ -39,6 +39,26 @@ def api(path, payload=None):
         return json.load(response)
 
 
+def pull_image(image, official_mirror=None):
+    if subprocess.run(['docker', 'image', 'inspect', image], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL, timeout=15).returncode == 0:
+        return
+    for attempt in range(3):
+        result = subprocess.run(['docker', 'pull', image], stdout=subprocess.DEVNULL,
+                                stderr=subprocess.PIPE, timeout=900)
+        if result.returncode == 0:
+            return
+        # Only a registry's explicit regional denial permits this alternative.
+        # Docker publishes these same official library images in its verified ECR account.
+        if official_mirror and b'403' in result.stderr and b'Forbidden' in result.stderr:
+            run(['docker', 'pull', official_mirror], timeout=900)
+            run(['docker', 'tag', official_mirror, image], timeout=30)
+            return
+        if attempt == 2:
+            result.check_returncode()
+        time.sleep(5)
+
+
 def install_docker():
     run(['apt-get', 'update', '-qq'])
     run(['apt-get', 'install', '-y', '-qq', 'curl', 'ca-certificates'])
@@ -154,6 +174,12 @@ volumes:
     write('compose.yaml', compose)
     command = ['docker', 'compose', '--project-name', 'servernet-n8n', '--project-directory', str(ROOT)]
     # Public routing starts only AFTER the owner is initialized on loopback.
+    write('phase', 'image_postgres')
+    pull_image('postgres:16-alpine', 'public.ecr.aws/docker/library/postgres:16-alpine')
+    write('phase', 'image_n8n')
+    pull_image(f'docker.n8n.io/n8nio/n8n:{version}')
+    write('phase', 'image_caddy')
+    pull_image('caddy:2-alpine', 'public.ecr.aws/docker/library/caddy:2-alpine')
     write('phase', 'application_containers')
     run(command + ['up', '-d', 'postgres', 'n8n'], timeout=900)
     for _ in range(120):
