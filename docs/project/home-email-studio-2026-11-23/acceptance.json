@@ -1,0 +1,331 @@
+{
+  "date": "2026-11-23",
+  "base": "fc744ea4db7cb211da6daa8985cd4ec6e10d07ff",
+  "source": "aa9c083f37dd6900c942571f2565d6d6d506f186",
+  "merge": "7e67c999edbe76d68369dd5e63cbd654f878c000",
+  "pr": 402,
+  "ci": [
+    {
+      "name": "Domain discovery presentation checks",
+      "id": 45154997574,
+      "conclusion": "success"
+    },
+    {
+      "name": "Commercial SEO growth checks",
+      "id": 45154997771,
+      "conclusion": "success"
+    },
+    {
+      "name": "ServerNet Studio SSO",
+      "id": 45154997417,
+      "conclusion": "success"
+    },
+    {
+      "name": "Studio homepage presentation",
+      "id": 45154997530,
+      "conclusion": "success"
+    },
+    {
+      "name": "Security regression",
+      "id": 45154997535,
+      "conclusion": "success"
+    },
+    {
+      "name": "Email preference consent checks",
+      "id": 45154997444,
+      "conclusion": "success"
+    },
+    {
+      "name": "Customer cloud API contract",
+      "id": 45154997490,
+      "conclusion": "success"
+    },
+    {
+      "name": "Cloud account quota regressions",
+      "id": 45154997655,
+      "conclusion": "success"
+    },
+    {
+      "name": "Domain supplier financial and account isolation checks",
+      "id": 45154997760,
+      "conclusion": "success"
+    },
+    {
+      "name": "Existing hosting adoption checks",
+      "id": 45154997654,
+      "conclusion": "success"
+    },
+    {
+      "name": "Birthday reward financial checks",
+      "id": 45154997547,
+      "conclusion": "success"
+    },
+    {
+      "name": "Arvan traffic financial regressions",
+      "id": 45154997445,
+      "conclusion": "success"
+    },
+    {
+      "name": "Incident reliability regressions",
+      "id": 45154997659,
+      "conclusion": "success"
+    }
+  ],
+  "focused": {
+    "php": {
+      "tests": 36,
+      "assertions": 856,
+      "passed": 36
+    },
+    "dom": {
+      "tests": 19,
+      "passed": 19
+    },
+    "rollback": {
+      "tests": 4,
+      "passed": 4
+    }
+  },
+  "local_baseline": {
+    "tests": 89,
+    "passed": 86,
+    "failures": [
+      "StudioSsoTest::test_ai_cost_is_still_settled_by_the_existing_gateway",
+      "V1ChatTest::test_worked_example_debits_exactly_328_toman_with_headers",
+      "V1ChatTest::test_same_key_same_body_replays_without_a_second_call_or_charge"
+    ],
+    "changed_tests": 114,
+    "changed_passed": 111,
+    "new_failures": 0
+  },
+  "installed": 32,
+  "compiled_views_per_pool": 9,
+  "pools": 2,
+  "public_http": [
+    {
+      "locale": "fa",
+      "path": "/",
+      "status": 200,
+      "seconds": 2.25,
+      "url": "https://servernet.cloud/",
+      "slides": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ],
+      "interval": true,
+      "mail_css": true,
+      "studio_brand": true,
+      "targets": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ]
+    },
+    {
+      "locale": "fa",
+      "path": "/transactional-email",
+      "status": 200,
+      "seconds": 0.28,
+      "url": "https://servernet.cloud/transactional-email",
+      "art": true,
+      "delivery": true,
+      "quote": true,
+      "estimator": true,
+      "canonical": true
+    },
+    {
+      "locale": "fa",
+      "path": "/hosting/email",
+      "status": 200,
+      "seconds": 1.04,
+      "url": "https://servernet.cloud/hosting/email",
+      "choice": true,
+      "early": true,
+      "link": true,
+      "mailbox_plans": true
+    },
+    {
+      "locale": "fa",
+      "path": "/studio/download",
+      "status": 200,
+      "seconds": 0.26,
+      "url": "https://servernet.cloud/studio/download",
+      "brand": true
+    },
+    {
+      "locale": "/en",
+      "path": "/",
+      "status": 200,
+      "seconds": 1.97,
+      "url": "https://servernet.cloud/en",
+      "slides": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ],
+      "interval": true,
+      "mail_css": true,
+      "studio_brand": true,
+      "targets": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ]
+    },
+    {
+      "locale": "/en",
+      "path": "/transactional-email",
+      "status": 200,
+      "seconds": 0.58,
+      "url": "https://servernet.cloud/en/transactional-email",
+      "art": true,
+      "delivery": true,
+      "quote": true,
+      "estimator": true,
+      "canonical": true
+    },
+    {
+      "locale": "/en",
+      "path": "/hosting/email",
+      "status": 200,
+      "seconds": 0.38,
+      "url": "https://servernet.cloud/en/hosting/email",
+      "choice": true,
+      "early": true,
+      "link": true,
+      "mailbox_plans": true
+    },
+    {
+      "locale": "/en",
+      "path": "/studio/download",
+      "status": 200,
+      "seconds": 0.22,
+      "url": "https://servernet.cloud/en/studio/download",
+      "brand": true
+    },
+    {
+      "locale": "/tr",
+      "path": "/",
+      "status": 200,
+      "seconds": 1.54,
+      "url": "https://servernet.cloud/tr",
+      "slides": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ],
+      "interval": true,
+      "mail_css": true,
+      "studio_brand": true,
+      "targets": [
+        "infrastructure",
+        "gpu",
+        "studio",
+        "n8n",
+        "hosting",
+        "email"
+      ]
+    },
+    {
+      "locale": "/tr",
+      "path": "/transactional-email",
+      "status": 200,
+      "seconds": 0.16,
+      "url": "https://servernet.cloud/tr/transactional-email",
+      "art": true,
+      "delivery": true,
+      "quote": true,
+      "estimator": true,
+      "canonical": true
+    },
+    {
+      "locale": "/tr",
+      "path": "/hosting/email",
+      "status": 200,
+      "seconds": 0.53,
+      "url": "https://servernet.cloud/tr/hosting/email",
+      "choice": true,
+      "early": true,
+      "link": true,
+      "mailbox_plans": true
+    },
+    {
+      "locale": "/tr",
+      "path": "/studio/download",
+      "status": 200,
+      "seconds": 0.2,
+      "url": "https://servernet.cloud/tr/studio/download",
+      "brand": true
+    }
+  ],
+  "preview": {
+    "desktop": {
+      "width": 1024,
+      "height": 600,
+      "stats_bottom": 600,
+      "horizontal_overflow": 0
+    },
+    "english_light": {
+      "width": 1280,
+      "height": 720,
+      "stats_bottom": 720,
+      "horizontal_overflow": 0
+    },
+    "turkish_mobile": {
+      "width": 390,
+      "height": 844,
+      "horizontal_overflow": 0,
+      "control_overflow": 0
+    },
+    "review_folders_removed": 2
+  },
+  "live_browser": {
+    "homepage": "https://servernet.cloud/",
+    "width": 1633,
+    "height": 828,
+    "rail_bottom": 827.78,
+    "scroll_top": 0,
+    "interval_ms": 6000,
+    "fade_properties": [
+      "opacity",
+      "visibility"
+    ],
+    "region_blur_px": 3,
+    "region_dark_alpha": [
+      0.18,
+      0.035
+    ],
+    "region_light_alpha": [
+      0.27,
+      0.08
+    ],
+    "manual_selection": [
+      "studio",
+      "email"
+    ],
+    "mailbox_to_transactional": true,
+    "volume_estimate": {
+      "recipient_count": 100000,
+      "toman": 6838000
+    },
+    "quote_submitted": false,
+    "email_sent": false,
+    "payment": false
+  }
+}
