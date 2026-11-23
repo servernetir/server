@@ -60,9 +60,10 @@ function fixture(layout, config) {
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
     '<link rel="stylesheet" href="/assets/css/site.css">'+
     '<link rel="stylesheet" href="/assets/css/panel.css">'+
-    '<style>body{min-height:2200px}.fixture-header{padding:8px}.pnl-main{min-height:250px}'+
+    '<link rel="stylesheet" href="/assets/css/console-workspace.css">'+
+    '<style>body{min-height:2200px}.fixture-header{position:fixed;inset:0 0 auto;z-index:200;height:112px;padding:8px;background:var(--bg2)}.pnl-main{min-height:250px}'+
     '#destination{margin-top:80px}iframe{border:0}</style></head>'+
-    '<body style="overflow:auto!important"><header class="fixture-header" id="fixture-header">'+
+    '<body class="sn-console" style="overflow:auto!important"><header class="fixture-header" id="fixture-header">'+
     '<a href="#destination">ServerNet</a></header><main id="main">'+shell+'</main>'+
     '<footer id="fixture-footer" inert>Existing inert footer</footer>'+
     '<script>window.__panelErrors=[];addEventListener("error",function(e){'+
@@ -156,6 +157,12 @@ async function browserScenario() {
       outside.focus();
       check(side.contains(document.activeElement), 'background focus is blocked');
       await wait(350);
+      const header=document.getElementById('fixture-header');
+      header.removeAttribute('inert');
+      const closeBox=close.getBoundingClientRect();
+      const closeHit=document.elementFromPoint(closeBox.left+closeBox.width/2,closeBox.top+closeBox.height/2);
+      check(closeHit===close || close.contains(closeHit), 'drawer close control paints above the global header');
+      header.setAttribute('inert','');
       const box=side.getBoundingClientRect();
       const y=Math.min(innerHeight-2,Math.max(box.bottom+4,(box.bottom+innerHeight)/2));
       const hit=document.elementFromPoint(Math.floor(innerWidth/2),Math.floor(y));
@@ -356,7 +363,7 @@ if (require.main === module) for (const reduced of [false,true]) {
     const layout=await fs.readFile(path.join(app,'resources/views/panel/layout.blade.php'),'utf8');
     assert.match(layout,/asset_ver\('assets\/js\/panel-navigation\.js'\)/);
     const assets=new Map();
-    for (const name of ['css/site.css','css/panel.css','js/panel-navigation.js']) {
+    for (const name of ['css/site.css','css/panel.css','css/console-workspace.css','js/panel-navigation.js']) {
       assets.set('/assets/'+name,await fs.readFile(path.join(app,'public/assets',name)));
     }
     const cases=reduced
