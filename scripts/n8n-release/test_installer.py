@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
 import urllib.error
 
 spec = importlib.util.spec_from_file_location('n8n_installer', Path(__file__).parents[2] / 'website/resources/n8n/install.py')
@@ -29,7 +30,7 @@ class InstallerTest(unittest.TestCase):
             calls.append(path)
             return {'status': 'ok'} if path.startswith('/health') else {'data': {'email': self.spec['email']}}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
                 patch.object(installer, 'api', side_effect=api), \
                 patch.object(installer, 'run', side_effect=lambda command, **kw: calls.append(command)):
             installer.install()
@@ -53,14 +54,14 @@ class InstallerTest(unittest.TestCase):
                 return {'data': {'email': self.spec['email']}}
             return {'status': 'ok'}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
                 patch.object(installer, 'api', side_effect=api), patch.object(installer, 'run'):
             installer.install()
         self.assertIn('EXISTING_KEY', (self.root / '.env').read_text())
         self.assertTrue((self.root / 'owner-initialized').exists())
 
     def test_wrong_owner_receipt_never_opens_the_public_listener(self):
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
                 patch.object(installer, 'api', return_value={'data': {'email': 'someone-else@example.test'}}), \
                 patch.object(installer, 'run') as run:
             with self.assertRaisesRegex(RuntimeError, 'owner_setup_unconfirmed'):
@@ -81,6 +82,13 @@ class InstallerTest(unittest.TestCase):
         self.assertIn(['apt-get', 'install', '-y', '-qq', 'docker.io', 'docker-compose-v2'], commands)
         self.assertNotIn(['apt-get', 'install', '-y', '-qq', 'docker-ce'], commands)
         self.assertIn(['systemctl', 'enable', '--now', 'docker'], commands)
+
+    def test_explicit_registry_denial_uses_the_official_mirror_and_preserves_the_compose_tag(self):
+        results = [Mock(returncode=1), Mock(returncode=1, stderr=b'403 Forbidden')]
+        with patch.object(installer.subprocess, 'run', side_effect=results), patch.object(installer, 'run') as run:
+            installer.pull_image('caddy:2-alpine', 'public.ecr.aws/docker/library/caddy:2-alpine')
+        self.assertEqual(['docker', 'pull', 'public.ecr.aws/docker/library/caddy:2-alpine'], run.call_args_list[0].args[0])
+        self.assertEqual(['docker', 'tag', 'public.ecr.aws/docker/library/caddy:2-alpine', 'caddy:2-alpine'], run.call_args_list[1].args[0])
 
 
 if __name__ == '__main__':
