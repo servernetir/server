@@ -1,0 +1,23 @@
+name: n8n catalogue release guards
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['scripts/n8n-catalog-seo-release/**', '.github/workflows/n8n-catalog-release.yml']
+permissions:
+  contents: read
+jobs:
+  release-guards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Check release binding, rollback and activation syntax
+        run: |
+          python3 scripts/n8n-catalog-seo-release/test_release.py
+          php -l scripts/n8n-catalog-seo-release/activate.php
