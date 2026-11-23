@@ -186,6 +186,35 @@ class CloudProxmoxTest extends TestCase
         } finally { $lock->release(); }
     }
 
+    public function test_running_guest_is_stopped_before_provider_deletion(): void
+    {
+        $stopped = false; $deleted = false;
+        Http::fake(function ($request) use (&$stopped, &$deleted) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if (str_ends_with($path, '/status/current')) {
+                return Http::response(['data' => ['status' => $stopped ? 'stopped' : 'running']]);
+            }
+            if (str_ends_with($path, '/status/stop')) { $stopped = true; return Http::response(['data' => 'UPID:stop']); }
+            if (str_contains($path, '/tasks/')) { return Http::response(['data' => ['status' => 'stopped']]); }
+            if ($request->method() === 'DELETE') { $this->assertTrue($stopped); $deleted = true; }
+            return Http::response(['data' => []]);
+        });
+        $this->assertTrue(app(ProxmoxClient::class)->deleteServer('108')['ok']);
+        $this->assertTrue($deleted);
+    }
+
+    public function test_failed_stop_never_attempts_provider_deletion(): void
+    {
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if (str_ends_with($path, '/status/current')) { return Http::response(['data' => ['status' => 'running']]); }
+            if (str_ends_with($path, '/status/stop')) { return Http::response([], 403); }
+            return Http::response(['data' => []]);
+        });
+        $this->assertFalse(app(ProxmoxClient::class)->deleteServer('108')['ok']);
+        Http::assertNotSent(fn ($request) => $request->method() === 'DELETE');
+    }
+
     public function test_existing_vm_is_returned_without_a_second_clone(): void
     {
         $clones = 0;
