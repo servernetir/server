@@ -15,4 +15,6 @@ Limited release in `scripts/home-email-studio-20261123/`: 32 destinations, uniqu
 
 Delivery reference: AWS SES documentation, [How email sending works](https://docs.aws.amazon.com/ses/latest/dg/send-email-concepts-process.html) and [Delivery problems](https://docs.aws.amazon.com/ses/latest/dg/troubleshoot-delivery.html). A fast first attempt/recipient-server acceptance is not guaranteed inbox placement.
 
+Pre-release browser QA using real Blade and a static globe confirmed the email glass scene, pure opacity transition (no slide transform), Persian 1024×600 and English light 1280×720 with the stats rail at the viewport bottom, and Turkish light 390×844 with no horizontal overflow and all six controls in two rows. Narrow desktop thresholds tolerate fractional zoom dimensions; mobile service copy starts at the top of the stage.
+
 Production installation and visual acceptance pending.
