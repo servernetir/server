@@ -89,6 +89,8 @@ def activate(stage, manifest, phase):
                 connection.sendall(fcgi.record(1, struct.pack('!HB5s', 1, 0, b'\0' * 5))
                     + fcgi.record(4, fcgi.encode_params(params)) + fcgi.record(4) + fcgi.record(5))
                 result = fcgi.receive(connection, time.monotonic() + 20)
+            if result.get('status') == 'stopped':
+                raise RuntimeError('Scoped activation stopped: ' + json.dumps({k: result.get(k) for k in ['step', 'reason', 'file', 'line']}))
             assert result.get('compiled_views') == 8 and result.get('phase') == phase and result.get('general_cache_flush') is False
             results.append(result)
     return results
@@ -183,9 +185,40 @@ def run(mode, commit, stage):
     print(json.dumps({'status': 'installed', 'files': len(records), 'sha': commit, 'activation': results}))
 
 
+def recover_interrupted(commit, stage, previous):
+    """Only recover this release's exact once-installed new dependencies.
+
+    Existing live files must already be restored to their original bytes. The
+    previous stage must be an interrupted (not completed) release of the same
+    manifest. Refresh the old views in both pools before retiring dependencies.
+    """
+    assert not previous.is_symlink() and previous.is_dir()
+    assert not (previous / 'receipt.json').exists(), 'Previous release completed'
+    manifest = json.loads(fetch(commit, PREFIX + 'manifest.json'))
+    manifest['commit'] = commit
+    records = json.loads((previous / 'prepared.json').read_text())
+    assert [{k: row[k] for k in manifest['files'][index]} for index, row in enumerate(records)] == manifest['files']
+    for index, row in enumerate(records):
+        expected = row['before'] if row['before'] is not None else row['after']
+        assert current(row) == expected, 'Unexpected interrupted state: ' + row['destination']
+        if row['before'] is not None:
+            assert sha((previous / 'backup' / str(index)).read_bytes()) == row['before']
+    write(stage / 'prepared.json', json.dumps(records).encode(), 0o600)
+    results = activate(stage, manifest, 'before')
+    retired = previous / 'retired-dependencies'
+    retired.mkdir(mode=0o700, exist_ok=True)
+    assert not retired.is_symlink()
+    for index, row in enumerate(records):
+        if row['before'] is None:
+            assert current(row) == row['after'] and not (retired / str(index)).exists()
+            os.replace(HOME / row['destination'], retired / str(index))
+    preflight(records, 'before')
+    print(json.dumps({'status': 'recovered', 'files': len(records), 'activation': results}))
+
+
 def main():
     mode, commit = sys.argv[1:3]
-    assert mode in ['prepare', 'apply', 'verify', 'activate', 'rollback'] and re.fullmatch('[0-9a-f]{40}', commit)
+    assert mode in ['prepare', 'apply', 'verify', 'activate', 'rollback', 'recover'] and re.fullmatch('[0-9a-f]{40}', commit)
     assert os.getuid() != 0 and Path.home() == HOME, 'Unexpected release account'
     stage = HOME / 'deploy-backups' / (RELEASE + '-' + commit[:12])
     stage.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -196,7 +229,12 @@ def main():
         # that contract changed instead of rebuilding unrelated configuration.
         assert not (ROOT / 'bootstrap/cache/config.php').exists(), 'Unexpected config cache'
         assert not list((ROOT / 'bootstrap/cache').glob('routes-*.php')), 'Unexpected route cache'
-        run(mode, commit, stage)
+        if mode == 'recover':
+            previous_sha = sys.argv[3]
+            assert re.fullmatch('[0-9a-f]{40}', previous_sha) and previous_sha != commit
+            recover_interrupted(commit, stage, HOME / 'deploy-backups' / (RELEASE + '-' + previous_sha[:12]))
+        else:
+            run(mode, commit, stage)
 
 
 if __name__ == '__main__':
