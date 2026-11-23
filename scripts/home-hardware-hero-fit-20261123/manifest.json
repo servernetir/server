@@ -2,7 +2,7 @@
   "files": [
     {"source":"website/public/assets/js/studio-carousel.js","destination":"servernet_app/public/assets/js/studio-carousel.js","before":"d1c5da9f4ef29e733bee3a072f0dfaf479b421ad878c9f1d01a1ca2c066aa325","after":"57abce6595aad0c642f5d5c918247a21ffc75f0250581458d0234998965999e5"},
     {"source":"website/public/assets/js/studio-carousel.js","destination":"public_html/assets/js/studio-carousel.js","before":"d1c5da9f4ef29e733bee3a072f0dfaf479b421ad878c9f1d01a1ca2c066aa325","after":"57abce6595aad0c642f5d5c918247a21ffc75f0250581458d0234998965999e5"},
-    {"source":"website/public/assets/css/home-parts-slide.css","destination":"servernet_app/public/assets/css/home-parts-slide.css","before":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc","after":"af053c9153fe0520c88853ce5d558f989f3b7fee775cdf8ae24275765efde350"},
-    {"source":"website/public/assets/css/home-parts-slide.css","destination":"public_html/assets/css/home-parts-slide.css","before":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc","after":"af053c9153fe0520c88853ce5d558f989f3b7fee775cdf8ae24275765efde350"}
+    {"source":"website/public/assets/css/home-parts-slide.css","destination":"servernet_app/public/assets/css/home-parts-slide.css","before":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc","after":"3f5edc0e25d270a510482ff935389daafeef3c857990b9ee52676817774ecdc5"},
+    {"source":"website/public/assets/css/home-parts-slide.css","destination":"public_html/assets/css/home-parts-slide.css","before":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc","after":"3f5edc0e25d270a510482ff935389daafeef3c857990b9ee52676817774ecdc5"}
   ]
 }

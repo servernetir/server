@@ -39,6 +39,7 @@ async function snapshot(page) {
     return {
       viewport: {w:document.documentElement.clientWidth, h:innerHeight},
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      internalScroll: [document.querySelector('.sn-home-intro').scrollTop, document.querySelector('.sn-hero-carousel').scrollTop],
       header:box('#header-wrap'), slide:box('#hero-parts'), scene:box('.sn-parts-scene'),
       head:box('.sn-parts-scene-head'), foot:box('.sn-parts-scene-foot'),
       copy:box('.sn-parts-copy'), visual:box('.sn-parts-visual'), art:box('.sn-parts-art'),
@@ -57,6 +58,7 @@ function assertGeometry(g, id, fitFirstFold) {
   const fail = (condition, reason) => assert.ok(condition, `${id}: ${reason}; ${JSON.stringify(g)}`);
   fail(g.active === 'parts' && g.artState === 'ready' && g.labelCount === 4, 'all real parts displayed');
   fail(!g.horizontalOverflow, 'no horizontal overflow');
+  fail(g.internalScroll.every(v=>v===0), 'glass stage never becomes an invisible scroll container');
   fail(g.head.y >= Math.max(g.header.bottom, g.slide.y) + 2, 'collection title is below the fixed header');
   fail(g.foot.bottom <= g.controls.y - 2, 'caption and chassis link are above the glass controls');
   fail(g.copy.y >= g.slide.y - 1 && g.copy.bottom <= g.controls.y - 2, 'copy stays in its own stage');
@@ -116,6 +118,9 @@ for (const engine of engines) test(`${engine}: hardware scene fits the real head
       await page.locator('#hero-parts[data-parts-art="ready"]').waitFor({state:'visible'});
       for (const [width,height,name] of sizes) {
         await page.setViewportSize({width,height});
+        // A focus/scroll-into-view request must not internally scroll the
+        // decorative clipped halo, even when document scroll is reset.
+        await page.locator('[data-hero-target="parts"]').evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
         await settle(page);
         const g = await snapshot(page);
         assertGeometry(g,`${engine}/${locale}/${width}x${height} ${name}`,width>=1000&&height>=650);

@@ -21,8 +21,20 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(len(manifest['files']), 14)
         self.assertEqual(len({row['destination'] for row in manifest['files']}), 14)
         self.assertEqual(sum(row.get('patch', False) for row in manifest['files']), 1)
+        # The immutable original release remains available at its pinned SHA.
+        # A narrowly scoped subsequent static release supersedes exactly two
+        # assets in both roots; require the exact previous -> new hash chain.
+        successor = json.loads((REPO / 'scripts/home-hardware-hero-fit-20261123/manifest.json').read_text())['files']
+        next_rows = {(row['source'], row['destination']): row for row in successor}
+        self.assertEqual(len(next_rows), 4)
         for row in manifest['files']:
-            self.assertEqual(release.sha((REPO / row['source']).read_bytes()), row.get('source_sha256', row['after']))
+            expected = row.get('source_sha256', row['after'])
+            following = next_rows.pop((row['source'], row['destination']), None)
+            if following is not None:
+                self.assertEqual(following['before'], expected)
+                expected = following['after']
+            self.assertEqual(release.sha((REPO / row['source']).read_bytes()), expected)
+        self.assertEqual(next_rows, {})
         for helper in manifest['helpers'].values():
             self.assertEqual(release.sha((REPO / helper['path']).read_bytes()), helper['sha256'])
 

@@ -76,7 +76,7 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
      need more room, the shared stage can grow instead of hiding content under
      the glass controls. The runtime measures only these intrinsic boxes. */
   .sn-public #main{padding-block-start:var(--sn-home-header-space,var(--header-h,112px))}
-  .sn-public .sn-home .sn-home-intro{margin-block-start:calc(-1 * var(--sn-home-header-space,var(--header-h,112px)));padding-block-start:var(--sn-home-header-space,var(--header-h,112px));min-height:var(--sn-home-parts-min-intro,0px)}
+  .sn-public .sn-home .sn-home-intro{margin-block-start:calc(-1 * var(--sn-home-header-space,var(--header-h,112px)));padding-block-start:var(--sn-home-header-space,var(--header-h,112px));min-height:var(--sn-home-parts-min-intro,0px);overflow:clip}
   .sn-home-intro .sn-parts-hero{overflow:visible}
   .sn-home-intro .sn-parts-halo{inset-block:-9svh -210px;inset-inline-end:-8vw;width:min(77vw,1180px)}
   /* The collection title and caption are ordinary grid rows. Only the art
@@ -94,9 +94,12 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
     .sn-home-intro .sn-parts-art{width:min(100%,150cqh)}
   }
 }
-@media(min-width:1000px) and (min-height:580px) and (max-height:720px){
-  .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4}
-  .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem}
+@media(min-width:1000px) and (min-height:580px) and (max-height:820px){
+  .sn-home-intro .sn-parts-copy .sn-service-eyebrow{margin-bottom:10px;font-size:.875rem}
+  .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4;margin-bottom:12px}
+  .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem;line-height:1.78;margin-bottom:14px}
+  .sn-home-intro .sn-parts-benefits{gap:8px 15px;margin-bottom:15px}
+  .sn-home-intro .sn-parts-copy .sn-service-actions .btn{min-height:42px;padding-block:8px;font-size:.8125rem}
   .sn-parts-mark{width:33px;height:33px;border-radius:9px}.sn-parts-mark .icon{width:19px;height:19px}
   .sn-parts-generations{margin-top:13px;gap:6px 9px}
   .sn-parts-gen-label{font-size:.75rem}.sn-parts-gen-links>a{min-height:30px;min-width:47px;padding:5px 7px;font-size:.6875rem}
@@ -115,6 +118,15 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-parts-generations{margin-top:10px;gap:5px 8px}
   .sn-parts-scene-foot{gap:6px;font-size:.625rem}.sn-parts-scene-note{gap:2px 6px}.sn-parts-art-caption::after{margin-inline-start:6px}
   .sn-parts-label-full{display:none}.sn-parts-label-short{display:inline}
+}
+/* Clipping a decorative halo must not make a hidden scroll container. Focus
+   and scrollIntoView can otherwise move the entire hero under the fixed nav. */
+@media(max-width:999px),(max-height:579px){
+  .sn-home-intro .sn-hero-carousel{overflow:clip}
+}
+@supports not (overflow:clip){
+  @media(min-width:1000px) and (min-height:580px){.sn-public .sn-home .sn-home-intro{overflow:visible;clip-path:inset(0)}}
+  @media(max-width:999px),(max-height:579px){.sn-home-intro .sn-hero-carousel{overflow:visible;clip-path:inset(0)}}
 }
 /* An older engine without small-viewport units should scroll the shared
    carousel in normal flow rather than infer the available height. */
