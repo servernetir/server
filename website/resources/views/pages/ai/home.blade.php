@@ -27,6 +27,7 @@
     <p>{{ __('studio_download.web_landing') }}</p>
     <div class="ai-actions">
      <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('studio_download.install_web') }}</a>
+     <a class="ai-btn" href="{{ lroute('ai.studio') }}">{{ __('home_discovery.services.studio.cta') }}</a>
      <a class="ai-btn" href="{{ lroute('studio.download') }}#studio-web-install">{{ __('studio_download.web_guide') }}</a>
      @php
         $studioPackages = app(\App\Services\Studio\StudioDownloads::class);

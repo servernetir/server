@@ -33,17 +33,22 @@ class RobotsPolicyTest extends TestCase
         $policy['model_training']['allow'] = false;
         $robots = RobotsPolicy::render($policy);
 
-        foreach (['OAI-SearchBot', 'PerplexityBot', 'Googlebot', 'Bingbot'] as $agent) {
+        foreach (['OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'Claude-User', 'Googlebot', 'Bingbot'] as $agent) {
             $group = $this->group($robots, $agent);
             $this->assertStringContainsString("Allow: /\n", $group);
             foreach ($policy['private_paths'] as $privatePath) {
                 $this->assertStringContainsString('Disallow: '.$privatePath, $group, $agent.' can crawl '.$privatePath);
+            }
+            foreach ($policy['crawl_exclusions'] as $pattern) {
+                $this->assertStringContainsString('Disallow: '.$pattern, $group);
             }
         }
 
         foreach (['GPTBot', 'Google-Extended'] as $agent) {
             $this->assertSame("User-agent: {$agent}\nDisallow: /", $this->group($robots, $agent));
         }
+        $this->assertStringContainsString('Sitemap: https://servernet.cloud/sitemap.xml', $robots);
+        $this->assertStringContainsString('Sitemap: https://servernet.cloud/sitemap-index.xml', $robots);
     }
 
     public function test_an_incomplete_policy_fails_closed_without_overwriting_robots(): void

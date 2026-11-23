@@ -28,7 +28,7 @@ return [
     'crawler_policy' => [
         'search_discovery' => [
             'allow' => env('SEO_AI_SEARCH_CRAWL', true),
-            'agents' => ['OAI-SearchBot', 'PerplexityBot', 'Googlebot', 'Bingbot'],
+            'agents' => ['OAI-SearchBot', 'PerplexityBot', 'Claude-SearchBot', 'Claude-User', 'Googlebot', 'Bingbot'],
         ],
         'model_training' => [
             'allow' => env('SEO_AI_TRAINING_CRAWL', true),
@@ -46,7 +46,14 @@ return [
             '/bale/webhook/', '/cloud-phone/webhook/',
             '/healthz', '/up',
         ],
+        // Existing public-webroot rules: keep duplicate filter and legacy
+        // attachment URLs out of crawl queues, without changing page access.
+        'crawl_exclusions' => [
+            '/*?attachment_id=', '/parts/*?', '/en/parts/*?', '/tr/parts/*?',
+            '/*?tag=', '/*&tag=', '/*?q=', '/*&q=',
+        ],
         'sitemap' => 'https://servernet.cloud/sitemap.xml',
+        'additional_sitemaps' => ['https://servernet.cloud/sitemap-index.xml'],
     ],
 
     'page_budget' => [

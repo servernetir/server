@@ -20,6 +20,10 @@
 
     var rad = Math.PI / 180, circle = Math.PI * 2;
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+    var narrow = window.matchMedia ? window.matchMedia('(max-width: 820px)') : { matches: false };
+    var slide = host.closest('[data-hero-slide]');
+    var slideVisible = function () { return !slide || slide.getAttribute('aria-hidden') !== 'true'; };
+    var landRequested = false, idleScheduled = false;
     var width = 0, height = 0, ratio = 1, radius = 0, cx = 0, cy = 0, padding = 0;
     var yaw = 45, pitch = 25, camera = null, velocityYaw = 0, velocityPitch = 0;
     var idleAfter = performance.now() + 1800, idleSpeed = .0025; // 2.5 degrees/second, one turn in 144 seconds.
@@ -247,7 +251,7 @@
     }
     function tick(timestamp) {
       frame = 0;
-      if (!active || !visible || document.hidden || !landVectors.length) { lastTick = 0; return; }
+      if (!active || !visible || !slideVisible() || document.hidden || !landVectors.length) { lastTick = 0; return; }
       var elapsed = lastTick ? Math.min(64, timestamp - lastTick) : 16; lastTick = timestamp;
       if (motion.matches) { if (camera) { yaw = camera.yaw + camera.delta; pitch = camera.latitude; camera = null; } velocityYaw = 0; velocityPitch = 0; }
       if (camera && !pointer) {
@@ -270,7 +274,12 @@
       if (!motion.matches) frame = requestAnimationFrame(tick); else lastTick = 0;
     }
     function wake() {
-      if (!active || !visible || document.hidden || !landVectors.length) { if (frame) cancelAnimationFrame(frame); frame = 0; lastTick = 0; return; }
+      if (!active || !visible || !slideVisible() || document.hidden || !landVectors.length) {
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0; lastTick = 0; host.dataset.autoRotating = 'false';
+        scheduleLand();
+        return;
+      }
       if (!frame) frame = requestAnimationFrame(tick);
     }
     function resize() {
@@ -322,7 +331,7 @@
       group.querySelector('[data-sn-region-link]').href = nodes[country].url;
       selectLocation({ country: country, approximate: true });
     }
-    group.addEventListener('sn-atlas-region', function (event) { selectLocation({ country: event.detail, approximate: true }); });
+    group.addEventListener('sn-atlas-region', function (event) { selectLocation({ country: event.detail, approximate: true }); requestLand(); });
     function endPointer(event, cancelled) {
       if (!pointer || (event.pointerId !== undefined && event.pointerId !== pointer.id)) return;
       idleAfter = performance.now() + 1800;
@@ -334,6 +343,7 @@
     }
     host.addEventListener('pointerdown', function (event) {
       if ((event.button !== undefined && event.button !== 0) || event.isPrimary === false || pointer) return;
+      requestLand();
       camera = null; velocityYaw = 0; velocityPitch = 0;
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: false };
       try { host.setPointerCapture(event.pointerId); } catch (error) { /* Normal events work without capture. */ } wake();
@@ -364,9 +374,9 @@
       else if (event.key === 'ArrowUp') latitude = clamp(pitch + 10, -72, 72);
       else if (event.key === 'ArrowDown') latitude = clamp(pitch - 10, -72, 72);
       else if (event.key === 'Home') { longitude = point ? point.longitude : 45; latitude = point ? point.latitude : 25; }
-      else if (event.key === 'Enter' || event.key === ' ') { var target = markerTargets.slice().sort(function (a, b) { return b.z - a.z; })[0]; if (target) choose(target.country); event.preventDefault(); return; }
+      else if (event.key === 'Enter' || event.key === ' ') { requestLand(); var target = markerTargets.slice().sort(function (a, b) { return b.z - a.z; })[0]; if (target) choose(target.country); event.preventDefault(); return; }
       else return;
-      event.preventDefault(); focus(longitude, latitude, 300);
+      event.preventDefault(); requestLand(); focus(longitude, latitude, 300);
     });
 
     // Unwrap dateline rings: a distant island must not paint a horizontal strip.
@@ -400,27 +410,53 @@
         resize();
       } catch (error) { landVectors = []; host.dataset.globeState = 'unavailable'; }
     }
+    // The poster is ready without geographic JavaScript. On mobile wait for
+    // an intentional globe interaction; desktop enhances after the load event.
+    // A hidden carousel slide has a bounding box, so IntersectionObserver alone
+    // is insufficient to stop its animation or avoid its deferred data request.
+    function requestLand() {
+      if (landRequested || landVectors.length || !active) return;
+      landRequested = true; host.dataset.globeState = 'loading';
+      if (window.SNAtlasLand) { installLand(window.SNAtlasLand); return; }
+      try {
+        var source = new URL(host.dataset.landSrc || '', window.location.href);
+        if (!host.dataset.landSrc || source.origin !== window.location.origin) { host.dataset.globeState = 'unavailable'; return; }
+        var script = document.createElement('script'); script.src = source.href; script.async = true;
+        script.setAttribute('fetchpriority', 'low');
+        script.onload = function () { installLand(window.SNAtlasLand); };
+        script.onerror = function () { landRequested = false; host.dataset.globeState = 'unavailable'; };
+        document.head.appendChild(script);
+      } catch (error) { host.dataset.globeState = 'unavailable'; }
+    }
+    function scheduleLand() {
+      if (idleScheduled || landRequested || landVectors.length || narrow.matches || !active || !visible
+          || !slideVisible() || document.hidden || document.readyState !== 'complete') return;
+      idleScheduled = true;
+      var start = function () {
+        idleScheduled = false;
+        if (!narrow.matches && active && visible && slideVisible() && !document.hidden) requestLand();
+      };
+      if ('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout: 1200 });
+      else window.setTimeout(start, 80);
+    }
     catalogue(); buildConnections();
     selectLocation(pendingLocation || { country: host.dataset.country || '', city: host.dataset.city || '', code: host.dataset.code || '', label: host.dataset.label || '', approximate: host.dataset.approximate === 'true' });
     var resizeObserver = 'ResizeObserver' in window ? new ResizeObserver(resize) : null;
     if (resizeObserver) resizeObserver.observe(host); else window.addEventListener('resize', resize, { passive: true });
     var intersectionObserver = 'IntersectionObserver' in window ? new IntersectionObserver(function (entries) { visible = entries[0].isIntersecting; wake(); }, { rootMargin: '32px' }) : null;
     if (intersectionObserver) intersectionObserver.observe(host);
+    if (slide) new MutationObserver(wake).observe(slide, { attributes: true, attributeFilter: ['aria-hidden'] });
     var themeObserver = new MutationObserver(function () { refreshColors(); wake(); });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
     document.addEventListener('visibilitychange', wake);
     if (motion.addEventListener) motion.addEventListener('change', wake);
+    if (narrow.addEventListener) narrow.addEventListener('change', scheduleLand);
     window.addEventListener('pagehide', function () { active = false; pointer = null; host.classList.remove('is-dragging'); wake(); });
     window.addEventListener('pageshow', function (event) { if (event.persisted) { active = true; resize(); } });
 
-    host.dataset.globeState = 'loading';
-    if (window.SNAtlasLand) { installLand(window.SNAtlasLand); return; }
-    try {
-      var source = new URL(host.dataset.landSrc || '', window.location.href);
-      if (!host.dataset.landSrc || source.origin !== window.location.origin) { host.dataset.globeState = 'unavailable'; return; }
-      var script = document.createElement('script'); script.src = source.href; script.async = true;
-      script.onload = function () { installLand(window.SNAtlasLand); }; script.onerror = function () { host.dataset.globeState = 'unavailable'; }; document.head.appendChild(script);
-    } catch (error) { host.dataset.globeState = 'unavailable'; }
+    if (!landRequested) host.dataset.globeState = 'waiting';
+    if (document.readyState === 'complete') scheduleLand();
+    else window.addEventListener('load', scheduleLand, { once: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else boot();
 })();

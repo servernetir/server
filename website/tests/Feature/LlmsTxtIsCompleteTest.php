@@ -49,6 +49,11 @@ class LlmsTxtIsCompleteTest extends TestCase
 
         foreach (['vps', 'dedicated', 'cloud', 'domain', 'services'] as $cat) {
             foreach (array_keys((array) config("catalog.$cat", [])) as $slug) {
+                if ($cat === 'vps' && $slug === 'gpu') {
+                    $this->assertStringContainsString('/gpu)', $body);
+                    $this->assertStringNotContainsString('/vps/gpu)', $body);
+                    continue;
+                }
                 if (! str_contains($body, "/{$cat}/{$slug})")) {
                     $missing[] = "{$cat}/{$slug}";
                 }

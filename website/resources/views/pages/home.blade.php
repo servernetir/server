@@ -1,4 +1,6 @@
 @extends('layouts.site')
+@section('title', __('home_discovery.meta_title'))
+@section('description', \App\Support\HomeServiceDirectory::description())
 @include('partials.atlas-assets')
 @include('partials.atlas-seo')
 @push('head')
@@ -11,6 +13,9 @@
 @php
   $loc = app()->getLocale();
   $studioCarouselAvailable = app(\App\Services\Studio\StudioAuthorization::class)->configured();
+  // Reuse the same localized, permission-filtered geography in both home sections.
+  $homeAtlasConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
+  $homeAtlasMenu = app(\App\Services\ServerMenu::class)->build($homeAtlasConfig['vps'] ?? []);
   $atlasLead = __('ui.hero_lead');
   $atlasLeadBreak = match($loc) { 'en'=>' for enterprises', 'tr'=>' özel sunucu', default=>' برای سازمان‌ها' };
   $atlasLeadParts = explode($atlasLeadBreak, $atlasLead, 2);
@@ -121,6 +126,7 @@
 @endif
 
 @include('partials.seo-hourly-choice')
+@include('partials.home-discovery')
 
 {{-- ============ PRODUCTS ============ --}}
 <section class="section" id="products">
@@ -276,10 +282,8 @@
       @php
         $atlasTileDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>'IR' };
         $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
-        $atlasTileConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
-        $atlasTileMenu = app(\App\Services\ServerMenu::class)->build($atlasTileConfig['vps'] ?? []);
         $atlasPicker = array_values(array_filter(array_unique(array_merge([$atlasTileDefault], ['US','TR','DE','FR','NL','IR'])), fn ($iso) => \App\Services\Customer\IranSalesVisibility::allowsCountry($iso)));
-        $atlasNodes = $atlasTileMenu['cloud'];
+        $atlasNodes = $homeAtlasMenu['cloud'];
         @endphp
         @foreach($atlasPicker as $iso)
         @php $region = $atlasLabels[$iso]; @endphp
