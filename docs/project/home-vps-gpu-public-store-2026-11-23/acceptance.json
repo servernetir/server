@@ -1,0 +1,134 @@
+{
+  "date": "2026-11-23",
+  "homepage_source": "9656515e3f6cd50224b1bc93055a674c5b9b4820",
+  "performance_source": "fe697d231e0e49d5fdb1ac5a1ed612b0ef71ad21",
+  "performance_ci_head": "96cca46c029e4f9792b4c1d475f8ede64fe3a20b",
+  "performance_workflows": [
+    {
+      "name": "Arvan traffic financial regressions",
+      "conclusion": "success",
+      "run_id": 45140444848
+    },
+    {
+      "name": "Studio homepage presentation",
+      "conclusion": "success",
+      "run_id": 45140444316
+    },
+    {
+      "name": "VPS.TC reseller integration tests",
+      "conclusion": "success",
+      "run_id": 45140444148
+    },
+    {
+      "name": "Security regression",
+      "conclusion": "success",
+      "run_id": 45140444120
+    },
+    {
+      "name": "Managed n8n delivery",
+      "conclusion": "success",
+      "run_id": 45140444369
+    },
+    {
+      "name": "Existing hosting adoption checks",
+      "conclusion": "success",
+      "run_id": 45140444132
+    },
+    {
+      "name": "Customer cloud API contract",
+      "conclusion": "success",
+      "run_id": 45140444155
+    },
+    {
+      "name": "Incident reliability regressions",
+      "conclusion": "success",
+      "run_id": 45140444315
+    },
+    {
+      "name": "Cloud account quota regressions",
+      "conclusion": "success",
+      "run_id": 45140444180
+    },
+    {
+      "name": "Domain supplier financial and account isolation checks",
+      "conclusion": "success",
+      "run_id": 45140444211
+    },
+    {
+      "name": "Birthday reward financial checks",
+      "conclusion": "success",
+      "run_id": 45140444193
+    }
+  ],
+  "focused_tests": {
+    "tests": 49,
+    "assertions": 768,
+    "result": "passed"
+  },
+  "guest_route_measurement": {
+    "before": {
+      "seconds": 28.39,
+      "queries": 5605
+    },
+    "after": {
+      "status": 200,
+      "guest_configurator": true,
+      "no_saved_ssh": true,
+      "render_seconds": 2.87,
+      "queries": 371
+    }
+  },
+  "public_http": [
+    {
+      "locale": "fa",
+      "status": 200,
+      "url": "https://console.servernet.cloud/account/cloud-store",
+      "seconds": 2.97,
+      "public_configurator": true,
+      "no_saved_ssh": true,
+      "cache_control": "no-store, private"
+    },
+    {
+      "locale": "/en",
+      "status": 200,
+      "url": "https://console.servernet.cloud/en/account/cloud-store",
+      "seconds": 3.91,
+      "public_configurator": true,
+      "no_saved_ssh": true,
+      "cache_control": "no-store, private"
+    },
+    {
+      "locale": "/tr",
+      "status": 200,
+      "url": "https://console.servernet.cloud/tr/account/cloud-store",
+      "seconds": 3.99,
+      "public_configurator": true,
+      "no_saved_ssh": true,
+      "cache_control": "no-store, private"
+    }
+  ],
+  "carousel": {
+    "milliseconds": 6000,
+    "order": [
+      "infrastructure",
+      "gpu",
+      "studio",
+      "n8n",
+      "hosting"
+    ]
+  },
+  "browser": {
+    "homepage": "https://servernet.cloud/#main",
+    "gpu_destination": "https://servernet.cloud/gpu",
+    "guest_store": "https://console.servernet.cloud/account/cloud-store",
+    "final_guest_continue_redirect": "https://console.servernet.cloud/login",
+    "credentials_entered": false,
+    "purchase_placed": false,
+    "temporary_review_pages_removed": true
+  },
+  "screenshots": [
+    "vps-hero-production.jpg",
+    "gpu-hero-production.jpg",
+    "public-store-production.jpg"
+  ]
+}
