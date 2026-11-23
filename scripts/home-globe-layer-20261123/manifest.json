@@ -1,0 +1,42 @@
+{
+  "files": [
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "before": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e",
+      "after": "1606cdb6ad3e62854d6b40e1391982041b99d5f69d496a0331f70132db55e6d9"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "before": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e",
+      "after": "1606cdb6ad3e62854d6b40e1391982041b99d5f69d496a0331f70132db55e6d9"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-globe-layer-20261123/activate.php",
+      "sha256": "fc224b672498b901f381f224fe18b44afd282a3ce900db57827f0ffec89a37b9"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/home-globe-layer-20261123/review.html",
+      "sha256": "1306944dbae5864bf89e1b316fe8a802a2fb1f65fa3b94a0c35d9b7e35a56be4"
+    },
+    {
+      "name": "globe-preview.css",
+      "source": "website/public/assets/css/studio-carousel.css",
+      "sha256": "1606cdb6ad3e62854d6b40e1391982041b99d5f69d496a0331f70132db55e6d9"
+    }
+  ]
+}

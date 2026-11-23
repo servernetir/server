@@ -208,3 +208,22 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
 }
 @media(max-width:540px){.sn-service-copy h2{font-size:29px;line-height:1.55}.sn-service-eyebrow{font-size:.8125rem;gap:9px;margin-bottom:17px}.sn-service-mark{font-size:19px;padding:6px 9px}.sn-service-lead{font-size:.9375rem;line-height:1.95}.sn-service-benefits{gap:10px 15px}.sn-service-benefits li{font-size:.75rem}.sn-service-actions .btn{padding-inline:17px;font-size:.8125rem}.sn-service-note{font-size:.6875rem}.sn-flow-scene{aspect-ratio:1.18}.sn-flow-card{width:132px;padding:9px;gap:7px;border-radius:10px}.sn-flow-card-icon{width:25px;height:25px;border-radius:7px}.sn-flow-card-icon>.icon{width:14px;height:14px}.sn-flow-card small{font-size:.5625rem}.sn-flow-card strong{font-size:.6875rem}.sn-flow-card-source{top:3%}.sn-flow-card-logic{top:9%}.sn-flow-card-action{bottom:14%}.sn-flow-card-result{bottom:6%}.sn-flow-caption{font-size:.625rem;bottom:-13px}.sn-hosting-categories{gap:8px 14px;margin-bottom:24px}.sn-hosting-categories>a{font-size:.75rem}.sn-hosting-scene{padding:24px 10px}.sn-hosting-site{padding:19px 17px 0}.sn-hosting-site-nav{margin-bottom:23px}.sn-hosting-site>strong{font-size:23px}.sn-hosting-float{display:none}.sn-hosting-site-preview>div{height:58px}.sn-hero-controls{gap:13px}.sn-hero-selectors{gap:16px;flex:1;justify-content:space-between}.sn-hero-selectors>button{font-size:.75rem;gap:0}.sn-hero-progress{display:none}.sn-hero-autoplay{width:34px;height:34px}.sn-hero-controls .sn-hero-autoplay{margin-inline-start:0}}
 @media(prefers-reduced-motion:reduce){.sn-service-hero *{animation:none!important;transition:none!important}}
+
+/* The first slide uses the whole stage as a geographic backdrop. */
+@media(min-width:1024px) and (min-height:600px){
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure{isolation:isolate;overflow:hidden}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure>.container{position:static;z-index:auto}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-grid{position:static}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-atlas-display{position:static;z-index:auto;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding-bottom:8px}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{position:absolute;z-index:0;top:50%;right:-8vw;left:auto;width:clamp(740px,76vw,1440px);height:clamp(740px,76vw,1440px);max-height:none;transform:translateY(-50%);opacity:.86;mask-image:linear-gradient(to left,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
+  html[dir="rtl"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{left:-8vw;right:auto;mask-image:linear-gradient(to right,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy{z-index:2;isolation:isolate}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy::before{content:"";position:absolute;inset:-38px -60px;z-index:-1;border-radius:50%;background:var(--bg);opacity:.82;filter:blur(44px);pointer-events:none}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy :is(h1,.lead){text-shadow:0 2px 22px var(--bg)}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure :is(.sn-region-detail,.sn-region-picker){position:relative;z-index:3}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-region-detail{padding:10px 14px;border-radius:10px;background:linear-gradient(115deg,rgba(11,23,39,.78),rgba(10,21,36,.24));backdrop-filter:blur(12px)}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-region-picker button{background:rgba(11,23,39,.56);backdrop-filter:blur(8px)}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure :is(.sn-globe-coordinate,.sn-orbit-label){display:none}
+  html[data-theme="light"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-region-detail{background:linear-gradient(115deg,rgba(244,250,255,.88),rgba(238,247,255,.4))}
+  html[data-theme="light"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-region-picker button{background:rgba(244,250,255,.75)}
+}
