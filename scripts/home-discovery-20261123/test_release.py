@@ -95,5 +95,10 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual((self.stage / 'retired-dependencies' / '0').read_bytes(), self.partial)
         self.assertEqual(self.target.read_bytes(), self.original)
 
+    def test_activation_checks_route_cache_only_after_framework_bootstrap(self):
+        activation = Path(__file__).with_name('activate.php').read_text()
+        boot = activation.index('$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();')
+        self.assertLess(boot, activation.index('$app->routesAreCached()'))
+
 
 if __name__ == '__main__': unittest.main()

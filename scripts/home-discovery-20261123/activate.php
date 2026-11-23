@@ -42,8 +42,10 @@ foreach ($records as $row) {
 $step = 'bootstrap';
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
-if ($app->configurationIsCached() || $app->routesAreCached()) throw new RuntimeException('unexpected_bootstrap_cache');
+// routesAreCached() resolves the Filesystem binding, which is registered
+// during framework bootstrap; calling it before bootstrap fails in FPM.
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+if ($app->configurationIsCached() || $app->routesAreCached()) throw new RuntimeException('unexpected_bootstrap_cache');
 $step = 'route_registry';
 $app->make(Illuminate\Contracts\Http\Kernel::class);
 $router = $app['router'];
