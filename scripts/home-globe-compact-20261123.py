@@ -16,8 +16,8 @@ APP = HOME / 'servernet_app'
 SOURCE = 'website/public/assets/css/studio-carousel.css'
 TARGETS = (APP / 'public/assets/css/studio-carousel.css',
            HOME / 'public_html/assets/css/studio-carousel.css')
-BEFORE = 'aa67283ed9230bdedf4ad30b85d691528676db13a45b28f731c72bf471790a05'
-AFTER = 'c590d51d448652d53ccfdf300aea06a8066e69aeec7b5d715dac495c4674e4e2'
+BEFORE = 'c590d51d448652d53ccfdf300aea06a8066e69aeec7b5d715dac495c4674e4e2'
+AFTER = '34adf43c0373609a223a02fc0996d6ebbda96589f72a0b948c5751ca14105850'
 
 
 def digest(data):
