@@ -1,0 +1,1049 @@
+--- a/website/app/Http/Controllers/Account/CloudServerController.php
++++ b/website/app/Http/Controllers/Account/CloudServerController.php
+@@ -181,6 +181,7 @@
+             'service' => $service,
+             'instance' => $instance,
+             'caps' => $caps,
++            'trafficFunding' => app(\App\Services\Finance\ArvanTrafficFunding::class)->context($service),
+             'powerActions' => $this->powerActions($instance),
+             'password' => $password,
+             'canReveal' => $canReveal,
+--- a/website/app/Http/Controllers/Account/CloudStoreController.php
++++ b/website/app/Http/Controllers/Account/CloudStoreController.php
+@@ -119,7 +119,7 @@
+         }
+         $months = Service::monthsIn($cycle);
+ 
+-        if ($months <= 0) {
++        if ($months <= 0 || (int) $plan->price_irt <= 0) {
+             return 0;
+         }
+ 
+@@ -128,6 +128,15 @@
+         $discount = max(0, min(90, $discount));
+ 
+         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
++
++        // A configured long-cycle discount may exceed a deliberately small
++        // sales margin. Preserve that discount only down to procurement cost;
++        // stored cost already includes supplier/FX fees, so add no profit floor.
++        // Offer selection separately requires a current stored FX snapshot.
++        $eurRate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
++        if ((int) $plan->cost_eur_cents > 0 && $eurRate > 0) {
++            $raw = max($raw, (int) $plan->cost_eur_cents / 100 * $eurRate * $months);
++        }
+ 
+         if ($plan->provider === 'salad' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
+             $minimumHour = (int) (ceil($floor / 1_000_000
+@@ -142,9 +151,12 @@
+                 * \App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS * $months);
+         }
+ 
+-        // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
+-        // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
++        // CloudAddons applies its own cost guard and rounding; add that exact
++        // independent public quote once, after the server procurement floor.
+         $extra = $addons === [] ? 0 : app(CloudAddons::class)->forCycle($addons, $cycle);
++        if ($addons !== [] && ! app(CloudAddons::class)->isEmpty($addons) && $extra <= 0) {
++            return 0;
++        }
+ 
+         return Product::roundUpToman($raw) + $extra;
+     }
+@@ -313,11 +325,11 @@
+             ]));
+         }
+ 
+-        // مشتریِ احرازنشده مکان‌های ایران را نمی‌بیند (گیتِ سختِ سفارش جداست)
+-        if (\App\Services\Customer\IranSalesVisibility::restricted()
+-            || \App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
++        // بدون تأیید واقعی شاهکار، هیچ مقصد ایران در خرید نمایش داده نمی‌شود.
++        if (\App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
+             $usable = $usable->reject(
+-                fn (CloudLocation $l) => strtoupper((string) $l->country) === 'IR'
++                fn (CloudLocation $l) => \App\Services\Customer\IranSalesGate::isIranTarget($l->country)
++                    || \App\Services\Customer\IranSalesGate::isIranTarget($l->code)
+             )->values();
+         }
+ 
+@@ -487,8 +499,8 @@
+      * ⚠️ هیچ سطلی ادغام نمی‌شود. هر سطل لینکِ خودش را نگه می‌دارد، پس
+      * «دسترس‌پذیری» ساختاری است نه وابسته به درستیِ یک هش. نردبانِ تفکیک:
+      *   ۱) شهرِ شناخته‌شده → نامِ خودش.
+-     *   ۲) شهرِ ناشناخته → نامِ جا نمی‌گیرد؛ فقط تفاوت‌های واقعی: «از X تومان ·
+-     *      تا N هسته». عنوانِ صادقانه‌شان یک بار بالای گروه می‌آید.
++     *   ۲) شهرِ ناشناخته → «مکان N»، بدون حدس‌زدن نام شهر. قیمت/مشخصات
++     *      توضیح مستقل‌اند و هرگز جای نام در برگهٔ سفارش نمی‌نشینند.
+      *   ۳) اگر باز هم متن‌ها یکی شد، شمارهٔ ترتیبیِ پایدار.
+      *
+      * @param  array<int,array<string,mixed>>  $rows
+@@ -496,8 +508,7 @@
+      */
+     private static function disambiguate(array $rows): array
+     {
+-        // شهرهای شناخته‌شده اول، «سایر مکان‌ها» آخر — تا عنوانِ گروه یک بار و
+-        // در یک جا بنشیند و فهرست تکراری به نظر نرسد.
++        // شهرهای شناخته‌شده اول؛ هر مکان ناشناخته شمارهٔ مستقل خود را دارد.
+         usort($rows, fn ($a, $b) => ((int) $a['generic']) <=> ((int) $b['generic']));
+ 
+         foreach ($rows as $i => $r) {
+@@ -507,19 +518,7 @@
+                 continue;
+             }
+ 
+-            $bits = [];
+-
+-            if ((int) $r['irt'] > 0) {
+-                $bits[] = __('ui.cvb_from', ['amount' => cloud_price((int) $r['irt'])]);
+-            }
+-
+-            if ((int) $r['cores'] > 0) {
+-                $bits[] = __('ui.cvb_upto_cores', ['n' => fa_num((int) $r['cores'])]);
+-            }
+-
+-            $rows[$i]['label'] = $bits === []
+-                ? __('ui.cvb_city_other_n', ['n' => fa_num($i + 1)])
+-                : implode(' · ', $bits);
++            $rows[$i]['label'] = __('ui.cvb_dc_n', ['n' => fa_num($i + 1)]);
+         }
+ 
+         // پلهٔ آخر: هر متنی که هنوز تکراری است، شمارهٔ ترتیبیِ پایدار می‌گیرد.
+@@ -651,6 +650,10 @@
+                 }
+             }
+ 
++            if (! CloudImage::providerAccessIsAutomated((string) $row->provider, $row)) {
++                continue;
++            }
++
+             if ((int) $row->min_disk_gb > (int) ($offer->boot_disk_gb ?? $offer->disk_gb)) {
+                 continue;                                 // روی این دیسک جا نمی‌شود
+             }
+@@ -696,40 +699,6 @@
+             if (self::deliverable($offer, $providers, $rows)) {
+                 $out[] = (string) $img->key;
+             }
+-        }
+-
+-        return $out;
+-    }
+-
+-    /**
+-     * The same deliverability check for a public, slug-unique offer list.
+-     * Image rows are shared only within this call. Provider eligibility is
+-     * still queried per offer, with the original SQL slug comparison and gates.
+-     *
+-     * @param  Collection<int|string, CloudPlan>  $offers
+-     * @return array<string, array<int, string>>
+-     */
+-    public static function imageKeysForOffers(Collection $offers, string $kind = 'os'): array
+-    {
+-        if ($offers->isEmpty()) {
+-            return [];
+-        }
+-
+-        $byKey = CloudImage::query()->usable()->where('kind', $kind)->get()->groupBy('key');
+-        $catalog = CloudImage::catalog($kind);
+-        $out = [];
+-
+-        foreach ($offers as $offer) {
+-            $providers = CloudPlan::query()->sellable()
+-                ->where('slug', (string) $offer->slug)
+-                ->pluck('provider')->unique()->values()->all();
+-            $keys = [];
+-            foreach ($catalog as $image) {
+-                if (self::deliverable($offer, $providers, $byKey->get((string) $image->key, collect()))) {
+-                    $keys[] = (string) $image->key;
+-                }
+-            }
+-            $out[(string) $offer->slug] = $keys;
+         }
+ 
+         return $out;
+@@ -964,6 +933,12 @@
+         $addonMap = [];     // slug => bool  (آیا IP اضافه روی این اسلاگ شدنی است)
+ 
+         $cycles = self::cycles();
++        $addonTotals = [];
++        foreach ($cycles as $cy) {
++            foreach (range(0, CloudAddons::MAX_EXTRA_IP) as $count) {
++                $addonTotals[$cy][$count] = $addonSvc->forCycle(['extra_ipv4' => $count], $cy);
++            }
++        }
+         $taxPct = self::taxPercent();
+         $customerId = (int) Auth::guard('customer')->id();
+         $existingHourlyMinimum = app(HourlyStartCredit::class)->existingRate($customerId)
+@@ -991,18 +966,24 @@
+             // 🔴 عددِ روی دکمه باید با فاکتور یکی باشد، پس setup همین‌جا در
+             // first می‌نشیند نه فقط در لحظهٔ صدورِ فاکتور.
+             $setupIrt = $offer->setupIrt();
++            $monthlyQuote = self::priceForCycle($offer, 'monthly');
+ 
+             foreach ($cycles as $cy) {
+                 $price = self::priceForCycle($offer, $cy);
+                 if ($price <= 0) {
+                     continue;
+                 }
++                $undiscounted = $monthlyQuote * Service::monthsIn($cy);
++                // Whole percentages round down: never promise more saving
++                // than the actual charged/rounded server quote provides.
++                $saving = $undiscounted > $price && ! in_array($offer->provider, ['salad', 'lightnode', 'vpstc'], true)
++                    ? (int) floor(($undiscounted - $price) * 100 / $undiscounted) : 0;
+                 $priceMap[$slug][$cy] = [
+                     'cycle' => $price,
+                     'per' => self::monthlyEquivalent($offer, $cy),
+                     'setup' => $setupIrt,
+                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
+-                    'save' => in_array($offer->provider, ['salad', 'lightnode', 'vpstc'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
++                    'save' => $saving,
+                 ];
+             }
+ 
+@@ -1095,13 +1076,11 @@
+ 
+         // پلنِ پیش‌انتخاب‌شده (لینکِ «خرید» صفحات عمومی: ?location=…&plan=…)
+         $selectedSlug = $wantedPlan;
+-        $planMoved = false;
+ 
+         if (! isset($imageMap[$selectedSlug])) {
+-            // ⚠️ جابه‌جاییِ بی‌صدا ممنوع: اگر لینک/انتخابِ قبلی به اسلاگی اشاره دارد
+-            // که این‌جا نیست، صفحه باید بگوید — نه اینکه چیزِ دیگری را انتخاب کند و
+-            // مشتری فکر کند خودش اشتباه کرده.
+-            $planMoved = $selectedSlug !== '' && $planCards !== [];
++            // Location browsing starts a fresh resource choice. Old bookmarks
++            // may still contain a slug from another city; render only valid
++            // local options, just as on a first visit. POST validation stays strict.
+             $selectedSlug = (string) ($planCards[0]['slug'] ?? '');
+         }
+ 
+@@ -1123,7 +1102,6 @@
+             'locCode' => $code,
+             'planCards' => $planCards,
+             'blockedCards' => $blockedCards,
+-            'planMoved' => $planMoved,
+             // خطِ GPU: فرم ساده‌تر — کلیدِ SSH و IPِ اضافه برای کانتینر بی‌معناست
+             'gpuMode' => $gpuMode,
+             'selectedSlug' => $selectedSlug,
+@@ -1137,12 +1115,9 @@
+             // ماه‌های هر دوره — جاوااسکریپت با همین، بهایِ IP اضافه را به مبلغِ
+             // دوره اضافه می‌کند؛ وگرنه دکمه یک عدد نشان می‌دهد و فاکتور عددِ دیگر.
+             'cycleMonths' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::monthsIn($c)])->all(),
+-            /*
+-            | دوره و سیستم‌عاملِ آمده در آدرس هم مثلِ `plan` احترام می‌شوند.
+-            | چیپِ شهر این سه را روی لینکِ خودش سوار می‌کند، پس عوض‌کردنِ شهر
+-            | دیگر بی‌صدا انتخاب‌های قبلی را دور نمی‌ریزد (GET است و `old()`
+-            | خالی است، پس بدونِ این، هر تعویضِ مکان یعنی شروع از صفر).
+-            */
++            // Explicit incoming image/cycle preferences are validated against
++            // this location. Cross-location links transfer only the valid cycle;
++            // dependent resource/software choices start from this catalogue.
+             'defCycle' => (function () use ($request, $cycles) {
+                 $q = $request->query('cycle');
+ 
+@@ -1162,6 +1137,7 @@
+             // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
+             // می‌شود، بدترین نوعِ رابطِ کاربری است.
+             'addonMap' => $addonMap,
++            'addonTotals' => $addonTotals,
+             'addonOk' => (bool) ($addonMap[$selectedSlug] ?? false),
+             'extraIpPrice' => $addonSvc->extraIpMonthlyToman(),
+             'maxExtraIp' => CloudAddons::MAX_EXTRA_IP,
+@@ -1614,12 +1590,10 @@
+                 | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، استثنای
+                 | Wallet کلِ تراکنش و ساخت سرویس را برمی‌گرداند.
+                 */
+-                $firstHour = app(\App\Services\Birthday\BirthdayHourly::class)->rates($service, now(), 1, $hourly)[0];
+-                $birthdayNote = $firstHour < $hourly ? ' — '.__('birthday.usage_discount', ['amount' => invoice_money($hourly - $firstHour, 'IRT')]) : '';
+                 $wallet->debit(
+-                    $customer->id, 'IRT', $firstHour,
++                    $customer->id, 'IRT', $hourly,
+                     'cloud_hourly', $service,
+-                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name.$birthdayNote
++                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name
+                 );
+ 
+                 return $service;
+--- a/website/app/Http/Controllers/CatalogController.php
++++ b/website/app/Http/Controllers/CatalogController.php
+@@ -34,15 +34,40 @@
+      * «بکاپِ روزانه»، «API و CLI کامل» — هیچ‌کدام برای GPU تحویل‌دادنی نبود).
+      * جانشین: خطِ واقعیِ /gpu.
+      */
+-    private const GONE_TO_GPU = ['gpuaas', 'gpu-platform'];
++    /**
++     * صفحاتی که در `/gpu` ادغام شده‌اند و باید ۳۰۱ بخورند.
++     *
++     * 🔴 `vps/gpu` آبان ۱۴۰۵ اضافه شد. دو صفحهٔ ایندکس‌پذیر سرِ یک موضوع
++     *    می‌جنگیدند و Search Console نتیجه‌اش را دقیق نشان می‌داد: عبارت‌های
++     *    متمایز که فقط `/gpu` داشت در جایگاه ۵ بودند («اجاره GPU» ۵.۷،
++     *    «اجاره کارت گرافیک» ۵.۱)، ولی عبارت‌های اصلی که هر دو صفحه مدعی‌اش
++     *    بودند در ته نتایج: «سرور گرافیکی» ۲۵.۰، «خرید سرور gpu» ۴۲.۶،
++     *    «سرور gpu» ۵۱.۸ — روی هم بیش از هزار نمایش با CTR زیر ۳٪.
++     *
++     *    `/gpu` می‌مانَد چون پرترافیک‌ترین صفحهٔ کلِ سایت است (۷۹۵ کلیک در سه
++     *    ماه) و قیمت و فرم سفارش زنده دارد؛ `/vps/gpu` قیمت نداشت و اسکیمای
++     *    Offer هم نمی‌داد.
++     *
++     * ⚠️ ورودی `gpu` در `config/catalog/vps.php` عمداً پاک **نشد**: مگامنو و
++     *    پیوندهای داخلی از همان config ساخته می‌شوند و حذفش یعنی لینک‌های
++     *    شکسته. فقط دیگر رندر نمی‌شود و از نقشهٔ سایت بیرون است.
++     *
++     * @var array<string,array<int,string>> دسته ⇒ اسلاگ‌هایی که ۳۰۱ می‌خورند
++     */
++    public const MERGED_TO_GPU = [
++        'cloud' => ['gpuaas', 'gpu-platform'],
++        'vps'   => ['gpu'],
++    ];
++
++    /** آیا این صفحه در `/gpu` ادغام شده است؟ */
++    public static function mergedToGpu(string $category, string $slug): bool
++    {
++        return in_array($slug, self::MERGED_TO_GPU[$category] ?? [], true);
++    }
+ 
+     public function show(string $category, string $slug): View|\Illuminate\Http\RedirectResponse
+     {
+-        abort_if(in_array($category, ['vps', 'dedicated', 'hosting'], true)
+-            && in_array($slug, ['iran', 'iran-infrastructure'], true)
+-            && \App\Services\Customer\IranSalesVisibility::restricted(), 404);
+-        if (($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true))
+-            || ($category === 'vps' && $slug === 'gpu')) {
++        if (self::mergedToGpu($category, $slug)) {
+             return redirect()->to(lroute('gpu'), 301);
+         }
+ 
+@@ -283,6 +308,8 @@
+ 
+                 $db = $rows[$slug] ?? null;
+                 if ($db) {
++                    $p['iran_restricted'] = \App\Services\Customer\IranSalesGate::blocksProduct(
++                        \Illuminate\Support\Facades\Auth::guard('customer')->user(), $db);
+                     $price = $db->effectivePrice();
+                     if ($price <= 0) {
+                         unset($p['irt'], $p['eur'], $p['base_eur']);
+@@ -324,13 +351,29 @@
+         // چیپ‌های TLD فقط برای امضای «جستجوی دامنه» لازم‌اند
+         $tlds = ($product['signature']['type'] ?? null) === 'domainsearch' ? $this->tlds() : [];
+ 
++        $orderSlugs = array_values(array_unique(array_merge($linked,
++            array_map(fn ($i) => $slug.'-'.($i + 1), array_keys($product['plans'])))));
++        $orderProducts = \Illuminate\Support\Facades\Schema::hasTable('products')
++            ? \App\Models\Product::with('server')->where('is_active', true)->whereIn('slug', $orderSlugs)->get() : collect();
++        $restrictedProducts = $orderProducts->filter(fn ($p) =>
++            \App\Services\Customer\IranSalesGate::blocksProduct(
++                \Illuminate\Support\Facades\Auth::guard('customer')->user(), $p))->pluck('slug')->flip()->all();
++
+         return view('pages.hosting', [
+             'category' => $category,
+             'slug'     => $slug,
++            'restrictedProducts' => $restrictedProducts,
+             'product'  => $product,
+             'features' => $features,
+             'faqs'     => $faqs,
+-            'related'  => array_diff_key($products, [$slug => null]),
++            // ⚠️ صفحهٔ ادغام‌شده در /gpu از نوار «مرتبط» هم بیرون می‌رود: لینکِ
++            //    داخلی به نشانیِ ۳۰۱ هم یک پرشِ اضافه برای بازدیدکننده است هم
++            //    بودجهٔ خزشِ سوخته. (منو و نقشهٔ سایت از همین ثابت رد می‌شوند.)
++            'related'  => array_filter(
++                array_diff_key($products, [$slug => null]),
++                fn ($rSlug) => ! self::mergedToGpu($category, (string) $rSlug),
++                ARRAY_FILTER_USE_KEY
++            ),
+             'tlds'     => $tlds,
+             // خریدِ سرورِ مجازی/اختصاصی → **کنسولِ خودمان**، نه WHMCSِ بیرونی.
+             // مکانِ همین کشور از قبل انتخاب می‌شود تا کاربر دوباره کشور نبیند.
+@@ -349,9 +392,7 @@
+             | ⚠️ همان منبعی خوانده می‌شود که قیمت را هم می‌دهد، پس نمی‌تواند از
+             | آن جدا بیفتد.
+             */
+-            'orderable' => \Illuminate\Support\Facades\Schema::hasTable('products')
+-                ? \App\Models\Product::where('is_active', true)->pluck('slug')->flip()->all()
+-                : [],
++            'orderable' => $orderProducts->pluck('slug')->flip()->all(),
+         ]);
+     }
+ 
+@@ -592,6 +633,8 @@
+ 
+         foreach ($groups as $g) {
+             $p = $g['rep'];
++            $quote = app(\App\Services\Cloud\CloudPublicQuote::class)->quote($p);
++            $monthly = (int) ($quote['irt'] ?? 0);
+ 
+             /*
+             | 🔴 هر ردیف دقیقاً **یک** شهر دارد. در کشورهای خارجی آن شهر
+@@ -638,16 +681,15 @@
+                 'label'   => $cityLabels[$code] ?? $code,
+                 'ok'      => true,
+                 'reason'  => null,
+-                'irt'     => (int) $p->price_irt,
++                'irt'     => $monthly,
+                 // price_irt قیمت نهایی CloudPlan است؛ site_price() ضریب عمومی
+                 // محصولات ثابت را دوباره اعمال می‌کند و با تسویه مغایر می‌شود.
+-                'price_f' => cloud_price((int) $p->price_irt),
++                'price_f' => cloud_price($monthly),
+                 'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $p->slug),
+             ]];
+ 
+-            $plans[] = [
++            $plans[] = $quote + [
+                 'name'    => (string) $p->public_name,
+-                'irt'     => (int) $p->price_irt,
+                 'eur'     => round(((int) $p->price_eur_cents) / 100, 2),
+                 'popular' => $i === 1,          // دومی معمولاً نقطهٔ شیرینِ قیمت است
+                 'specs'   => [
+@@ -675,7 +717,7 @@
+                     // ایران همان شهر مستقلی است که در کلید گروه آمده است.
+                     'city'      => $cityLabels[(string) $p->location_code] ?? (string) $p->location_code,
+                     'loc_code'  => (string) $p->location_code,
+-                    'price_n'   => (int) $p->price_irt,
++                    'price_n'   => $monthly,
+                     // همیشه یک عضو: شهرِ ارزان‌ترین. (بالای همین حلقه چرا)
+                     'picker'    => $picker,
+                     /*
+--- a/website/app/Models/CloudInstance.php
++++ b/website/app/Models/CloudInstance.php
+@@ -706,4 +706,13 @@
+     {
+         return array_key_exists('lan_access', $this->meta ?? []);
+     }
++    /** Supplier purchase receipts and pending encrypted credentials are internal state. */
++    public function attributesToArray(): array
++    {
++        $data=parent::attributesToArray();
++        if (is_array($data['meta']??null)) {
++            unset($data['meta']['ovh_order'],$data['meta']['ovh_termination_requested_at']);
++        }
++        return $data;
++    }
+ }
+--- a/website/app/Services/Cloud/CloudOperations.php
++++ b/website/app/Services/Cloud/CloudOperations.php
+@@ -651,15 +651,7 @@
+             'synced_at' => now(),
+         ]);
+ 
+-        $reportedUsage = $r['traffic_used_gb'] ?? null;
+-        if ((! is_int($reportedUsage) && ! is_float($reportedUsage) && ! is_string($reportedUsage))
+-            || ! is_numeric($reportedUsage) || ! is_finite((float) $reportedUsage) || (float) $reportedUsage < 0) {
+-            return ['ok' => false, 'message' => self::UNAVAILABLE['traffic'],
+-                'used_gb' => null, 'quota_gb' => null, 'percent' => null,
+-                'unlimited' => false, 'remaining_gb' => null];
+-        }
+-
+-        $used = round((float) $reportedUsage, 2);
++        $used = round((float) ($r['traffic_used_gb'] ?? 0), 2);
+         $quota = (int) ($instance->specs['traffic_gb'] ?? $service->cloudPlan?->traffic_gb ?? 0);
+         $unlimited = $quota <= 0;
+ 
+--- a/website/app/Services/Cloud/CloudProvisioner.php
++++ b/website/app/Services/Cloud/CloudProvisioner.php
+@@ -358,7 +358,16 @@
+             | پس فرستادنش برای همه بی‌خطر است.
+             */
+             'term' => $service->isHourly() ? 'hour' : 'month',
++            'max_cost_eur_cents' => (int) $plan->cost_eur_cents,
++            'monthly_revenue_irt' => (int) floor((int) $service->price / max(1, Service::MONTHS_FALLBACK[$service->cycle] ?? 1)),
+         ]);
++
++        if (($result['manual'] ?? false) === true) {
++            $why = mb_substr((string) ($result['message'] ?? 'تحویل این سفارش نیازمند بررسی مدیر است.'), 0, 500);
++            $instance->update(['status' => 'building', 'last_error' => $why]);
++            $this->needsReview($service, $why);
++            return false;
++        }
+ 
+         if (! ($result['ok'] ?? false)) {
+             /*
+@@ -407,7 +416,7 @@
+             | نامعتبر بسته می‌شود — همان اتفاقی که بارِ قبل ۲۲۱ پلن را بست.
+             */
+             if (! $this->disableCombinationIfUnsupported($plan, $why)) {
+-                // A failed order only establishes a problem with this exact product.
++                // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+                 $this->quarantineProvider($plan, $why);
+             }
+ 
+@@ -680,6 +689,18 @@
+         if (ManagedN8nCatalog::handles($service)) { return; }
+         if (! $instance->hasPrivateIp() || filled(($instance->meta ?? [])['public_domain'] ?? null)) {
+             return;
++        }
++
++        // Enabling this integration must not expose historical private guests.
++        $since = \App\Models\Setting::get('npm_gateway_enabled_after');
++        if (filled($since)) {
++            try {
++                if (! $instance->created_at || $instance->created_at->lt(\Illuminate\Support\Carbon::parse($since))) {
++                    return;
++                }
++            } catch (\Throwable) {
++                return;
++            }
+         }
+ 
+         try {
+@@ -1056,6 +1077,7 @@
+                     continue;
+                 }
+ 
++                $ovhWasBuilding = $instance->provider === 'ovh' && $instance->status === 'building';
+                 $r = $driver->serverStatus((string) $instance->provider_ref);
+ 
+                 if (! ($r['ok'] ?? false)) {
+@@ -1073,9 +1095,9 @@
+                 // This driver durably adopts access credentials and the first
+                 // supplier due date while reconciling. Do not overwrite those
+                 // fields with metadata loaded before that reconciliation.
+-                if ($instance->provider === 'vpstc') { $instance->refresh(); }
+-
+-                $wasBuilding = $instance->status === 'building';
++                if (in_array($instance->provider, ['vpstc','ovh'], true)) { $instance->refresh(); }
++
++                $wasBuilding = $ovhWasBuilding || $instance->status === 'building';
+ 
+                 $instance->update([
+                     'status' => $r['status'],
+@@ -1317,6 +1339,8 @@
+             return false;
+         }
+ 
++        if ($instance->provider === 'ovh') {$instance->refresh();}
++
+         // رمز اگر نداریم، همین‌جا یکی بساز — وگرنه مشتری سرور دارد و راهی
+         // به داخلش ندارد.
+         $password = null;
+@@ -1348,6 +1372,7 @@
+ 
+     private function supportsAutomaticPasswordReset(CloudInstance $instance): bool
+     {
++        if ($instance->provider === 'ovh') {return false;}
+         if ($instance->provider !== 'arvan') {
+             return true;
+         }
+@@ -1497,7 +1522,7 @@
+     /**
+      * 🔴 «این محصول ساعتی ندارد» — یک ردیف، نه یک زیرساخت.
+      *
+-     * `quarantineProvider()` اکنون فقط همان پلن را می‌بندد؛ برای این
++     * `quarantineProvider()` **همهٔ** پلن‌های آن زیرساخت را می‌بندد؛ برای این
+      * خطا فاجعه است: نداشتنِ تعرفهٔ ساعتیِ یک محصول نباید ۱۰۱ پلنِ ماهانهٔ سالم
+      * را از فروش بردارد. پس مسیرِ جدا.
+      *
+--- a/website/app/Services/Cloud/NpmClient.php
++++ b/website/app/Services/Cloud/NpmClient.php
+@@ -58,6 +58,12 @@
+         return strtolower(trim((string) (Setting::get('npm_base_domain') ?: '')));
+     }
+ 
++    private function ownsDomain(string $hostname): bool
++    {
++        return $this->baseDomain() !== '' && filter_var($hostname,FILTER_VALIDATE_DOMAIN,FILTER_FLAG_HOSTNAME)
++            && str_ends_with($hostname,'.'.$this->baseDomain());
++    }
++
+     /**
+      * نامِ میزبانِ یک سرویس — `<کد مشتری>.<دامنهٔ پایه>`.
+      *
+@@ -88,11 +94,11 @@
+      * توکنِ احراز هویت — کش‌شده، چون هر تماس یک login اضافه یعنی دو برابر
+      * تماس و یک نقطهٔ شکستِ بیشتر.
+      */
+-    private function token(): ?string
+-    {
+-        $cacheKey = 'npm:token:'.md5($this->baseUrl().'|'.(string) Setting::getSecret('npm_email'));
+-
+-        $cached = Cache::get($cacheKey);
++    private function token(bool $fresh = false): ?string
++    {
++        $cacheKey = 'npm:token:'.hash_hmac('sha256', json_encode([$this->baseUrl(),Setting::get('npm_email'),Setting::get('npm_password')]), (string)config('app.key'));
++
++        $cached = $fresh ? null : Cache::get($cacheKey);
+ 
+         if (is_string($cached) && $cached !== '') {
+             return $cached;
+@@ -131,57 +137,39 @@
+      */
+     public function ensureProxyHost(string $hostname, string $forwardIp, int $forwardPort = 80): array
+     {
+-        if (! $this->isConfigured()) {
+-            return $this->fail('اتصالِ NPM تنظیم نشده.');
+-        }
+-
+-        $token = $this->token();
+-
+-        if ($token === null) {
+-            return $this->fail('ورود به NPM انجام نشد؛ ایمیل/رمز را بررسی کنید.');
+-        }
+-
+-        $http = Http::withToken($token)->acceptJson()->timeout(30);
+-
+-        // ── از قبل هست؟ ──
+-        $list = $http->get($this->baseUrl().'/api/nginx/proxy-hosts');
+-
+-        if ($list->successful()) {
+-            foreach ((array) $list->json() as $row) {
+-                $names = (array) ($row['domain_names'] ?? []);
+-
+-                if (in_array($hostname, $names, true)) {
+-                    return ['ok' => true, 'message' => 'از قبل موجود بود', 'id' => (int) ($row['id'] ?? 0)];
+-                }
+-            }
+-        }
+-
+-        // ── ساخت ──
+-        $r = $http->post($this->baseUrl().'/api/nginx/proxy-hosts', [
+-            'domain_names'           => [$hostname],
+-            'forward_scheme'         => 'http',
+-            'forward_host'           => $forwardIp,
+-            'forward_port'           => $forwardPort,
+-            'access_list_id'         => 0,
+-            'certificate_id'         => 0,
+-            'ssl_forced'             => false,
+-            'caching_enabled'        => false,
+-            'block_exploits'         => true,
+-            'advanced_config'        => '',
+-            'meta'                   => ['letsencrypt_agree' => false, 'dns_challenge' => false],
+-            'allow_websocket_upgrade' => true,
+-            'http2_support'          => false,
+-            'hsts_enabled'           => false,
+-            'hsts_subdomains'        => false,
+-            'locations'              => [],
+-        ]);
+-
+-        if (! $r->successful()) {
+-            return $this->fail('ساختِ پروکسی‌هاست انجام نشد: '
+-                .mb_substr((string) ($r->json('error.message') ?? $r->body()), 0, 200));
+-        }
+-
+-        return ['ok' => true, 'message' => '', 'id' => (int) ($r->json('id') ?? 0)];
++        if (!$this->isConfigured() || !$this->ownsDomain($hostname)) {return $this->fail('نام میزبان خارج از دامنهٔ تحت مدیریت این اتصال است.');}
++        $token=$this->token();
++        if($token===null){return $this->fail('ورود NPM تأیید نشد.');}
++        $http=Http::withToken($token)->acceptJson()->timeout(30);
++        $list=$http->get($this->baseUrl().'/api/nginx/proxy-hosts');
++        if(!$list->successful()||!is_array($list->json())||!array_is_list($list->json())){
++            return $this->fail('فهرست میزبان‌ها تأیید نشد؛ برای جلوگیری از میزبان تکراری چیزی ساخته نشد.');
++        }
++        $matches=array_values(array_filter($list->json(),fn($p)=>in_array($hostname,$p['domain_names']??[],true)));
++        if(count($matches)>1){return $this->fail('بیش از یک میزبان برای این نام وجود دارد؛ بررسی مدیر لازم است.');}
++        if(count($matches)===1){
++            $p=$matches[0];
++            if(($p['forward_host']??null)!==$forwardIp||(int)($p['forward_port']??0)!==$forwardPort||($p['enabled']??false)!==true){
++                return $this->fail('میزبان موجود با مقصد سفارش متفاوت یا غیرفعال است؛ تغییر خودکار انجام نشد.');
++            }
++            return ['ok'=>true,'message'=>'از قبل موجود بود','id'=>(int)$p['id']];
++        }
++        $res=$http->post($this->baseUrl().'/api/nginx/proxy-hosts',[
++            'domain_names'=>[$hostname],'forward_scheme'=>'http','forward_host'=>$forwardIp,'forward_port'=>$forwardPort,
++            'access_list_id'=>0,'certificate_id'=>0,'ssl_forced'=>false,'caching_enabled'=>false,'block_exploits'=>true,
++            'advanced_config'=>'','meta'=>(object)[],'allow_websocket_upgrade'=>true,'http2_support'=>false,
++            'hsts_enabled'=>false,'hsts_subdomains'=>false,'locations'=>[],
++        ]);
++        $id=$res->json('id');
++        if(!$res->successful()||!is_int($id)||$id<=0){return $this->fail('ساخت میزبان تأیید نشد؛ پیش از تلاش دوباره فهرست بررسی شود.');}
++        // Creation responses can predate nginx metadata; read the persisted host.
++        $check=$http->get($this->baseUrl().'/api/nginx/proxy-hosts/'.$id);
++        if(!$check->successful()||$check->json('id')!==$id||$check->json('meta.nginx_online')!==true
++            ||$check->json('forward_host')!==$forwardIp||(int)$check->json('forward_port')!==$forwardPort
++            ||!in_array($hostname,$check->json('domain_names')??[],true)){
++            return $this->fail('میزبان ایجاد شده، اما فعال‌بودن پیکربندی هنوز تأیید نشد؛ بررسی مدیر لازم است.');
++        }
++        return ['ok'=>true,'message'=>'','id'=>$id];
+     }
+ 
+     /**
+@@ -195,44 +183,28 @@
+      */
+     public function requestCertificate(int $proxyHostId, string $hostname): array
+     {
+-        $token = $this->token();
+-
+-        if ($token === null) {
+-            return ['ok' => false, 'message' => 'ورود به NPM انجام نشد.'];
+-        }
+-
+-        $http = Http::withToken($token)->acceptJson()->timeout(120);
+-
+-        $cert = $http->post($this->baseUrl().'/api/nginx/certificates', [
+-            'domain_names' => [$hostname],
+-            'meta'         => [
+-                'letsencrypt_email' => (string) Setting::getSecret('npm_email'),
+-                'letsencrypt_agree' => true,
+-                'dns_challenge'     => false,
+-            ],
+-            'provider' => 'letsencrypt',
+-        ]);
+-
+-        if (! $cert->successful()) {
+-            return ['ok' => false, 'message' => mb_substr(
+-                (string) ($cert->json('error.message') ?? $cert->body()), 0, 200)];
+-        }
+-
+-        $certId = (int) ($cert->json('id') ?? 0);
+-
+-        if ($certId <= 0) {
+-            return ['ok' => false, 'message' => 'شناسهٔ گواهی برنگشت.'];
+-        }
+-
+-        $put = $http->put($this->baseUrl().'/api/nginx/proxy-hosts/'.$proxyHostId, [
+-            'certificate_id' => $certId,
+-            'ssl_forced'     => true,
+-            'http2_support'  => true,
+-        ]);
+-
+-        return $put->successful()
+-            ? ['ok' => true, 'message' => '']
+-            : ['ok' => false, 'message' => 'گواهی ساخته شد ولی به میزبان وصل نشد.'];
++        if(!$this->ownsDomain($hostname)||$proxyHostId<=0){return ['ok'=>false,'message'=>'مالکیت نام میزبان تأیید نشد.'];}
++        $token=$this->token();if($token===null){return ['ok'=>false,'message'=>'ورود NPM تأیید نشد.'];}
++        $http=Http::withToken($token)->acceptJson()->timeout(120);
++        $host=$http->get($this->baseUrl().'/api/nginx/proxy-hosts/'.$proxyHostId);
++        if(!$host->successful()||$host->json('id')!==$proxyHostId||!in_array($hostname,$host->json('domain_names')??[],true)){
++            return ['ok'=>false,'message'=>'میزبان تحت مدیریت این اتصال تأیید نشد.'];
++        }
++        if((int)$host->json('certificate_id')>0){return ['ok'=>true,'message'=>'گواهی از قبل متصل است.'];}
++        // NPM 2.15 validates meta strictly. ACME contact/terms are instance settings,
++        // not per-certificate letsencrypt_email/letsencrypt_agree payload fields.
++        $cert=$http->post($this->baseUrl().'/api/nginx/certificates',[
++            'provider'=>'letsencrypt','domain_names'=>[$hostname],'meta'=>['dns_challenge'=>false],
++        ]);
++        $certId=$cert->json('id');
++        if(!$cert->successful()||!is_int($certId)||$certId<=0){return ['ok'=>false,'message'=>'صدور گواهی تأیید نشد.'];}
++        $put=$http->put($this->baseUrl().'/api/nginx/proxy-hosts/'.$proxyHostId,[
++            'certificate_id'=>$certId,'ssl_forced'=>true,'http2_support'=>true,
++        ]);
++        if(!$put->successful()){return ['ok'=>false,'message'=>'گواهی صادر شد ولی اتصال آن به میزبان تأیید نشد.'];}
++        $after=$http->get($this->baseUrl().'/api/nginx/proxy-hosts/'.$proxyHostId);
++        $ok=$after->successful()&&$after->json('certificate_id')===$certId&&$after->json('meta.nginx_online')===true;
++        return ['ok'=>$ok,'message'=>$ok?'':'پیکربندی TLS هنوز تأیید نشد.'];
+     }
+ 
+     /** Reuse an existing certificate and verify the exact upstream before application delivery. */
+@@ -267,62 +239,53 @@
+      */
+     public function removeProxyHost(string $hostname): array
+     {
+-        if (! $this->isConfigured()) {
+-            return ['ok' => false, 'message' => 'اتصالِ NPM تنظیم نشده.'];
+-        }
+-
+-        $token = $this->token();
+-
+-        if ($token === null) {
+-            return ['ok' => false, 'message' => 'ورود به NPM انجام نشد.'];
+-        }
+-
+-        $http = Http::withToken($token)->acceptJson()->timeout(30);
+-        $list = $http->get($this->baseUrl().'/api/nginx/proxy-hosts');
+-
+-        if (! $list->successful()) {
+-            return ['ok' => false, 'message' => 'فهرستِ میزبان‌ها خوانده نشد.'];
+-        }
+-
+-        $hostId = null;
+-        $certId = 0;
+-
+-        foreach ((array) $list->json() as $row) {
+-            if (in_array($hostname, (array) ($row['domain_names'] ?? []), true)) {
+-                $hostId = (int) ($row['id'] ?? 0);
+-                $certId = (int) ($row['certificate_id'] ?? 0);
+-                break;
+-            }
+-        }
+-
+-        // نبودنش یعنی کار از قبل انجام شده — نه خطا. (idempotency: تلاشِ
+-        // دوباره‌ی کرونِ آزادسازی نباید قرمز بدهد.)
+-        if ($hostId === null) {
+-            return ['ok' => true, 'message' => 'از قبل نبود'];
+-        }
+-
+-        $del = $http->delete($this->baseUrl().'/api/nginx/proxy-hosts/'.$hostId);
+-
+-        if (! $del->successful()) {
+-            return ['ok' => false, 'message' => 'حذفِ میزبان انجام نشد.'];
+-        }
+-
+-        if ($certId > 0) {
+-            $http->delete($this->baseUrl().'/api/nginx/certificates/'.$certId);
+-        }
+-
+-        return ['ok' => true, 'message' => ''];
++        if(!$this->isConfigured()||!$this->ownsDomain($hostname)){return ['ok'=>false,'message'=>'نام میزبان خارج از دامنهٔ تحت مدیریت این اتصال است.'];}
++        $token=$this->token();if($token===null){return ['ok'=>false,'message'=>'ورود NPM تأیید نشد.'];}
++        $http=Http::withToken($token)->acceptJson()->timeout(30);
++        $list=$http->get($this->baseUrl().'/api/nginx/proxy-hosts');
++        if(!$list->successful()||!is_array($list->json())||!array_is_list($list->json())){return ['ok'=>false,'message'=>'فهرست میزبان‌ها تأیید نشد.'];}
++        $matches=array_values(array_filter($list->json(),fn($p)=>in_array($hostname,$p['domain_names']??[],true)));
++        if(count($matches)>1){return ['ok'=>false,'message'=>'میزبان تکراری نیازمند بررسی مدیر است.'];}
++        if($matches===[]){return ['ok'=>true,'message'=>'از قبل نبود'];}
++        $host=$matches[0];$id=(int)($host['id']??0);$cert=(int)($host['certificate_id']??0);
++        if($id<=0||!$http->delete($this->baseUrl().'/api/nginx/proxy-hosts/'.$id)->successful()
++            ||$http->get($this->baseUrl().'/api/nginx/proxy-hosts/'.$id)->status()!==404){
++            return ['ok'=>false,'message'=>'نبود نهایی میزبان تأیید نشد.'];
++        }
++        if($cert>0){
++            $remaining=$http->get($this->baseUrl().'/api/nginx/proxy-hosts');
++            if(!$remaining->successful()||!is_array($remaining->json())||!array_is_list($remaining->json())){
++                return ['ok'=>false,'message'=>'میزبان حذف شد؛ بررسی گواهی باقی مانده است.'];
++            }
++            $shared=collect($remaining->json())->contains(fn($p)=>(int)($p['certificate_id']??0)===$cert);
++            if(!$shared&&!$http->delete($this->baseUrl().'/api/nginx/certificates/'.$cert)->successful()){
++                return ['ok'=>false,'message'=>'میزبان حذف شد؛ پاک‌سازی گواهی تأیید نشد.'];
++            }
++        }
++        return ['ok'=>true,'message'=>''];
+     }
+ 
+     /** آزمونِ اتصال برای دکمهٔ تستِ پنل. */
+     public function testConnection(): array
+     {
+-        if (! $this->isConfigured()) {
+-            return ['ok' => false, 'message' => 'آدرس، ایمیل یا رمزِ NPM وارد نشده.'];
+-        }
+-
+-        return $this->token() !== null
+-            ? ['ok' => true, 'message' => 'اتصال برقرار است.']
+-            : ['ok' => false, 'message' => 'ورود انجام نشد؛ آدرس/ایمیل/رمز را بررسی کنید.'];
+-    }
++        if (!$this->isConfigured()) {
++            return ['ok' => false, 'message' => 'اطلاعات ورود NPM کامل نیست.'];
++        }
++        try {
++            $token = $this->token(true);
++            if ($token === null) {
++                return ['ok' => false, 'message' => 'ورود NPM تأیید نشد.'];
++            }
++            $r = Http::withToken($token)->acceptJson()->connectTimeout(5)->timeout(15)
++                ->get($this->baseUrl().'/api/nginx/proxy-hosts');
++            $data = $r->json();
++            $ok = $r->successful() && is_array($data) && array_is_list($data);
++            return ['ok' => $ok, 'message' => $ok
++                ? 'ورود و خواندن پروکسی‌ها تأیید شد؛ هیچ میزبانی تغییر نکرد.'
++                : 'خواندن پروکسی‌های NPM تأیید نشد.'];
++        } catch (\Throwable) {
++            return ['ok' => false, 'message' => 'اتصال NPM تأیید نشد.'];
++        }
++    }
++
+ }
+--- a/website/resources/views/account/cloud-server.blade.php
++++ b/website/resources/views/account/cloud-server.blade.php
+@@ -559,7 +559,16 @@
+         @endif
+       @endif
+ 
+-      @if($caps['console'] ?? false)
++      @php
++        // Temporary acceptance UI for exactly the owner's paid test, not general sales.
++        $ownerAcceptanceConsole = $instance->provider === 'arvan'
++          && (int) $service->id === 456 && (int) $service->customer_id === 1
++          && (int) $instance->id === 293
++          && $instance->provider_ref === 'ir-tbz-sh1:0f0a4265-f1fb-4545-bd6e-99ac1157e72b'
++          && (bool) data_get($instance->meta, 'acceptance_test', false)
++          && now()->lt(\Illuminate\Support\Carbon::parse('2026-10-16T07:38:00Z'));
++      @endphp
++      @if(($caps['console'] ?? false) || $ownerAcceptanceConsole)
+         <form method="post" action="{{ lroute('account.cloud.console', $service) }}" @if($inst->provider === 'arvan') target="_blank" rel="noopener noreferrer" @endif>
+           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
+         </form>
+@@ -573,7 +582,7 @@
+       @endif
+     </div>
+ 
+-    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false))
++    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false) && ! $ownerAcceptanceConsole)
+       <p class="dm-note" style="margin-top:12px">{{ __('ui.cs_console_unavailable_rdp') }}</p>
+     @endif
+ 
+@@ -592,6 +601,16 @@
+   <div class="pnl-sec-b">
+     <p class="dm-note">{{ __('renewal.cloud_manage') }}</p>
+     <a class="pnl-btn primary" href="{{ lroute('account.services.renew', $service) }}">{{ __('ui.sr_title') }}</a>
++  </div>
++</section>
++@endif
++
++@if(! empty($trafficFunding))
++<section class="pnl-sec" id="traffic-funding" data-traffic-funding>
++  <div class="pnl-sec-h"><h2>{{ __('traffic-funding.heading') }}</h2></div>
++  <div class="pnl-sec-b">
++    <p class="dm-note">{{ __('traffic-funding.explanation') }}</p>
++    <a class="pnl-btn primary" href="{{ lroute('account.topup', ['traffic_service_id' => $service->id]) }}">{{ __('traffic-funding.button') }}</a>
+   </div>
+ </section>
+ @endif
+--- a/website/routes/console.php
++++ b/website/routes/console.php
+@@ -787,7 +787,6 @@
+ // Growth Center uses the existing scheduler; disabled and zero-budget after migration.
+ \Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);
+ 
+-Schedule::command('birthday:rewards')->everyMinute()->withoutOverlapping(10);
+ 
+ Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
+     ->appendOutputTo(storage_path('logs/marketing-scheduler.log'));
+--- a/website/routes/web.php
++++ b/website/routes/web.php
+@@ -5,12 +5,12 @@
+     [\App\Services\Cloud\VpsTcConsoleBroker::class, 'handle'])
+     ->middleware('throttle:30,1')
+     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+-
+-// Dedicated HMAC endpoint; no customer session grants broker access.
++// Dedicated HMAC broker: no customer session authorizes this server-to-server endpoint.
+ \Illuminate\Support\Facades\Route::post('/system/arvan-console-broker',
+     [\App\Services\Cloud\ArvanConsoleBroker::class, 'handle'])
+     ->middleware('throttle:60,1')
+     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
++
+ 
+ use App\Http\Controllers\Account;
+ use App\Http\Controllers\AiBuilderController;
+@@ -35,7 +35,6 @@
+ 
+ // Register private identity routes before the broad uppercase-locale redirect below.
+ require __DIR__.'/identity-api.php';
+-require __DIR__.'/urmia-auth.php';
+ require __DIR__.'/ai-growth.php';
+ require __DIR__.'/domain-suppliers.php';
+ require __DIR__.'/madar-admin.php';
+@@ -102,6 +101,8 @@
+     | «پکیجِ نمایندگی که cPanelِ ساده تحویل می‌داد».
+     */
+     Route::get('/gpu', [\App\Http\Controllers\GpuController::class, 'show'])->name('gpu');
++    Route::get('/gpu/capacity', [\App\Http\Controllers\Account\GpuCapacityController::class, 'check'])
++        ->name('gpu.capacity')->middleware('throttle:60,1');
+     Route::post('/gpu/order', [\App\Http\Controllers\GpuOrderController::class, 'start'])->name('gpu.order')->middleware('throttle:12,1');
+     /*
+     | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
+@@ -415,7 +416,7 @@
+ 
+     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
+ 
+-    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
++    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
+         require __DIR__.'/studio-account.php';
+         require __DIR__.'/domain-management.php';
+         require __DIR__.'/madar-account.php';
+@@ -511,6 +512,12 @@
+             ->name('gpu.capacity')->middleware('throttle:30,1');
+         Route::post('/cloud/{service}/gpu-price', [Account\GpuCapacityController::class, 'confirmPrice'])
+             ->name('cloud.gpu-price')->middleware('throttle:12,1');
++        Route::get('/cloud/{service}/gpu-alternatives', [Account\GpuCapacityController::class, 'alternatives'])
++            ->name('cloud.gpu-alternatives');
++        Route::get('/cloud/{service}/gpu-alternatives/{plan}', [Account\GpuCapacityController::class, 'previewAlternative'])
++            ->name('cloud.gpu-alternative-preview')->middleware('throttle:12,1');
++        Route::post('/cloud/{service}/gpu-alternatives', [Account\GpuCapacityController::class, 'replaceAlternative'])
++            ->name('cloud.gpu-alternative-replace')->middleware('throttle:12,1');
+         Route::post('/cloud-store', [Account\CloudStoreController::class, 'order'])
+             ->name('cloud.store.place')->middleware('throttle:12,1');
+ 
+@@ -968,7 +975,7 @@
+ | بفرستد. آدرس وب‌هوک شامل هش توکن ربات است، پس قابل حدس نیست.
+ */
+ Route::get('/system/bale-setup', fn () => response(
+-    '<!doctype html><meta charset=utf-8><title>ثبت وب‌هوک بله</title>'
++    '<!doctype html><title>ثبت وب‌هوک بله</title>'
+     .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+     .'<h2>ثبت وب‌هوک بله روی سرورنت</h2>'
+     .'<p>وب‌هوک ربات بله را به اپِ سرورنت وصل می‌کند تا «اتصال حساب» و «پرداخت» کار کند '
+@@ -993,7 +1000,7 @@
+         return response()->json(['ok' => false, 'reason' => 'BALE_BOT_TOKEN در .env نیست'], 422, [], JSON_UNESCAPED_UNICODE);
+     }
+ 
+-    $hook = url('/bale/webhook/'.substr(hash('sha256', $bot), 0, 32));
++    $hook = url('/bale/webhook/'.\App\Services\Bale\BaleWebhookSecret::token());
+     $base = rtrim((string) config('services.bale.base', 'https://tapi.bale.ai'), '/');
+ 
+     $set = \Illuminate\Support\Facades\Http::timeout(15)->asJson()
+@@ -1001,11 +1008,13 @@
+     $me  = \Illuminate\Support\Facades\Http::timeout(15)->get($base.'/bot'.$bot.'/getMe');
+ 
+     return response()->json([
+-        'webhook_url' => $hook,
++        'webhook_host' => parse_url($hook, PHP_URL_HOST), 'webhook_registered' => true,
+         'set_result'  => $set->json(),
+         'bot'         => $me->json('result'),
+     ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+ })->middleware('throttle:6,1');
++
++require __DIR__.'/hermes.php';
+ 
+ Route::post('/bale/webhook/{token}', \App\Http\Controllers\BaleWebhookController::class)
+     ->middleware('throttle:60,1')->where('token', '[a-f0-9]{32}');
+@@ -1027,7 +1036,7 @@
+     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
+ 
+ Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+-// نقشه‌های بخش‌بندی‌شده برای گزارشِ ایندکسِ جدا در Search Console — توضیح در SiteController::SITEMAP_SECTIONS
++// نقشه‌های بخش‌بندی‌شده برای گزارشِ ایندکسِ جدا در Search Console — SiteController::SITEMAP_SECTIONS
+ Route::get('/sitemap-index.xml', [SiteController::class, 'sitemapIndex']);
+ Route::get('/sitemaps/{section}.xml', [SiteController::class, 'sitemapSection'])->where('section', '[a-z]+');
+ Route::get('/hardware-sitemap.xml', [ServerShopController::class, 'sitemap']);
+@@ -2270,7 +2279,7 @@
+ | فرم سبک زیر GET است تا بشود در مرورگر بازش کرد؛ ولی خودِ اجرا فقط با POST.
+ */
+ Route::get('/system/migrate', fn () => response(
+-    '<!doctype html><meta charset=utf-8><title>مهاجرت دیتابیس</title>'
++    '<!doctype html><title>مهاجرت دیتابیس</title>'
+     .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+     .'<h2>اجرای مهاجرت‌های جدید</h2>'
+     .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید. مهاجرت‌های اجرانشده روی دیتابیس زنده اجرا می‌شوند.</p>'
+@@ -2536,7 +2545,7 @@
+ | یک‌جا دیده می‌شود. POST + توکن، چون داده‌اش عملیاتی است.
+ */
+ Route::get('/system/cloud-status', fn () => response(
+-    '<!doctype html><meta charset=utf-8><title>وضعیتِ تحویلِ سرورِ ابری</title>'
++    '<!doctype html><title>وضعیتِ تحویلِ سرورِ ابری</title>'
+     .'<body style="font:15px/1.8 system-ui;max-width:900px;margin:60px auto;padding:0 20px;direction:rtl">'
+     .'<h2>وضعیتِ تحویلِ سرورِ ابری</h2>'
+     .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید تا صفِ تحویل، خطاها و سلامتِ کاتالوگ را ببینیم.</p>'
+@@ -2661,7 +2670,7 @@
+ });
+ 
+ Route::get('/system/opcache', fn () => response(
+-    '<!doctype html><meta charset=utf-8><title>ریست opcache</title>'
++    '<!doctype html><title>ریست opcache</title>'
+     .'<body style="font:15px/1.8 system-ui;max-width:560px;margin:60px auto;padding:0 20px;direction:rtl">'
+     .'<h2>ریست opcache</h2>'
+     .'<p>توکن <code>DEPLOY_TOKEN</code> را وارد کنید. کشِ بایت‌کد و کشِ config/route/view پاک می‌شود '
+@@ -3247,7 +3256,6 @@
+         Route::post('/dns/zones/{zone}/status', [\App\Http\Controllers\Admin\DnsController::class, 'status'])->whereNumber('zone')->middleware('admin');
+         Route::post('/dns/zones/{zone}/delete', [\App\Http\Controllers\Admin\DnsController::class, 'destroy'])->whereNumber('zone')->middleware(['admin', 'throttle:6,1']);
+         // [managed-dns-admin:end]
+-
+         Route::get('/fleet', [\App\Http\Controllers\Admin\FleetController::class, 'index'])
+             ->name('admin.fleet')->middleware('admin');
+         Route::get('/fleet/export', [\App\Http\Controllers\Admin\FleetController::class, 'export'])->middleware('admin');
+@@ -3398,7 +3406,6 @@
+         Route::post('/seo/list-own', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importOwn']);
+         Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
+         Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
+-        Route::post('/seo/reports/{report}/revoke', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'revokeReport'])->name('admin.seo.reports.revoke');
+ 
+         /*
+          * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل
+@@ -3522,8 +3529,6 @@
+         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
+         Route::post('/settings/payment-visibility', [\App\Http\Controllers\Admin\SettingsController::class, 'paymentVisibility'])->middleware('admin');
+         Route::post('/settings/discount-entry', [\App\Http\Controllers\Admin\DiscountVisibilityController::class, 'updateDefault'])->middleware('admin');
+-        Route::post('/settings/birthday-rewards', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'update'])->middleware('admin');
+-        Route::post('/settings/birthday-costs', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'cost'])->middleware('admin');
+     });
+ });
+ 
+@@ -3735,8 +3740,13 @@
+ });
+ 
+ 
++require __DIR__.'/hermes-monitor.php';
++
++
+ // Tracking stores no public PII and never redeems a grant.
+ Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
+     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+ 
+ require __DIR__.'/studio-api.php';
++
++require __DIR__.'/urmia-auth.php';

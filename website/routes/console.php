@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
+Schedule::command('cloud:n8n')->everyMinute()->withoutOverlapping(5)->runInBackground();
+
 Schedule::command('hosting:upgrades')->everyMinute()->withoutOverlapping(20);
 
 // Expired file-cache entries otherwise remain on disk until the same key is read.

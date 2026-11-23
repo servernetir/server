@@ -46,6 +46,10 @@ class CatalogController extends Controller
             return redirect()->to(lroute('gpu'), 301);
         }
 
+        if ($category === 'cloud' && $slug === 'n8n') {
+            return app(ManagedN8nController::class)->landing();
+        }
+
         $country = \App\Services\Cloud\CloudCountry::isoForSlug($slug);
         if ($country !== null && $category === 'vps') {
             return app(CountryVpsController::class)->show($country);

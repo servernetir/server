@@ -177,9 +177,10 @@ class CloudProvisioner
         //    سرویسِ ساعتی را روی ارزان‌ترینِ ماهانه‌فروش بگذارد و سفارش رد شود.
         $hourly = $service->isHourly();
 
-        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
-            ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly)
-            ?? $ordered;
+        // A managed application is bound to its purchased region and dedicated VM provider.
+        $plan = ManagedN8nCatalog::handles($service) ? $ordered
+            : ($this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
+                ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly) ?? $ordered);
 
         /*
         | 🔴 شاخهٔ `?? $ordered` **قرنطینه را دور می‌زد**.
@@ -226,7 +227,8 @@ class CloudProvisioner
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
             // زیرساختِ دیگری برو که داردش. مشتری اوبونتو خواسته، نه یک برند.
-            $alt = $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
+            $alt = ManagedN8nCatalog::handles($service) ? null
+                : $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
 
             if ($alt === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -331,6 +333,7 @@ class CloudProvisioner
 
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
+            'managed_application' => ManagedN8nCatalog::handles($service) ? 'n8n' : null,
             'name' => $this->serverName($service),
             'plan_ref' => (string) $plan->provider_ref,
             'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
@@ -674,6 +677,7 @@ class CloudProvisioner
      */
     private function ensureWebGateway(Service $service, CloudInstance $instance): void
     {
+        if (ManagedN8nCatalog::handles($service)) { return; }
         if (! $instance->hasPrivateIp() || filled(($instance->meta ?? [])['public_domain'] ?? null)) {
             return;
         }
@@ -2470,7 +2474,9 @@ class CloudProvisioner
             if (! $driver instanceof LightNodeClient) { return false; }
             $r = $driver->confirmRelease((string) $instance->provider_ref);
         } else {
-            $this->removeWebGateway($instance);
+            if (ManagedN8nCatalog::handles($service)) {
+                if (! app(ManagedN8n::class)->removeGateway($instance)) { return false; }
+            } else { $this->removeWebGateway($instance); }
             $r = $driver->deleteServer((string) $instance->provider_ref);
         }
 

@@ -109,8 +109,11 @@ class CloudStoreController extends Controller
      * گردکردن همیشه **رو به بالا** است (قاعدهٔ پولِ پروژه): گردکردنِ پایین روی
      * حاشیهٔ نازکِ سرورِ ابری یعنی تخفیفِ ناخواسته.
      */
-    public static function priceForCycle(CloudPlan $plan, string $cycle, array $addons = []): int
+    public static function priceForCycle(CloudPlan $plan, string $cycle, array $addons = [], bool $n8n = false): int
     {
+        if ($n8n) {
+            return app(\App\Services\Cloud\ManagedN8nCatalog::class)->quote($plan, $cycle);
+        }
         if ($plan->provider === 'vpstc' && $cycle !== 'monthly') {
             return 0;
         }
@@ -736,6 +739,9 @@ class CloudStoreController extends Controller
 
     public function index(Request $request): View
     {
+        if ($request->query('application') === 'n8n') {
+            return app(\App\Http\Controllers\ManagedN8nController::class)->store($request);
+        }
         // نمایش از «قفسه» می‌خوانَد (شاملِ مکانِ تمام‌شده)، ولی «کدام‌ها واقعاً باز
         // است» جدا نگه داشته می‌شود تا کشورِ خاکستری با کشورِ فروختنی قاطی نشود.
         $groups = $this->shelfLocationGroups();
@@ -1200,6 +1206,7 @@ class CloudStoreController extends Controller
         RateLimiter::hit($key, 60);
 
         $data = $request->validate([
+            'application' => ['nullable', 'string', Rule::in(['n8n'])],
             'location' => ['required', 'string', 'max:32'],
             'plan' => ['required', 'string', 'max:96'],
             'image' => ['required', 'string', 'max:64'],
@@ -1252,7 +1259,17 @@ class CloudStoreController extends Controller
         | زیرساخت اصلاً ساعتی نفروشدش. آن‌وقت نرخِ نمایش‌داده‌شده مالِ ردیفی
         | بود که سفارش رویش رد می‌شد، و پولِ کیفِ پول قبلِ کشفِ آن کم شده بود.
         */
-        $offer = CloudPlan::offers($data['location'], $wantsHourly)->get($data['plan']);
+        $n8n = ($data['application'] ?? null) === 'n8n';
+        $n8nCatalog = app(\App\Services\Cloud\ManagedN8nCatalog::class);
+        $offer = $n8n
+            ? $n8nCatalog->find($data['plan'], $data['location'], $wantsHourly)
+            : CloudPlan::offers($data['location'], $wantsHourly)->get($data['plan']);
+        if ($n8n && (! filter_var($customer->email, FILTER_VALIDATE_EMAIL)
+            || filled($data['ssh_key_id'] ?? null) || filled($data['ssh_key_new'] ?? null)
+            || (int) ($data['extra_ipv4'] ?? 0) > 0
+            || ($offer && $data['image'] !== $n8nCatalog->image($offer)))) {
+            return back()->withInput()->withErrors(['application' => __('n8n.order_invalid')]);
+        }
 
         if ($offer === null) {
             // تفکیکِ صادقانه: «این پلن نیست» با «این پلن ساعتی نیست» یکی نیست —
@@ -1318,7 +1335,7 @@ class CloudStoreController extends Controller
         }
 
         // ── مبلغ از دیتابیس، نه از ورودی ──
-        $price = self::priceForCycle($offer, $cycle, $addons);
+        $price = self::priceForCycle($offer, $cycle, $addons, $n8n);
 
         if ($price <= 0) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_price')]);
@@ -1406,7 +1423,7 @@ class CloudStoreController extends Controller
         [$service, $invoice] = DB::transaction(function () use ($customer, $offer, $data, $cycle, $price, $taxPct, $label, $description, $addons, $sshKey) {
             $service = Service::create([
                 'customer_id' => $customer->id,
-                'name' => mb_substr(__('ui.svc_name_vps', ['label' => $label]), 0, 150),
+                'name' => mb_substr((($data['application'] ?? null) === 'n8n' ? 'n8n · ' : '').__('ui.svc_name_vps', ['label' => $label]), 0, 150),
                 'description' => $description,
                 'currency_code' => 'IRT',
                 'price' => $price,
@@ -1418,6 +1435,9 @@ class CloudStoreController extends Controller
                 // `provision_status=pending` را می‌سازد **بی‌آنکه** پرداخت را
                 // بسنجد. پس گذاشتنِ «pending» در لحظهٔ سفارش یعنی خریدنِ سرورِ
                 // واقعی برای سفارشِ پرداخت‌نشده. صف بعد از پرداخت پر می‌شود.
+                'provision_meta' => ($data['application'] ?? null) === 'n8n'
+                    ? ['application' => 'n8n', 'n8n_price_basis' => 'catalog_plus_20',
+                        'n8n_source_plan_id' => app(\App\Services\Cloud\ManagedN8nCatalog::class)->source($offer)?->id] : null,
                 'cloud_plan_id' => $offer->id,
                 'cloud_image_key' => (string) $data['image'],
                 'cloud_ssh_key_id' => $sshKey?->id,
@@ -1508,8 +1528,10 @@ class CloudStoreController extends Controller
      */
     private function orderHourly(Request $request, Customer $customer, CloudPlan $offer, array $data, array $addons, $sshKey, string $label, string $locText, string $description): RedirectResponse
     {
-        $hourly = $offer->hourlyIrt();
-        $hourlyEur = $offer->hourlyEurCents();
+        $n8n = ($data['application'] ?? null) === 'n8n';
+        $n8nCatalog = app(\App\Services\Cloud\ManagedN8nCatalog::class);
+        $hourly = $n8n ? $n8nCatalog->hourly($offer) : $offer->hourlyIrt();
+        $hourlyEur = $n8n ? $n8nCatalog->hourlyEur($offer) : $offer->hourlyEurCents();
 
         if ($hourly <= 0 || ! app(HourlyHold::class)->fundablePlan($offer, $hourly)) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
@@ -1524,7 +1546,7 @@ class CloudStoreController extends Controller
             ? (string) ($data['on_credit_out'] ?? 'suspend') : 'suspend';
 
         // قیمتِ ماهانه را به‌عنوان مرجعِ «تبدیل به ماهانه» ذخیره می‌کنیم
-        $monthly = self::priceForCycle($offer, 'monthly');
+        $monthly = self::priceForCycle($offer, 'monthly', [], $n8n);
 
         $credit = app(HourlyStartCredit::class);
         $wallet = app(Wallet::class);
@@ -1548,7 +1570,7 @@ class CloudStoreController extends Controller
 
                 $service = Service::create([
                     'customer_id'      => $customer->id,
-                    'name'             => mb_substr(__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
+                    'name'             => mb_substr((($data['application'] ?? null) === 'n8n' ? 'n8n · ' : '').__('ui.svc_name_vps_hourly', ['label' => $label]), 0, 150),
                     'description'      => $description,
                     'currency_code'    => 'IRT',
                     'price'            => $monthly,        // مرجعِ تبدیل به ماهانه
@@ -1563,6 +1585,9 @@ class CloudStoreController extends Controller
                     'status'           => 'awaiting_provision',
                     'provision_status' => 'pending',
                     'activated_at'     => now(),
+                    'provision_meta' => ($data['application'] ?? null) === 'n8n'
+                        ? ['application' => 'n8n', 'n8n_price_basis' => 'catalog_plus_20',
+                            'n8n_source_plan_id' => app(\App\Services\Cloud\ManagedN8nCatalog::class)->source($offer)?->id] : null,
                     'cloud_plan_id'    => $offer->id,
                     'cloud_image_key'  => (string) $data['image'],
                     'cloud_ssh_key_id' => $sshKey?->id,
@@ -1702,14 +1727,16 @@ class CloudStoreController extends Controller
             'paid' => 0,
             'status' => 'unpaid',
             'issued_at' => now(),
-            'note' => __('ui.svc_name_vps', ['label' => $offer->public_name]),
+            'note' => \App\Services\Cloud\ManagedN8nCatalog::handles($service) ? $service->name
+                : __('ui.svc_name_vps', ['label' => $offer->public_name]),
         ]);
 
         $unitTax = (int) round($unitPrice * $service->tax_percent / 100);
 
         InvoiceItem::create(app(\App\Services\Marketing\InvoiceContext::class)->attributes($service, 'purchase', cloud: $offer) + [
             'invoice_id' => $invoice->id,
-            'title' => __('ui.svc_name_vps', ['label' => $offer->public_name]).' ('.$service->cycleLabel().')',
+            'title' => (\App\Services\Cloud\ManagedN8nCatalog::handles($service) ? $service->name
+                : __('ui.svc_name_vps', ['label' => $offer->public_name])).' ('.$service->cycleLabel().')',
             'description' => $label,
             'quantity' => 1,
             'unit_price' => $unitPrice,

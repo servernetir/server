@@ -54,7 +54,8 @@ class ServiceRenewals
         // The existing prepaid settlement reconciler can prove exactly one month.
         // Longer terms must not be sold until native multi-period reconciliation exists.
         if ($instance->provider === 'vpstc'
-            && ($s->cycle !== 'monthly' || blank(data_get($instance->meta, 'vpstc_supplier_due_at')))) {
+            && ((! \App\Services\Cloud\ManagedN8nCatalog::handles($s) && $s->cycle !== 'monthly')
+                || blank(data_get($instance->meta, 'vpstc_supplier_due_at')))) {
             return null;
         }
 
@@ -90,7 +91,7 @@ class ServiceRenewals
         foreach (CloudStoreController::cycles() as $cycle) {
             // The shared checkout pricing applies supplier-specific period limits,
             // discounts, addon pricing and cost floors (including no term discount).
-            $price = CloudStoreController::priceForCycle($plan, $cycle, $addons);
+            $price = CloudStoreController::priceForCycle($plan, $cycle, $addons, \App\Services\Cloud\ManagedN8nCatalog::handles($s));
             if ($price <= 0) { continue; }
             $tax = (int) round($price * $s->tax_percent / 100);
             $out[$cycle] = ['cycle' => $cycle, 'basis' => 'cloud_catalog', 'product_id' => null,

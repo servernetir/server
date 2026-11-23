@@ -235,6 +235,23 @@ class NpmClient
             : ['ok' => false, 'message' => 'گواهی ساخته شد ولی به میزبان وصل نشد.'];
     }
 
+    /** Reuse an existing certificate and verify the exact upstream before application delivery. */
+    public function ensureApplicationCertificate(int $id, string $hostname, string $ip): array
+    {
+        $token = $this->token();
+        if (! $token) { return ['ok' => false, 'message' => 'proxy_auth_unavailable']; }
+        $r = Http::withToken($token)->acceptJson()->timeout(15)
+            ->get($this->baseUrl().'/api/nginx/proxy-hosts/'.$id);
+        if (! $r->successful() || ! in_array($hostname, (array) $r->json('domain_names'), true)
+            || $r->json('forward_host') !== $ip || (int) $r->json('forward_port') !== 80) {
+            return ['ok' => false, 'message' => 'proxy_identity_mismatch'];
+        }
+        if ((int) $r->json('certificate_id') > 0 && $r->json('ssl_forced') === true) {
+            return ['ok' => true, 'message' => ''];
+        }
+        return $this->requestCertificate($id, $hostname);
+    }
+
     /**
      * 🔴 برچیدنِ دروازهٔ وب — نیمهٔ دومِ همان کار.
      *

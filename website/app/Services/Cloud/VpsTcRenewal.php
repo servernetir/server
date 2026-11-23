@@ -23,13 +23,61 @@ class VpsTcRenewal
 {
     public function applies(Service $service): bool
     {
-        return $service->isCloud() && $service->activated_at !== null
+        return ! ManagedN8nCatalog::handles($service) && $service->isCloud() && $service->activated_at !== null
             && CloudInstance::query()->where('service_id', $service->id)->where('provider', 'vpstc')->exists();
     }
 
     public function pending(Service $service): bool
     {
         return filled(data_get($service->provision_meta, 'vpstc_renewal.invoice_id'));
+    }
+
+    /** Maintain a prepaid retail n8n term through monthly, receipt-verified supplier renewals. */
+    public function retainManagedN8n(Service $service): bool
+    {
+        if (! ManagedN8nCatalog::handles($service) || $service->isHourly() || $service->status !== 'active'
+            || ! $service->next_due_at || $service->next_due_at->isPast()) { return false; }
+        $instance = CloudInstance::where('service_id', $service->id)->where('provider', 'vpstc')->first();
+        $anchor = $this->date(data_get($instance?->meta, 'vpstc_supplier_due_at'));
+        if (! $instance || blank($instance->provider_ref) || ! $anchor
+            || $anchor->gt(now()->addDays(2)->startOfDay())
+            || ! $service->next_due_at->gt($anchor)) { return false; }
+        $invoice = Invoice::where('service_id', $service->id)->where('customer_id', $service->customer_id)
+            ->where('status', 'paid')->where('kind', 'service')->orderByDesc('id')->get()
+            ->first(fn ($bill) => $bill->due() === 0 && $this->managedFunding($bill, $service));
+        if (! $invoice) { return false; }
+        $key = hash('sha256', 'vpstc:n8n-retain:'.$service->id.':'.$anchor->toDateString());
+        try {
+            return (bool) Cache::lock('vpstc-resource-'.hash('sha256', (string) $instance->provider_ref), 120)
+                ->get(function () use ($service, $instance, $anchor, $invoice, $key) {
+                    $op = CloudProviderOperation::firstOrCreate(['operation_key' => $key], [
+                        'provider' => 'vpstc', 'action' => 'renew', 'resource_ref' => $instance->provider_ref,
+                        'state' => 'prepared', 'payload' => ['managed_n8n_prepaid' => true,
+                            'local_service_id' => $service->id, 'local_invoice_id' => $invoice->id,
+                            // The retail term is already paid; never extend it again here.
+                            'before_local_due' => $service->next_due_at->toDateString(),
+                            'target_local_due' => $service->next_due_at->toDateString(),
+                            'supplier_due_anchor' => $anchor->toDateString(), 'account' => $this->account()],
+                    ]);
+                    if ($op->state === 'done') { return true; }
+                    return $this->run($op->fresh(), $invoice->fresh());
+                });
+        } catch (\Throwable) {
+            ErrorTracker::noteOnce('billing', 'n8n Turkish prepaid retention needs reconciliation.', 3600,
+                ['service' => $service->id]);
+            return false;
+        }
+    }
+
+    private function managedFunding(Invoice $invoice, Service $service): bool
+    {
+        if (! ManagedN8nCatalog::handles($service) || $invoice->kind !== 'service'
+            || (int) $invoice->service_id !== (int) $service->id
+            || (int) $invoice->customer_id !== (int) $service->customer_id
+            || $invoice->status !== 'paid' || $invoice->due() !== 0) { return false; }
+        $item = $invoice->items()->where('quantity', 1)->first();
+        return $item && in_array(data_get($item->marketing_context, 'operation'), ['purchase', 'renewal'], true)
+            && Service::monthsIn((string) data_get($item->marketing_context, 'billing_cycle')) > 0;
     }
 
     /** Called inside the payment transaction; never calls the supplier. */
@@ -92,22 +140,24 @@ class VpsTcRenewal
     {
         $payload = (array) $op->payload;
         $service = Service::find($payload['local_service_id'] ?? null);
+        $prepaid = ($payload['managed_n8n_prepaid'] ?? false) === true;
         $instance = $service ? CloudInstance::where('service_id', $service->id)->where('provider', 'vpstc')->first() : null;
         if (! $service || ! $instance || $service->isDead() || (string) $instance->provider_ref !== (string) $op->resource_ref
             || (int) $invoice->service_id !== (int) $service->id || $invoice->status !== 'paid' || $invoice->due() !== 0
-            || ! $this->retailInvoice($invoice)
+            || ($prepaid ? (! $service || ! $this->managedFunding($invoice, $service)
+                || ! $service->next_due_at || ! $service->next_due_at->isFuture()) : ! $this->retailInvoice($invoice))
             || (string) ($payload['account'] ?? '') !== $this->account()
             || CloudProviderOperation::where('provider', 'vpstc')->where('action', 'cancel')->where('resource_ref', $op->resource_ref)->exists()) {
             return $this->problem($op, 'renewal_context_changed');
         }
-        if ($service->isHourly() || Service::monthsIn((string) $service->cycle) !== 1
+        if ($service->isHourly() || (! $prepaid && Service::monthsIn((string) $service->cycle) !== 1)
             || empty($payload['before_local_due']) || empty($payload['target_local_due'])) {
             return $this->problem($op, 'monthly_renewal_required');
         }
         $api = app(VpsTcApi::class);
         $sid = (string) $op->resource_ref;
         if ($op->state === 'prepared') {
-            if ($service->next_due_at?->toDateString() !== $payload['before_local_due']) {
+            if (! $prepaid && $service->next_due_at?->toDateString() !== $payload['before_local_due']) {
                 return $this->problem($op, 'local_period_changed');
             }
             $read = $api->service($sid);
@@ -126,7 +176,7 @@ class VpsTcRenewal
                 || (string) ($remote['id'] ?? '') !== $sid || strtolower((string) ($remote['billingcycle'] ?? '')) !== 'monthly'
                 || ! in_array(strtolower((string) ($remote['status'] ?? '')), ['active', 'suspended'], true)
                 || ! $this->amountAtMost($remote['total'] ?? null, $quote['monthly_amount'] ?? null)
-                || ! app(CloudPricingSnapshot::class)->current('vpstc') || ! $this->coversCost($invoice, $quote)) {
+                || ! app(CloudPricingSnapshot::class)->current('vpstc') || ! $this->coversCost($invoice, $quote, $prepaid)) {
                 return $this->problem($op, 'renewal_quote_not_verified');
             }
             // No overlapping renewal can reserve another period for this parent.
@@ -236,7 +286,10 @@ class VpsTcRenewal
             if ($lockedOp->state === 'done') {
                 return true;
             }
-            if ($locked->isDead() || $locked->next_due_at?->toDateString() !== $payload['before_local_due']) {
+            if ($locked->isDead() || (($payload['managed_n8n_prepaid'] ?? false) !== true
+                && $locked->next_due_at?->toDateString() !== $payload['before_local_due'])
+                || (($payload['managed_n8n_prepaid'] ?? false) === true
+                    && (! $locked->next_due_at || ! $locked->next_due_at->gt(\Illuminate\Support\Carbon::parse($payload['supplier_due_anchor']))))) {
                 return $this->problem($lockedOp, 'local_period_changed');
             }
             $meta = (array) $locked->provision_meta;
@@ -244,7 +297,9 @@ class VpsTcRenewal
                 unset($meta['vpstc_renewal']);
             }
             $meta['vpstc_last_renewal'] = ['invoice_id' => $invoice->id, 'confirmed_at' => now()->toIso8601String()];
-            $locked->forceFill(['next_due_at' => $payload['target_local_due'], 'reminder_stage' => null, 'provision_meta' => $meta])->save();
+            if (($payload['managed_n8n_prepaid'] ?? false) !== true) {
+                $locked->forceFill(['next_due_at' => $payload['target_local_due'], 'reminder_stage' => null, 'provision_meta' => $meta])->save();
+            }
             $lockedInstance = CloudInstance::whereKey($instance->id)->lockForUpdate()->firstOrFail();
             $instanceMeta = (array) $lockedInstance->meta;
             $instanceMeta['vpstc_supplier_due_at'] = $payload['target_supplier_due'];
@@ -350,13 +405,19 @@ class VpsTcRenewal
         return $linked === 1;
     }
 
-    private function coversCost(Invoice $invoice, array $quote): bool
+    private function coversCost(Invoice $invoice, array $quote, bool $prepaid = false): bool
     {
         $cost = $quote['cost_eur_cents'] ?? null;
         if (! is_int($cost) || $cost <= 0) {
             return false;
         }
         $net = max(0, (int) $invoice->subtotal - (int) $invoice->discount);
+        if ($prepaid) {
+            $item = $invoice->items()->where('quantity', 1)->first();
+            $months = Service::monthsIn((string) data_get($item?->marketing_context, 'billing_cycle'));
+            if ($months < 1) { return false; }
+            $net = intdiv($net, $months);
+        }
         if ($invoice->currency_code === 'EUR') {
             return $net >= $cost;
         }

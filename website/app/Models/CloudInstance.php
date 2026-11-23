@@ -25,6 +25,13 @@ class CloudInstance extends Model
     /** نامِ ارائه‌دهنده و رمز هرگز در JSON بیرون نمی‌روند */
     protected $hidden = ['provider', 'provider_ref', 'root_password_enc'];
 
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+        unset($array['meta']['n8n']['password_enc']);
+        return $array;
+    }
+
     protected $casts = [
         'specs'             => 'array',
         'meta'              => 'array',
@@ -337,6 +344,8 @@ class CloudInstance extends Model
      */
     public function readyForNotice(): bool
     {
+        if ($this->service && \App\Services\Cloud\ManagedN8nCatalog::handles($this->service)
+            && data_get($this->meta, 'n8n.state') !== 'ready') { return false; }
         if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
             return false;
         }
@@ -428,6 +437,8 @@ class CloudInstance extends Model
 
     public function isDelivered(): bool
     {
+        if ($this->service && \App\Services\Cloud\ManagedN8nCatalog::handles($this->service)
+            && data_get($this->meta, 'n8n.state') !== 'ready') { return false; }
         if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
             return false;
         }
