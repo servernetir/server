@@ -42,6 +42,35 @@ The guest acceptance uncovered an existing catalog bottleneck: an actual anonymo
 
 `CloudImageRegionLookup` reuses only identical `(slug, provider, region)` eligibility predicates inside one index render. The original SQL sellable scope and regional predicates are unchanged. No price, order result or state is cached across requests, and normal order/image eligibility calls start fresh. This avoids changing database collation or prefix semantics by replacing SQL with string membership. Both true and false results are reused within the render.
 
-Current isolated verification: 49 focused PHP tests / 768 assertions pass, including 13 public-store cases, 60 same-region OS images requiring one regional query, a fresh query on the next request, stock removal and independent provider/slug/region checks. Four disposable release safety cases pass for the two-file performance release. Performance installation and measured result are recorded after acceptance below.
+Current isolated verification: 49 focused PHP tests / 768 assertions pass, including 13 public-store cases, 60 same-region OS images requiring one regional query, a fresh query on the next request, stock removal and independent provider/slug/region checks. Four disposable release safety cases pass for the two-file performance release. All 11 triggered GitHub workflows passed on `96cca46c029e4f9792b4c1d475f8ede64fe3a20b` before merge and deployment (PR #397).
 
 The existing live controller has production-only delivery-access and catalog-pricing changes; the follow-up applies five unique exact source anchors and preserves those lines. Its deployment is limited to the new lookup and the existing controller through `scripts/cloud-store-catalog-performance-20261123/`.
+
+## Final measured acceptance
+
+The performance follow-up was installed from `fe697d231e0e49d5fdb1ac5a1ed612b0ef71ad21`. Both exact destination hashes matched the manifest after installation; both owned FPM pools confirmed the expected public GET/authenticated order contract, six compiled views and no general cache flush.
+
+| Actual anonymous application GET | Before | After |
+| --- | ---: | ---: |
+| Render time | 28.39 s | 2.87 s |
+| SQL statements | 5,605 | 371 |
+| Guest configurator form | Present | Present |
+| Saved SSH/account data | Absent | Absent |
+
+These are two server-side measurements of the same route and catalog, not a browser speed guarantee or load-test result. The final browser visit rendered the actual public shop with country/city, real prices and OS/resource configuration without login; it posted continuation to the expected guest endpoint. The homepage and both new hero slides were visually checked in production, and the GPU CTA destination `/gpu` was opened successfully.
+
+The exact rollback for the performance follow-up is:
+
+```sh
+python3 /home/servernetcloud/deploy-backups/cloud-store-catalog-performance-20261123-fe697d231e0e/release.py rollback fe697d231e0e49d5fdb1ac5a1ed612b0ef71ad21
+```
+
+Roll that follow-up back first if reverting the earlier 24-file homepage/public-store release, because both releases patch the controller. The earlier release retains its private exact-byte backup and guarded rollback script.
+
+Fresh public HTTP checks also confirmed FA/EN/TR return the real guest form with `Cache-Control: no-store, private` and no saved SSH fields (2.97 / 3.91 / 3.99 seconds respectively). Machine-readable checks and CI run IDs: [acceptance.json](home-vps-gpu-public-store-2026-11-23/acceptance.json).
+
+Both temporary, noindex source-review folders were removed through their hash/receipt-checked removal helpers. Production screenshot evidence:
+
+- [VPS first hero](home-vps-gpu-public-store-2026-11-23/vps-hero-production.jpg)
+- [GPU second hero](home-vps-gpu-public-store-2026-11-23/gpu-hero-production.jpg)
+- [Actual anonymous configurator](home-vps-gpu-public-store-2026-11-23/public-store-production.jpg)
