@@ -40,6 +40,7 @@ jobs:
           node --check public/assets/js/studio-carousel.js
           node --check public/assets/js/atlas.js
           node --check public/assets/js/atlas.min.js
+          node --check public/assets/js/atlas-home-globe.js
           for locale in fa en tr; do php tests/Fixtures/StudioHomePreview.php "$locale" /tmp/studio-home-preview; done
           STUDIO_HOME_FIXTURES=/tmp/studio-home-preview node --test tests/js/studio-home.test.cjs
       - name: Check limited release preservation and rollback guards

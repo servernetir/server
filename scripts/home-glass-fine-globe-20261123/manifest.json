@@ -13,16 +13,10 @@
       "after": "7f61b3246dff52ec6fe62be27c420cc2e5bff6b18836347b02bd60ee9692af77"
     },
     {
-      "source": "website/public/assets/js/atlas.js",
-      "destination": "public_html/assets/js/atlas.js",
-      "before": "5f38233ccc4ca8de3651e92303648999b1130051ff3c00d1fc69a7aee3a3f4df",
-      "after": "c8b964790942a7184743d686f87f12548d53a0c8dd8f1a6ebb6c8e719fdd31eb"
-    },
-    {
-      "source": "website/public/assets/js/atlas.min.js",
-      "destination": "public_html/assets/js/atlas.min.js",
-      "before": "647cbf7d7abccd875123ca43e0b4c3d953f7a9279d8363801470f9e3b256db15",
-      "after": "50e97c12d9ecedfb38bc547922f26ea6089bdb7c2c64de4f004ad313c96f5418"
+      "source": "website/public/assets/js/atlas-home-globe.js",
+      "destination": "public_html/assets/js/atlas-home-globe.js",
+      "before": "637b63d10e125757e1bb70c48680a944f0029f29614ed8b6bdf90e7f34e51e53",
+      "after": "f00f1da38d72aa3abb0113fa89c0a83b56ec764934b25d0d85c268d9a6b30b2a"
     },
     {
       "source": "website/public/assets/js/atlas-land.js",
@@ -42,14 +36,14 @@
     },
     "activate.php": {
       "path": "scripts/home-glass-fine-globe-20261123/activate.php",
-      "sha256": "4d9872f767730187ac1cbbbddc134105bebc3320de150c7bb1c87316e2513ef5"
+      "sha256": "d2b3d5601e64643cdb19bd00195915da48a345b90fa3de5a8dcfa7b7e7c65d26"
     }
   },
   "preview": [
     {
       "name": "review.html",
       "source": "scripts/home-glass-fine-globe-20261123/review.html",
-      "sha256": "b30322544104ea22ca74ed5d97334d1631cd1765d2296efc2790808397d304c4"
+      "sha256": "b4dff56ede1788ae4f669deee2dbf7059919fea81e089ce288044ea1ed127bc6"
     },
     {
       "name": "globe-preview.css",
@@ -57,9 +51,9 @@
       "sha256": "7f61b3246dff52ec6fe62be27c420cc2e5bff6b18836347b02bd60ee9692af77"
     },
     {
-      "name": "atlas-preview.js",
-      "source": "website/public/assets/js/atlas.min.js",
-      "sha256": "50e97c12d9ecedfb38bc547922f26ea6089bdb7c2c64de4f004ad313c96f5418"
+      "name": "globe-preview.js",
+      "source": "website/public/assets/js/atlas-home-globe.js",
+      "sha256": "f00f1da38d72aa3abb0113fa89c0a83b56ec764934b25d0d85c268d9a6b30b2a"
     },
     {
       "name": "land-preview.js",

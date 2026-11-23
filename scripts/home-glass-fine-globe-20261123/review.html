@@ -7,20 +7,7 @@ const frame=document.getElementById('frame'),view=document.getElementById('view'
 function measure(){const e=view.contentDocument.documentElement,rail=e.querySelector('.sn-proof-rail');document.getElementById('measure').textContent=e.clientWidth+' × '+e.clientHeight+' · stats bottom '+Math.round(rail.getBoundingClientRect().bottom)+' · overflow '+(e.scrollWidth-e.clientWidth);}
 for(const button of document.querySelectorAll('[data-size]'))button.onclick=()=>{const [w,h]=button.dataset.size.split(',');frame.style.width=w+'px';frame.style.height=h+'px';requestAnimationFrame(()=>requestAnimationFrame(measure));};
 for(const button of document.querySelectorAll('[data-slide]'))button.onclick=()=>{view.contentDocument.querySelector('[data-hero-target="'+button.dataset.slide+'"]').click();measure();};
-async function load(){
- view.dataset.ready='false';
- const url=new URL(locale.value==='fa'?'/':'/'+locale.value,location.origin);
- url.searchParams.set('qa','glass-fine-globe-review');
- let html=await fetch(url,{credentials:'omit'}).then(r=>{if(!r.ok)throw new Error('preview_home_failed');return r.text();});
- const assets={'css/studio-carousel.css':'globe-preview.css','js/atlas.min.js':'atlas-preview.js','js/atlas-land.js':'land-preview.js'};
- for(const [asset,replacement] of Object.entries(assets)){
-  const path='/assets/'+asset;let count=0;
-  html=html.replace(/(?:https:\/\/servernet\.cloud)?\/assets\/(?:css\/studio-carousel\.css|js\/atlas\.min\.js|js\/atlas-land\.js)(?:\?v=[^"'\s<>]*)?/g,match=>{if(!match.includes(path))return match;count++;return new URL(replacement,location.href).href;});
-  if(count!==1)throw new Error('preview_asset_count_'+asset+'_'+count);
- }
- html=html.replace('<head>','<head><base href="'+url.href+'"><meta name="robots" content="noindex,nofollow">');
- view.srcdoc=html;
-}
+function load(){view.dataset.ready='false';view.src=new URL('frame-'+locale.value+'.html',location.href).href;}
 locale.onchange=load;document.getElementById('theme').onclick=()=>{theme=theme==='dark'?'light':'dark';view.contentDocument.documentElement.dataset.theme=theme;measure();};
-view.onload=()=>{if(!view.srcdoc)return;const d=view.contentDocument;d.documentElement.dataset.theme=theme;d.querySelector('[data-hero-target="infrastructure"]').click();view.dataset.ready='true';measure();};load().catch(error=>document.getElementById('measure').textContent=error.message);
+view.onload=()=>{const d=view.contentDocument;d.documentElement.dataset.theme=theme;d.querySelector('[data-hero-target="infrastructure"]').click();view.dataset.ready='true';measure();};load().catch(error=>document.getElementById('measure').textContent=error.message);
 </script></body></html>

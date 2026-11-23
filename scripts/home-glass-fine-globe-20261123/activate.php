@@ -9,7 +9,7 @@ if (!preg_match('~\A/home/servernetcloud/deploy-backups/home-glass-fine-globe-20
     throw new RuntimeException('invalid_plan');
 }
 $records = json_decode((string) file_get_contents($plan), true, 32, JSON_THROW_ON_ERROR);
-$expected = ['servernet_app/public/assets/css/studio-carousel.css', 'public_html/assets/css/studio-carousel.css', 'public_html/assets/js/atlas.js', 'public_html/assets/js/atlas.min.js', 'public_html/assets/js/atlas-land.js'];
+$expected = ['servernet_app/public/assets/css/studio-carousel.css', 'public_html/assets/css/studio-carousel.css', 'public_html/assets/js/atlas-home-globe.js', 'public_html/assets/js/atlas-land.js'];
 if (array_column($records, 'destination') !== $expected) throw new RuntimeException('invalid_scope');
 $phase = getenv('SERVERNET_STUDIO_PHASE');
 if (!in_array($phase, ['before', 'after'], true)) throw new RuntimeException('invalid_phase');
