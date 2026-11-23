@@ -13,7 +13,7 @@
 .sn-console .pnl-nav-sep{font-size:.75rem;letter-spacing:.02em;padding-inline:12px}
 .sn-console .api-workspace{max-width:none;width:100%;margin:0}
 .sn-console .pnl-sec{border-radius:20px}.sn-console .pnl-sec-h h2{font-size:1rem}
-.sn-console .pnl-btn{font-size:.875rem;min-height:42px;border-radius:12px}
+.sn-console .pnl-btn{font-size:.875rem;min-height:44px;border-radius:12px}
 .sn-console>footer .f-grid{display:none}.sn-console>footer{padding-block:0;margin-top:0;border-top:1px solid var(--line)}
 .sn-console>footer>.container{max-width:none;padding-inline:clamp(16px,2.3vw,44px)}
 .sn-console>footer .f-bottom{padding-block:18px}

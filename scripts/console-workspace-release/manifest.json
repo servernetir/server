@@ -24,13 +24,13 @@
       "source": "website/public/assets/css/console-workspace.css",
       "destination": "public_html/assets/css/console-workspace.css",
       "before": null,
-      "after": "5c36a1a2fea38f1c6ab50c41550e8402eb1417bdce09ab607f06f6ffaf4acf1b"
+      "after": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70"
     },
     {
       "source": "website/public/assets/css/console-workspace.css",
       "destination": "servernet_app/public/assets/css/console-workspace.css",
       "before": null,
-      "after": "5c36a1a2fea38f1c6ab50c41550e8402eb1417bdce09ab607f06f6ffaf4acf1b"
+      "after": "ab1cfb20036136d786f092108349cc89f2b4674b34e151a66321625745f13e70"
     },
     {
       "source": "website/public/assets/js/n8n-access.js",
