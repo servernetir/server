@@ -46,6 +46,38 @@ class PartsShopController extends Controller
         ]);
     }
 
+    /** Curated editorial pages; never expose arbitrary filter combinations for indexing. */
+    public function topic(string $topic): View
+    {
+        $data = config('hardware_topics.'.$topic);
+        abort_unless(is_array($data), 404);
+
+        $parts = collect();
+        $total = 0;
+        if ($this->catalog->available()) {
+            $query = ServerPart::query()->active()->where('category', $data['category']);
+            if (isset($data['kind'])) {
+                $query->where('attrs->kind', $data['kind']);
+            }
+            if (isset($data['gen'])) {
+                // Only explicitly listed generations; unknown compatibility is not proof.
+                $query->whereJsonContains('compat_gens', $data['gen']);
+            }
+            $total = (clone $query)->count();
+            $parts = $query->orderByDesc('popular')->orderBy('sort')->orderBy('id')
+                ->limit(24)->get(ServerPart::CARD_COLUMNS);
+        }
+
+        return view('pages.parts-topic', [
+            'topic' => $topic,
+            'data' => $data,
+            'parts' => $parts,
+            'total' => $total,
+            'categories' => $this->catalog->categories(),
+            'generations' => $this->catalog->generations(),
+        ]);
+    }
+
     /**
      * فهرستِ یک دسته با فیلترها.
      *

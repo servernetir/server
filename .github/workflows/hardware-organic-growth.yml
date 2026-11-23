@@ -1,0 +1,59 @@
+name: Hardware shop organic growth checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Http/Controllers/*ShopController.php'
+      - 'website/app/Http/Controllers/SiteController.php'
+      - 'website/config/hardware_topics.php'
+      - 'website/config/hardware_catalog.php'
+      - 'website/database/catalog/hardware-growth-20261123.json'
+      - 'website/resources/views/pages/parts-*.blade.php'
+      - 'website/resources/views/pages/part-detail.blade.php'
+      - 'website/resources/views/pages/server*.blade.php'
+      - 'website/resources/views/partials/hardware-*.blade.php'
+      - 'website/lang/**/shop_seo.php'
+      - 'website/routes/web.php'
+      - 'website/tests/Feature/HardwareOrganicGrowthTest.php'
+      - '.github/workflows/hardware-organic-growth.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_URL: 'http://localhost'
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked test dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Verify hardware and SEO behavior
+        working-directory: website
+        run: |
+          vendor/bin/phpunit tests/Feature/HardwareOrganicGrowthTest.php tests/Feature/HardwareCatalogTest.php tests/Feature/PartsAreCrawlableTest.php tests/Feature/PartsShopTest.php tests/Feature/PartsCategoryContentIsUniqueTest.php tests/Feature/PhysicalServerShopTest.php tests/Feature/HardwareSeoOverlayTest.php tests/Feature/LlmsTxtIsCompleteTest.php --colors=never

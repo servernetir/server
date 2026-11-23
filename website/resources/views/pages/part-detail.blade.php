@@ -121,7 +121,7 @@
             @endforeach
           </div>
         @else
-          <div class="sp-compat"><b>{{ __('ui.parts_compat') }}:</b> {{ __('ui.parts_compat_any') }}</div>
+          <div class="sp-compat"><b>{{ __('ui.parts_compat') }}:</b> {{ \App\Services\Shop\HardwarePresentation::compatibility($part) }}</div>
         @endif
       </div>
 
@@ -175,9 +175,30 @@
     @endif
 
     @include('partials.hardware-guide', ['hardwareCategory' => $part->category, 'hardwareSlug' => $part->slug])
+    <section class="hw-guide">
+      <h2>{{ __('shop_seo.part_check_title', ['name' => $part->label()]) }}</h2>
+      <p>{{ __('shop_seo.part_check_intro') }}</p>
+      <ul>
+        @foreach((array) __('shop_seo.checks.'.$part->category) as $check)
+          <li>{{ $check }}</li>
+        @endforeach
+      </ul>
+      <p>{{ __('shop_seo.part_compat_note') }}</p>
+    </section>
+    @include('partials.hardware-stock-quote')
+    @if($part->category === 'gpu')
+      <p class="hw-note"><a href="{{ lroute('gpu') }}">{{ __('shop_seo.rent_gpu') }}</a></p>
+    @endif
+    @include('partials.hardware-topic-links', ['topicCategory' => $part->category])
 
     @if($related->isNotEmpty())
       <h2 class="sp-h2">{{ __('ui.parts_related') }}</h2>
+      <p>{{ __('shop_seo.part_compare_note') }}</p>
+      <nav class="hw-related-links" aria-label="{{ __('ui.parts_compare') }}">
+        @foreach($related as $r)
+          <a href="{{ lroute('parts.compare').'?parts='.urlencode($part->slug.','.$r->slug) }}">{{ __('shop_seo.part_compare', ['name' => $part->label(), 'other' => $r->label()]) }}</a>
+        @endforeach
+      </nav>
       <div class="sp-grid">
         @foreach($related as $r)
           @include('partials.part-card', ['part' => $r])

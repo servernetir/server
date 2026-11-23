@@ -295,6 +295,13 @@ class SiteController extends Controller
             $lines[] = "- [{$label}]({$base}{$path})";
         }
 
+        $lines[] = '';
+        $lines[] = '## Hardware purchase and compatibility guides';
+        foreach ((array) config('hardware_topics', []) as $slug => $topic) {
+            $lines[] = '- ['.$topic['title']['en']."]({$base}/en/parts/catalog/{$slug})";
+        }
+        $lines[] = '- Catalogue records are not proof of stock or exact chassis compatibility. Request confirmation of new, used or refurbished availability, configuration, condition, warranty and current price.';
+
         // Order forms are intentionally noindex. Public product landing pages
         // above provide discovery and current prices without promoting checkout URLs.
 
@@ -550,6 +557,9 @@ class SiteController extends Controller
         | ⚠️ پشتِ `hasTable` است تا نقشه روی سرورِ مهاجرت‌نخورده ۵۰۰ ندهد.
         */
         $add('parts.index');
+        foreach (array_keys((array) config('hardware_topics', [])) as $topic) {
+            $add('parts.topic', $topic);
+        }
         foreach (array_keys(\App\Models\ServerPart::CATEGORIES) as $cat) {
             $add('parts.category', $cat);
         }

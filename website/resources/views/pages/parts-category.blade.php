@@ -1,5 +1,5 @@
 @extends('layouts.site')
-@section('title', $meta[app()->getLocale()].($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' — '.__('ui.parts_title').' — '.__('ui.brand'))
+@section('title', __('shop_seo.category_titles.'.$category).($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' | '.__('ui.brand'))
 {{-- ⚠️ توضیحِ متا از محتوای **همین دسته** می‌آید. اگر جا افتاده باشد به متنِ
      عمومی برمی‌گردیم — که بد است ولی از توضیحِ خالی بهتر. --}}
 @section('description', lc($content['meta'] ?? []) ?: ($meta[app()->getLocale()].' — '.__('ui.parts_desc')))
@@ -91,7 +91,7 @@
       <a href="{{ lroute('parts.index') }}">{{ __('ui.parts_title') }}</a><span>/</span>
       <span>{{ $label }}</span>
     </nav>
-    <h1>{{ $label }}</h1>
+    <h1>{{ __('shop_seo.category_titles.'.$category) }}</h1>
     <p class="sp-lead">{{ lc($content['intro'] ?? []) ?: __('ui.parts_lead') }}</p>
   </div>
 </section>
@@ -195,6 +195,12 @@
       @include('partials.hardware-pagination')
       <p class="sp-note">{{ __('ui.parts_eur_note') }}</p>
     @endif
+
+    @include('partials.hardware-stock-quote')
+    @if($category === 'gpu')
+      <p class="hw-note"><a href="{{ lroute('gpu') }}">{{ __('shop_seo.rent_gpu') }}</a></p>
+    @endif
+    @include('partials.hardware-topic-links', ['topicCategory' => $category])
 
     @if($guide = ($content['guide'] ?? []))
       <h2 class="sp-h2">{{ __('ui.parts_guide') }}</h2>

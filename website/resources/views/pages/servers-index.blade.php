@@ -1,5 +1,5 @@
 @extends('layouts.site')
-@section('title', __('ui.srv_title').($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' — '.__('ui.brand'))
+@section('title', __('shop_seo.servers_hub_title').($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' | '.__('ui.brand'))
 @section('description', \App\Services\Shop\HardwarePresentation::text('catalog_intro'))
 @section('canonical', url()->current().($pagination->currentPage() > 1 ? '?page='.$pagination->currentPage() : ''))
 @if($search !== '' || $activeBrand !== 'all' || $comparison->isNotEmpty()) @section('noindex', true) @endif
@@ -79,6 +79,9 @@
 
   @include('partials.hardware-pagination')
   @include('partials.hardware-guide', ['hardwareCategory' => 'server'])
+  @include('partials.hardware-stock-quote')
+  <p class="hw-note"><a href="{{ lroute('vps.hourly') }}">{{ __('shop_seo.rent_vps') }}</a></p>
+  @include('partials.hardware-topic-links')
 
   <div class="srv-cta">
     <div>

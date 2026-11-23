@@ -121,6 +121,10 @@
   </div>
 
   @include('partials.hardware-guide', ['hardwareCategory' => 'server', 'hardwareSlug' => $slug])
+  @include('partials.hardware-stock-quote')
+  @if($partGen)
+    @include('partials.hardware-topic-links', ['topicGeneration' => $partGen])
+  @endif
 
   {{-- مشخصات --}}
   <div class="sd-specs">
