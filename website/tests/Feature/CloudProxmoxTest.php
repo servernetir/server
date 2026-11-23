@@ -137,6 +137,55 @@ class CloudProxmoxTest extends TestCase
     }
 
     /** idempotency: نامِ تکراری → همان VMِ موجود، بی‌clone دوم */
+    public function test_ip_allocation_reserves_qemu_and_every_lxc_interface(): void
+    {
+        $configured = null;
+        Http::fake(function ($request) use (&$configured) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if (str_ends_with($path, '/clone')) { return Http::response(['data' => 'UPID:ir:clone:done']); }
+            if (str_contains($path, '/tasks/')) { return Http::response(['data' => ['status' => 'stopped']]); }
+            if (str_ends_with($path, '/cluster/nextid')) { return Http::response(['data' => '123']); }
+            if (str_ends_with($path, '/qemu')) { return Http::response(['data' => [['vmid' => 110]]]); }
+            if (str_ends_with($path, '/lxc')) { return Http::response(['data' => [['vmid' => 124]]]); }
+            if (str_ends_with($path, '/qemu/110/config')) {
+                return Http::response(['data' => ['ipconfig0' => 'ip=10.10.10.60/24,gw=10.10.10.1']]);
+            }
+            if (str_ends_with($path, '/lxc/124/config')) {
+                return Http::response(['data' => ['net0' => 'name=eth0,ip=10.10.10.61/24',
+                    'net1' => 'name=eth1,ip=10.10.10.62/24']]);
+            }
+            if ($request->method() === 'PUT' && str_ends_with($path, '/config')) { $configured = $request['ipconfig0']; }
+            return Http::response(['data' => []]);
+        });
+        $result = app(ProxmoxClient::class)->createServer(['name' => 'managed-ip-test', 'image_ref' => '9002']);
+        $this->assertTrue($result['ok'], $result['message']);
+        $this->assertSame('10.10.10.63', $result['ipv4']);
+        $this->assertSame('ip=10.10.10.63/24,gw=10.10.10.1', $configured);
+    }
+
+    public function test_failed_lxc_inventory_cannot_authorize_a_clone(): void
+    {
+        Http::fake(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/lxc')
+            ? Http::response([], 403) : Http::response(['data' => str_contains($request->url(), 'nextid') ? '123' : []]));
+        $result = app(ProxmoxClient::class)->createServer(['name' => 'blocked-ip-test']);
+        $this->assertFalse($result['ok']);
+        $this->assertTrue($result['transient']);
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
+    public function test_concurrent_clone_requests_wait_for_the_node_allocation_lock(): void
+    {
+        Http::fake();
+        $lock = \Illuminate\Support\Facades\Cache::lock('proxmox-create-ir', 300);
+        $this->assertTrue($lock->get());
+        try {
+            $result = app(ProxmoxClient::class)->createServer(['name' => 'parallel-ip-test']);
+            $this->assertFalse($result['ok']);
+            $this->assertTrue($result['transient']);
+            Http::assertNothingSent();
+        } finally { $lock->release(); }
+    }
+
     public function test_existing_vm_is_returned_without_a_second_clone(): void
     {
         $clones = 0;
