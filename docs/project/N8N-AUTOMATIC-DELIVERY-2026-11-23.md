@@ -52,9 +52,11 @@ period or charge the customer's wallet again. Normal VPS renewal is unchanged.
 
 ## Validation and release
 
-Source checks: 162 relevant PHP tests / 827 assertions passed before adding three
-additional SSH/rebuild checks; the n8n suite subsequently passed 18 tests / 102
-assertions. Three guest-installer tests and three release/rollback tests passed.
+Source checks: 165 relevant PHP tests / 845 assertions passed; a further
+cleanup mutex check brings the n8n suite to 19 tests / 106 assertions.
+MariaDB CI caught an unsupported JSON object cast; installation state now
+merges under a row lock without dialect-specific JSON updates. The corrected
+MariaDB delivery job passed on `0639157c08e6fc0ab143fd492f448a935fc16ba5`. Three guest-installer tests and three release/rollback tests passed.
 The final CI SHA and database results must be recorded after publication.
 
 Legacy `CloudStoreTest`, `CloudHourlyTermSupportTest`, one hourly pricing test,
@@ -84,3 +86,10 @@ an actual paid provider purchase requires a separately bounded acceptance run.
 
 Status at preparation: implementation and isolated source tests complete;
 production installation and live n8n acceptance are pending.
+
+The CLI-only acceptance helper allocates one 2 vCPU / 2 GiB / 40 GB Proxmox
+VM for the configured internal owner, with external/once zero-price billing,
+no invoice and no wallet operations. A private durable receipt binds creation,
+HTTPS/owner-login verification and cleanup to that one allocation. Unknown
+allocation responses cannot authorize a second purchase. It is not a paid
+external-provider acceptance run.
