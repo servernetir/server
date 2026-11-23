@@ -30,10 +30,11 @@ class InstallerTest(unittest.TestCase):
             calls.append(path)
             return {'status': 'ok'} if path.startswith('/health') else {'data': {'email': self.spec['email']}}
 
-        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image'), \
+        with patch.object(installer, 'ROOT', self.root), patch.object(installer, 'install_docker'), patch.object(installer, 'pull_image') as images, \
                 patch.object(installer, 'api', side_effect=api), \
                 patch.object(installer, 'run', side_effect=lambda command, **kw: calls.append(command)):
             installer.install()
+        images.assert_any_call('docker.n8n.io/n8nio/n8n:2.48.7', 'ghcr.io/n8n-io/n8n:2.48.7')
         setup = calls.index('/rest/owner/setup')
         public = next(i for i, value in enumerate(calls) if isinstance(value, list) and value[-1] == 'caddy')
         self.assertLess(setup, public)
@@ -72,6 +73,7 @@ class InstallerTest(unittest.TestCase):
     def test_docker_repository_403_uses_signed_ubuntu_packages(self):
         error = urllib.error.HTTPError('https://download.docker.com', 403, 'blocked', {}, None)
         with patch.object(installer, 'ROOT', self.root), \
+                patch.object(installer.shutil, 'which', return_value=None), \
                 patch.object(Path, 'read_text', return_value='ID=ubuntu\nVERSION_CODENAME=noble\n'), \
                 patch.object(Path, 'mkdir'), \
                 patch.object(installer.subprocess, 'check_output', return_value='amd64'), \
@@ -89,6 +91,25 @@ class InstallerTest(unittest.TestCase):
             installer.pull_image('caddy:2-alpine', 'public.ecr.aws/docker/library/caddy:2-alpine')
         self.assertEqual(['docker', 'pull', 'public.ecr.aws/docker/library/caddy:2-alpine'], run.call_args_list[0].args[0])
         self.assertEqual(['docker', 'tag', 'public.ecr.aws/docker/library/caddy:2-alpine', 'caddy:2-alpine'], run.call_args_list[1].args[0])
+
+    def test_working_runtime_is_reused_without_package_network_calls(self):
+        with patch.object(installer.shutil, 'which', return_value='/usr/bin/docker'), \
+                patch.object(installer.subprocess, 'run', return_value=Mock(returncode=0)), \
+                patch.object(installer, 'run') as run:
+            installer.install_docker(private=True)
+        run.assert_not_called()
+
+    def test_private_ubuntu_uses_distribution_packages_before_contacting_vendor(self):
+        with patch.object(installer.shutil, 'which', return_value=None), \
+                patch.object(Path, 'read_text', return_value='ID=ubuntu\nVERSION_CODENAME=noble\n'), \
+                patch.object(Path, 'exists', return_value=False), \
+                patch.object(installer.subprocess, 'check_output', return_value='amd64'), \
+                patch.object(installer.urllib.request, 'urlopen') as vendor, \
+                patch.object(installer, 'run') as run:
+            installer.install_docker(private=True)
+        vendor.assert_not_called()
+        self.assertIn(['apt-get', 'install', '-y', '-qq', 'curl', 'ca-certificates', 'docker.io', 'docker-compose-v2'],
+                      [call.args[0] for call in run.call_args_list])
 
 
 if __name__ == '__main__':
