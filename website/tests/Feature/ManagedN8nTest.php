@@ -222,6 +222,22 @@ class ManagedN8nTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_owed_notices_wait_for_application_delivery_and_use_its_https_link(): void
+    {
+        [$service, $instance] = $this->allocated(['state' => 'installing']);
+        $provisioner = app(\App\Services\Cloud\CloudProvisioner::class);
+        $this->assertSame(0, $provisioner->deliverOwedNotices());
+        $this->assertNull($instance->fresh()->ready_notified_at);
+        Mail::assertNothingSent();
+        $instance->update(['meta' => ['n8n' => ['state' => 'ready', 'owner_email' => 'owner@example.test'],
+            'public_domain' => 'n8n-fixture.servernet.cloud']]);
+        $this->assertSame(1, $provisioner->deliverOwedNotices());
+        Mail::assertSent(\App\Mail\ServiceReadyMail::class, fn ($mail) =>
+            $mail->domain === 'https://n8n-fixture.servernet.cloud' && $mail->password === null
+            && ! $mail->withSshGuide && $mail->passwordInPanel);
+        $this->assertSame(0, $provisioner->deliverOwedNotices());
+    }
+
     public function test_cleanup_waits_for_the_installer_before_removing_routes(): void
     {
         [$s, $i] = $this->allocated(['hostname' => 'n8n-fixture.servernet.cloud']);

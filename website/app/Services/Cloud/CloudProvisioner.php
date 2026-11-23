@@ -2172,6 +2172,8 @@ class CloudProvisioner
      */
     private function notify(Service $service, CloudInstance $instance): bool
     {
+        $managedN8n = ManagedN8nCatalog::handles($service);
+        if ($managedN8n && data_get($instance->meta, 'n8n.state') !== 'ready') { return false; }
         // ── قفلِ اتمیِ «یک بار» ──
         $claimed = CloudInstance::whereKey($instance->id)
             ->whereNull('ready_notified_at')
@@ -2202,13 +2204,15 @@ class CloudProvisioner
                 | عمداً همان `ip` ماند: الگوهای ذخیره‌شدهٔ مدیر در /admin/templates با
                 | `{ip}` نوشته شده‌اند و تغییرِ نام بی‌صدا از کارشان می‌انداخت.
                 */
-                ['service' => $service->name, 'ip' => $instance->isGpuApp()
+                ['service' => $service->name, 'ip' => $managedN8n ? (string) $instance->webUrl() : ($instance->isGpuApp()
                     ? (string) $instance->accessHost()
-                    : (string) $instance->address()],
-                $instance->isGpuApp()
+                    : (string) $instance->address())],
+                $managedN8n
+                    ? 'سرویس n8n «'.$service->name.'» آماده شد. نشانی: '.$instance->webUrl().' — اطلاعات ورود در پنل سرویس است.'
+                    : ($instance->isGpuApp()
                     ? 'سرویسِ «'.$service->name.'» شما آماده شد. نشانی: '.$instance->gatewayUrl()
                         .' — توکنِ دسترسی در صفحهٔ مدیریتِ سرویس در پنل است.'
-                    : 'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
+                    : 'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address())
             );
         } catch (\Throwable) {
             // اعلان نباید تحویل را بشکند
@@ -2219,6 +2223,11 @@ class CloudProvisioner
 
             if ($customer && filled($customer->email)) {
                 Mail::mailer('smtp')->to($customer->email)->send(
+                    $managedN8n ? new ServiceReadyMail(
+                        $service->name, $instance->webUrl(), url('/account/cloud/'.$service->id),
+                        data_get($instance->meta, 'n8n.owner_email'), null, $customer->locale ?: 'fa',
+                        passwordInPanel: true, withSshGuide: false,
+                    ) : (
                     /*
                     | خطِ GPU (برنامهٔ آماده روی دروازه): «root» و IP دروغ است —
                     | نه SSH دارد نه کاربرِ سیستمی. نشانیِ برندشدهٔ دروازه
@@ -2263,7 +2272,7 @@ class CloudProvisioner
                             $customer->locale ?: 'fa',
                             passwordInPanel: ! $instance->isWindows() || $instance->hasPassword(),
                             withSshGuide: ! $instance->isWindows(),
-                        )
+                        ))
                 );
             }
         } catch (\Throwable) {
