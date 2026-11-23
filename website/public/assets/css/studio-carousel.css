@@ -230,11 +230,11 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
   html[data-theme="light"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-region-picker button{background:rgba(244,250,255,.75)}
 
   /* One continuous backdrop, with legible glass panels above and below it. */
-  .sn-public:has(.sn-home-intro) .site-header-wrap{background:rgba(6,12,22,.28);backdrop-filter:blur(10px) saturate(1.12);-webkit-backdrop-filter:blur(10px) saturate(1.12)}
-  .sn-public:has(.sn-home-intro) .topbar{background:rgba(8,15,27,.18)}
-  .sn-public:has(.sn-home-intro) #header,.sn-public:has(.sn-home-intro) #header.scrolled{background:rgba(6,12,22,.16);backdrop-filter:none;-webkit-backdrop-filter:none}
-  .sn-home-intro .sn-hero-controls{background:rgba(8,18,31,.26);border-top:1px solid rgba(134,196,229,.1);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-  .sn-home-intro .sn-proof-rail{position:relative;z-index:8;background:rgba(8,18,31,.32);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .sn-public:has(.sn-home-intro) .site-header-wrap{background:rgba(6,12,22,.18);backdrop-filter:blur(4px) saturate(1.12);-webkit-backdrop-filter:blur(4px) saturate(1.12)}
+  .sn-public:has(.sn-home-intro) .topbar{background:rgba(8,15,27,.1)}
+  .sn-public:has(.sn-home-intro) #header,.sn-public:has(.sn-home-intro) #header.scrolled{background:rgba(6,12,22,.1);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .sn-home-intro .sn-hero-controls{background:rgba(8,18,31,.2);border-top:1px solid rgba(134,196,229,.1);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  .sn-home-intro .sn-proof-rail{position:relative;z-index:8;background:rgba(8,18,31,.26);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
   html[data-theme="light"] .sn-public:has(.sn-home-intro) .site-header-wrap{background:rgba(244,250,255,.38)}
   html[data-theme="light"] .sn-public:has(.sn-home-intro) :is(.topbar,#header,#header.scrolled){background:rgba(246,251,255,.18)}
   html[data-theme="light"] .sn-home-intro :is(.sn-hero-controls,.sn-proof-rail){background:rgba(240,248,255,.38)}

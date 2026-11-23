@@ -4,13 +4,13 @@
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "servernet_app/public/assets/css/studio-carousel.css",
       "before": "1606cdb6ad3e62854d6b40e1391982041b99d5f69d496a0331f70132db55e6d9",
-      "after": "7f61b3246dff52ec6fe62be27c420cc2e5bff6b18836347b02bd60ee9692af77"
+      "after": "feea7b1be9fa54ca47a6706e257cc8f4e11ee53abeaae4ad4898c75ca8be781b"
     },
     {
       "source": "website/public/assets/css/studio-carousel.css",
       "destination": "public_html/assets/css/studio-carousel.css",
       "before": "1606cdb6ad3e62854d6b40e1391982041b99d5f69d496a0331f70132db55e6d9",
-      "after": "7f61b3246dff52ec6fe62be27c420cc2e5bff6b18836347b02bd60ee9692af77"
+      "after": "feea7b1be9fa54ca47a6706e257cc8f4e11ee53abeaae4ad4898c75ca8be781b"
     },
     {
       "source": "website/public/assets/js/atlas-home-globe.js",
@@ -48,7 +48,7 @@
     {
       "name": "globe-preview.css",
       "source": "website/public/assets/css/studio-carousel.css",
-      "sha256": "7f61b3246dff52ec6fe62be27c420cc2e5bff6b18836347b02bd60ee9692af77"
+      "sha256": "feea7b1be9fa54ca47a6706e257cc8f4e11ee53abeaae4ad4898c75ca8be781b"
     },
     {
       "name": "globe-preview.js",
