@@ -332,6 +332,27 @@ class ManagedN8nTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_public_iran_prices_and_hourly_are_visible_before_identity_purchase_gate(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $iran = $this->plan('proxmox'); $this->plan('vpstc');
+        $url = '/cloud/n8n?'.http_build_query(['country'=>'IR', 'location'=>$iran->location_code, 'plan'=>$iran->slug]);
+        $response = $this->get($url)->assertOk();
+        $this->assertFalse($response->viewData('n8nIranRestricted'));
+        $this->assertCount(1, array_filter($response->viewData('n8nCards'), fn ($p) => $p['country'] === 'IR'));
+        $doc = new \DOMDocument; @$doc->loadHTML($response->getContent());
+        $x = new \DOMXPath($doc);
+        $this->assertSame(1, $x->query('//input[@name="billing_mode"][@value="hourly"][not(@disabled)]')->length);
+        $this->assertSame(1, $x->query('//*[@data-n8n-country-packages="IR"]//*[@data-n8n-plan]')->length);
+        $this->order($iran, $this->customer(), ['billing_mode'=>'hourly'])->assertSessionHasErrors('location');
+        $this->assertSame(0, Service::count());
+        $this->assertSame(0, Invoice::count());
+        $foreign = $this->get('/en/cloud/n8n')->assertOk();
+        $this->assertNotContains('IR', $foreign->viewData('n8nCountries'));
+        $this->assertEmpty(array_filter($foreign->viewData('n8nCards'), fn ($p) => $p['country'] === 'IR'));
+        Http::assertNothingSent();
+    }
+
     public function test_turkey_hourly_is_rejected_before_service_or_invoice_creation(): void
     {
         $p = $this->plan('vpstc', ['cost_hour_eur_micro' => 1000]);

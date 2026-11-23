@@ -1,118 +1,10 @@
 {
   "files": [
     {
-      "source": "website/app/Console/Commands/DeliverManagedN8n.php",
-      "destination": "servernet_app/app/Console/Commands/DeliverManagedN8n.php",
-      "after": "2bc423c58ac28ec30810b2801bf3179306dd6228c9b38926e8a5d0cea2a7d66e",
-      "before": "157ee9375ef75bea0e19402b6e6b92ceda427e2f048c9a994c9dfb1c382110f1"
-    },
-    {
       "source": "website/app/Http/Controllers/ManagedN8nController.php",
       "destination": "servernet_app/app/Http/Controllers/ManagedN8nController.php",
-      "after": "25d4ef6f45ee454faf994fcdaf52dc98fc37587c9d4f7ccada36f917393b2a38",
-      "before": "8dcce99bed2585025ee03e1d9713e0baaaeffc1d287aa3420bbb8c431f105926"
-    },
-    {
-      "source": "website/app/Models/CloudImage.php",
-      "destination": "servernet_app/app/Models/CloudImage.php",
-      "after": "d87a1f4a55cab3b71823f30410f94af2c32d3986f5fd5d249c502b864c9a25e0",
-      "before": "832e95dda31e121be8e1434b57c3f900b1e75821f80696f898b5334d8fd72fd5"
-    },
-    {
-      "source": "website/app/Models/CloudPlan.php",
-      "destination": "servernet_app/app/Models/CloudPlan.php",
-      "after": "a97ce5f23a7c38330260c2bf7d506b03cbef9431b0632c4520adaea4ecc6019b",
-      "before": "e14462acacf92969863d5413710a9f3473deae40d0b0808229c24511f0fa890e"
-    },
-    {
-      "source": "website/app/Services/Cloud/CloudCatalogSync.php",
-      "destination": "servernet_app/app/Services/Cloud/CloudCatalogSync.php",
-      "after": "0be5d21ce0a2e9a769e911c297cae69661b24dce9b87767cfd38d9298e3f1bd3",
-      "before": "9dda5cc3e24acc14ea6a9a5160cec590a797dab88773be2fc72736bf22c7f357"
-    },
-    {
-      "source": "website/app/Services/Cloud/ManagedN8nCatalog.php",
-      "destination": "servernet_app/app/Services/Cloud/ManagedN8nCatalog.php",
-      "after": "64c4d35e7515e81624f78e1f1eb911b34e276cc1294881bf87a121e53d98f433",
-      "before": "452a5d12f0427b7b6f44ca356081f8ec8b50b923e2be52b4dabc53dd2ba27f65"
-    },
-    {
-      "source": "website/lang/en/n8n.php",
-      "destination": "servernet_app/lang/en/n8n.php",
-      "after": "e444aa7512eaea04b0e2455dce8992db067a3cc2709209539f0eac92bb4066ce",
-      "before": "c99f2ed3850f3bce5c85adec528faca0b3b5c04b87b34a962272eea0274935bb"
-    },
-    {
-      "source": "website/lang/fa/n8n.php",
-      "destination": "servernet_app/lang/fa/n8n.php",
-      "after": "642d508217a011770aef43f0db49e8e1b71a0b1b516656c9427978215c0e56a5",
-      "before": "adc694aed9ac2e872a97c8195f45c23fcc28b229077a1fd70f07c4266c2a677d"
-    },
-    {
-      "source": "website/lang/tr/n8n.php",
-      "destination": "servernet_app/lang/tr/n8n.php",
-      "after": "5677652cb61159794e73fd69e36d1a7a8eca22e713bfba237415c0fca148e569",
-      "before": "e1ce7cbd07010bf4a3f29f9d2e64cf1397da3ddc89fcd6224460c56640049afb"
-    },
-    {
-      "source": "website/public/assets/css/n8n.css",
-      "destination": "servernet_app/public/assets/css/n8n.css",
-      "after": "26b45eb0ddd65abb57f8e6823ddc290ad52968dae1a84329943a066dede49fd5",
-      "before": "56f4161b7719aa1496b919295c7414ef208d14a1271573e8e5602f18d0fe3897"
-    },
-    {
-      "source": "website/public/assets/css/n8n.css",
-      "destination": "public_html/assets/css/n8n.css",
-      "after": "26b45eb0ddd65abb57f8e6823ddc290ad52968dae1a84329943a066dede49fd5",
-      "before": "56f4161b7719aa1496b919295c7414ef208d14a1271573e8e5602f18d0fe3897"
-    },
-    {
-      "source": "website/public/assets/js/n8n-configurator.js",
-      "destination": "servernet_app/public/assets/js/n8n-configurator.js",
-      "after": "6433b58cfb6232b54f64caba20dbd456ea8b50e4da1e88dbc7b6dde0f5edfb21",
-      "before": "4995d43baeac302d47d6612c900afc856f3dd68fc7911f6fd2f9e5c03313893a"
-    },
-    {
-      "source": "website/public/assets/js/n8n-configurator.js",
-      "destination": "public_html/assets/js/n8n-configurator.js",
-      "after": "6433b58cfb6232b54f64caba20dbd456ea8b50e4da1e88dbc7b6dde0f5edfb21",
-      "before": "4995d43baeac302d47d6612c900afc856f3dd68fc7911f6fd2f9e5c03313893a"
-    },
-    {
-      "source": "website/resources/views/pages/n8n.blade.php",
-      "destination": "servernet_app/resources/views/pages/n8n.blade.php",
-      "after": "fe74ec6766288f6ca487729d41daa1acae72c9dce1713c5e1bbf3a4f28de1218",
-      "before": "9e72100197b0fcd1db942a699d20ac585a11816ddb04012cb56fca31fc7bfe44"
-    },
-    {
-      "source": "website/app/Console/Commands/SyncManagedN8nCatalog.php",
-      "destination": "servernet_app/app/Console/Commands/SyncManagedN8nCatalog.php",
-      "after": "c76296ac2bd8bdfd20259075a532a47c024dac6ad35b493ca50885d58da0fd6d",
-      "before": null
-    },
-    {
-      "source": "website/app/Services/Cloud/ManagedN8nIranCatalog.php",
-      "destination": "servernet_app/app/Services/Cloud/ManagedN8nIranCatalog.php",
-      "after": "e39f0eca3e75ce7f976c20f50cf36dd61bfaac6be44a86e9a427bb05e400fd5d",
-      "before": null
-    },
-    {
-      "source": "website/app/Services/Cloud/ManagedN8nSeo.php",
-      "destination": "servernet_app/app/Services/Cloud/ManagedN8nSeo.php",
-      "after": "28a0b419f3d1e08b90189b77a734ee8c9fde04cb7a0a252fd7db8e2cd1d47494",
-      "before": null
-    },
-    {
-      "source": "website/resources/content/n8n-seo.php",
-      "destination": "servernet_app/resources/content/n8n-seo.php",
-      "after": "87cd3ed8b8b1b407c129b404417a93fb617819198fe4b72f7ece91eb482da6b9",
-      "before": null
-    },
-    {
-      "source": "website/resources/views/partials/n8n-guide.blade.php",
-      "destination": "servernet_app/resources/views/partials/n8n-guide.blade.php",
-      "after": "400350922e6de2cb344bbd6f3377d00b186f83049f881ef9f61a56722ea039fd",
-      "before": null
+      "after": "deb83655a8b36fc344b8a03b23e8c7567dd716fecb744166243e594db551ea30",
+      "before": "25d4ef6f45ee454faf994fcdaf52dc98fc37587c9d4f7ccada36f917393b2a38"
     }
   ],
   "views": [
@@ -135,5 +27,5 @@
       "sha256": "11636bed4c32f9f2d634fb1dbfafa03d558a77624a4676884c69aa6ceab339f1"
     }
   },
-  "overlay_sha256": "a87983134c36e77de94d076647d93e39c8cb2e6150b1470a0a7a907398156426"
+  "overlay_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }
