@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -59,9 +60,13 @@ def pull_image(image, official_mirror=None):
         time.sleep(5)
 
 
-def install_docker():
-    run(['apt-get', 'update', '-qq'])
-    run(['apt-get', 'install', '-y', '-qq', 'curl', 'ca-certificates'])
+def install_docker(private=False):
+    if shutil.which('docker'):
+        ready = all(subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   timeout=10).returncode == 0 for command in
+                    [['docker', 'info'], ['docker', 'compose', 'version']])
+        if ready:
+            return
     release = dict(line.split('=', 1) for line in Path('/etc/os-release').read_text().splitlines() if '=' in line)
     distro = release['ID'].strip(chr(34))
     codename = release['VERSION_CODENAME'].strip(chr(34))
@@ -70,6 +75,21 @@ def install_docker():
     architecture = subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip()
     if architecture not in ['amd64', 'arm64']:
         raise RuntimeError('unsupported_architecture')
+    if private and distro == 'ubuntu':
+        # Both the vendor key and repository metadata can be regionally denied.
+        # Prefer the signed distribution source for owned Iranian Ubuntu VMs.
+        vendor = Path('/etc/apt/sources.list.d/servernet-docker.list')
+        if vendor.exists():
+            expected = f'deb [arch={architecture} signed-by=/etc/apt/keyrings/servernet-docker.asc] https://download.docker.com/linux/{distro} {codename} stable\n'
+            if vendor.read_text() != expected:
+                raise RuntimeError('docker_repository_changed')
+            vendor.unlink()
+        run(['apt-get', 'update', '-qq'])
+        run(['apt-get', 'install', '-y', '-qq', 'curl', 'ca-certificates', 'docker.io', 'docker-compose-v2'])
+        run(['systemctl', 'enable', '--now', 'docker'])
+        return
+    run(['apt-get', 'update', '-qq'])
+    run(['apt-get', 'install', '-y', '-qq', 'curl', 'ca-certificates'])
     Path('/etc/apt/keyrings').mkdir(mode=0o755, exist_ok=True)
     key = Path('/etc/apt/keyrings/servernet-docker.asc')
     try:
@@ -102,7 +122,7 @@ def install():
             or disk.f_blocks * disk.f_frsize < spec['disk_gb'] * 10**9 * 0.85:
         raise RuntimeError('allocated_resources_mismatch')
     write('phase', 'docker_setup')
-    install_docker()
+    install_docker(spec['private'])
     if not (ROOT / '.env').exists():
         write('.env', 'POSTGRES_PASSWORD=' + secrets.token_hex(32) + '\nN8N_ENCRYPTION_KEY='
               + secrets.token_hex(32) + '\n')

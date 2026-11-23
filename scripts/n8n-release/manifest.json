@@ -1,12 +1,12 @@
 {
   "release": "n8n-20261123",
-  "base": "26093b2d32453b832347b383345d2f3f438c33bc",
+  "base": "e0aa0716fdeb8a2b8cb586a450d8b0bc8f24e77f",
   "files": [
     {
       "source": "website/resources/n8n/install.py",
       "destination": "servernet_app/resources/n8n/install.py",
-      "before": "955ea91fe52ca7b71bf7a6217d6dfcaca4729a7190abf612bd12fc3085ce4b3f",
-      "after": "d4e2bb26a74dfa6e0f9ace004a6b448d21f9d2a6eb426ed1a799eb6e6554922e"
+      "before": "d4e2bb26a74dfa6e0f9ace004a6b448d21f9d2a6eb426ed1a799eb6e6554922e",
+      "after": "9b877be7bb69b210621eb157b1860dc35d12e03d2c10e2bd4b10fbb61e9a98a2"
     }
   ],
   "helpers": {
