@@ -24,7 +24,7 @@ umask(0077);
 $mode = $argv[1] ?? '';
 if (! in_array($mode, ['create', 'status', 'observe', 'cleanup'], true)) { exit(64); }
 $suffix = $argv[2] ?? '';
-if (! in_array($suffix, ['', 'final'], true)) { exit(64); }
+if (! in_array($suffix, ['', 'final', 'final2'], true)) { exit(64); }
 $run = 'n8n-acceptance-20261123'.($suffix ? '-'.$suffix : '');
 $receipt = __DIR__.'/acceptance-receipt'.($suffix ? '-'.$suffix : '').'.json';
 $lock = fopen(__DIR__.'/acceptance.lock', 'c');

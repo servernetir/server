@@ -1,18 +1,12 @@
 {
   "release": "n8n-20261123",
-  "base": "b10ff5de6357c4a5c59233c4fb918c16f2afeee8",
+  "base": "e445eba7831e7c815a91178b5a3a85b10dd84dcc",
   "files": [
-    {
-      "source": "website/app/Services/Cloud/ProxmoxClient.php",
-      "destination": "servernet_app/app/Services/Cloud/ProxmoxClient.php",
-      "before": "a2ceb6629eb3e7be078cb6ddc8590617b560d7b8c954c5c92377602a83ff061a",
-      "after": "1b30a421a8385fda0d3860c597ab9b44fe8e3c622049ceac2c5e8fa755ecc3bd"
-    },
     {
       "source": "website/resources/n8n/install.py",
       "destination": "servernet_app/resources/n8n/install.py",
-      "before": "d4e2bb26a74dfa6e0f9ace004a6b448d21f9d2a6eb426ed1a799eb6e6554922e",
-      "after": "8570d593bcd6cd49ffdce5cae5095aae76fb3b4956efdc602489ce25b4017cf8"
+      "before": "8570d593bcd6cd49ffdce5cae5095aae76fb3b4956efdc602489ce25b4017cf8",
+      "after": "174b6613083d2804917b9f7c15db6a9da323dd378dd5d45633c8312c512dcc89"
     }
   ],
   "helpers": {
