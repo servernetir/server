@@ -258,7 +258,7 @@ async function chromiumReport(profile, reduced, fixtureUrl) {
     const endpoint = await new Promise((resolve,reject) => {
       const timer = setTimeout(() => reject(
         new Error('Chrome debugging endpoint timeout: '+stderr.slice(-2000))
-      ), 12000);
+      ), 30000);
       const fail = error => {clearTimeout(timer); reject(error);};
       child.once('error',fail);
       child.once('exit',(code,signal) => fail(new Error(

@@ -25,12 +25,15 @@ class ManagedN8nController extends Controller
     {
         $catalog = app(ManagedN8nCatalog::class);
         $cards = $catalog->cards();
-        if (\App\Services\Customer\IranSalesVisibility::restricted()) {
+        // Public specifications are discoverable in Persian before sign-in.
+        // IranSalesGate still validates identity at the actual purchase boundary.
+        $iranRestricted = app()->getLocale() !== 'fa';
+        if ($iranRestricted) {
             $cards = array_values(array_filter($cards, fn ($p) => $p['country'] !== 'IR'));
         }
         return ['n8nCards' => $cards, 'n8nEnabled' => $catalog->enabled(),
             'n8nCountries' => app()->getLocale() === 'fa' ? ['IR', 'DE', 'TR'] : ['DE', 'TR'],
-            'n8nIranRestricted' => \App\Services\Customer\IranSalesVisibility::restricted(),
+            'n8nIranRestricted' => $iranRestricted,
             'n8nTax' => \App\Http\Controllers\Account\CloudStoreController::taxPercent()];
     }
 }
