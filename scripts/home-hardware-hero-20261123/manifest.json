@@ -1,0 +1,23 @@
+{
+  "files": [
+    {"source":"website/public/assets/img/home-parts-exploded.webp","destination":"servernet_app/public/assets/img/home-parts-exploded.webp","before":null,"after":"7958df1765b946575d14f18c2c390bae86358d19d3cf8c5cc7601291bd130587"},
+    {"source":"website/public/assets/img/home-parts-exploded.webp","destination":"public_html/assets/img/home-parts-exploded.webp","before":null,"after":"7958df1765b946575d14f18c2c390bae86358d19d3cf8c5cc7601291bd130587"},
+    {"source":"website/public/assets/img/home-parts-cutout.svg","destination":"servernet_app/public/assets/img/home-parts-cutout.svg","before":null,"after":"d516700d6c9a37a0d75cb76b173954b0261a446b29e78cd679ce8241b1462121"},
+    {"source":"website/public/assets/img/home-parts-cutout.svg","destination":"public_html/assets/img/home-parts-cutout.svg","before":null,"after":"d516700d6c9a37a0d75cb76b173954b0261a446b29e78cd679ce8241b1462121"},
+    {"source":"website/public/assets/css/home-parts-slide.css","destination":"servernet_app/public/assets/css/home-parts-slide.css","before":null,"after":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc"},
+    {"source":"website/public/assets/css/home-parts-slide.css","destination":"public_html/assets/css/home-parts-slide.css","before":null,"after":"8ee58d7669601cde7caee82afa02428d998a81ef165dbb83f1d3e141e6318cfc"},
+    {"source":"website/resources/views/partials/home-parts-slide.blade.php","destination":"servernet_app/resources/views/partials/home-parts-slide.blade.php","before":null,"after":"0cdad24e972d11e34c91a49c7ff407b405ca8687bfd7aa7300a59e4563965252"},
+    {"source":"website/lang/fa/home_slides.php","destination":"servernet_app/lang/fa/home_slides.php","before":"24b0ca6ade2c32be2b08cd81236ddcf0ff2576b2c63b2906880a3845b8bc733d","after":"8ddca1884f5af8fe38fa9a0cf43d3208396d13d94c5b241fda2eb3c3416fda52"},
+    {"source":"website/lang/en/home_slides.php","destination":"servernet_app/lang/en/home_slides.php","before":"71115492d1ec5c7952ce44835327a89b471bd1077c29c9d52bd5e10b21b6abcd","after":"21603bf219e94326da4050c6d2285a419115a9f679b3a4a2cf2f907e4909ea45"},
+    {"source":"website/lang/tr/home_slides.php","destination":"servernet_app/lang/tr/home_slides.php","before":"cd19bc42737f96764dd25a70a76fdca997bf1a486253399606e7bcdd1fccb534","after":"befa2125e5d9f23f59adac9eebb8f091224328e2db3151610d52af8bbed80ca4"},
+    {"source":"website/public/assets/js/studio-carousel.js","destination":"servernet_app/public/assets/js/studio-carousel.js","before":"e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8","after":"d1c5da9f4ef29e733bee3a072f0dfaf479b421ad878c9f1d01a1ca2c066aa325"},
+    {"source":"website/public/assets/js/studio-carousel.js","destination":"public_html/assets/js/studio-carousel.js","before":"e7fe08d975339fb6f3aebedfba5bf13c16ec4d328986264ce2ef69754c6138e8","after":"d1c5da9f4ef29e733bee3a072f0dfaf479b421ad878c9f1d01a1ca2c066aa325"},
+    {"source":"website/resources/views/partials/studio-carousel-controls.blade.php","destination":"servernet_app/resources/views/partials/studio-carousel-controls.blade.php","before":"4333d4b0461a9b3c8fe06506602d279a4a03aa6e4d4b6b86b6b03624599a02a9","after":"d589c23d23639655c94be2c0bbc691c5338ed55c2483836ac3d41fdf2a99e01c"},
+    {"source":"website/resources/views/pages/home.blade.php","destination":"servernet_app/resources/views/pages/home.blade.php","patch":true,"source_sha256":"b7f171e7db300e8e91e76e5d6b4a20b16e7e02a92d84620502f9236c743408f8","before":"a0f5ec77da7229fa82a892b4f12c6aec8b3e2db0246c6de48b17cf115618ea58","after":"2cb098d87e022e81055ac882d1a0fb5e5822943f2d13690280db1c5148c04353"}
+  ],
+  "helpers": {
+    "activation_common.py":{"path":"scripts/mcp-auto-approval-20261122/activate.py","sha256":"9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"},
+    "fcgi.py":{"path":"scripts/mcp-auto-approval-20261122/fcgi.py","sha256":"57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"},
+    "activate.php":{"path":"scripts/home-hardware-hero-20261123/activate.php","sha256":"ebdc7fc8cb0e7256833d2a6196c71304cb23daa8ebabbcc5f409cd7bc1cec67a"}
+  }
+}

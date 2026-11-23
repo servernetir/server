@@ -1,0 +1,14 @@
+{
+  "website/resources/views/pages/home.blade.php": [
+    {
+      "old": "<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/email-showcase.css') }}\">\n",
+      "new": "<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/email-showcase.css') }}\">\n<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/home-parts-slide.css') }}\">\n",
+      "count": 1
+    },
+    {
+      "old": "@include('partials.home-email-slide')\n",
+      "new": "@include('partials.home-email-slide')\n@include('partials.home-parts-slide')\n",
+      "count": 1
+    }
+  ]
+}

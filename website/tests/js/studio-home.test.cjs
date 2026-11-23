@@ -26,23 +26,24 @@ function setup(locale='fa', reduced=false, withoutStudio=false) {
   const tick=duration=>{const end=now+duration;for(;;){const entry=Array.from(timers).filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!entry)break;now=entry[1].at;timers.delete(entry[0]);entry[1].fn();}now=end;};
   if(withoutStudio){doc.getElementById('studio').remove();doc.querySelector('[data-hero-target=studio]').remove();}
   w.eval(code);
-  return {dom,w,doc,tick,observers,media,root:doc.querySelector('[data-hero-carousel]'),
+  const pointer=(target,type,id=1)=>{const event=new w.Event(type,{bubbles:true});Object.defineProperty(event,'pointerId',{value:id});target.dispatchEvent(event);};
+  return {dom,w,doc,tick,observers,media,pointer,root:doc.querySelector('[data-hero-carousel]'),
     slide:()=>doc.querySelector('[data-hero-slide].is-active').dataset.heroSlide,
     select:name=>doc.querySelector('[data-hero-target="'+name+'"]').click(),
     hidden:value=>{visibility=value;doc.dispatchEvent(new w.Event('visibilitychange'));}};
 }
 for (const locale of ['fa','en','tr']) {
-  test(locale+': original globe is first; GPU appears after six seconds; six services loop in order',()=>{
+  test(locale+': original globe is first; GPU appears after six seconds; seven slides loop in order',()=>{
     const e=setup(locale);try{
       assert.equal(e.slide(),'infrastructure');assert.equal(e.doc.getElementById('studio').inert,true);
       let previous='infrastructure';
-      for(const name of ['gpu','studio','n8n','hosting','email','infrastructure']){
+      for(const name of ['gpu','studio','n8n','hosting','email','parts','infrastructure']){
         e.tick(5999);assert.equal(e.slide(),previous);e.tick(1);assert.equal(e.slide(),name);
         const active=e.doc.querySelector('[data-hero-slide="'+name+'"]');
         assert.equal(active.inert,false);assert.equal(active.getAttribute('aria-hidden'),'false');
         previous=name;
       }
-      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,6);
+      assert.equal(e.doc.querySelectorAll('[data-hero-target]').length,7);
       assert.equal(e.doc.querySelector('#hero-email .btn-primary').getAttribute('href'),(locale==='fa'?'':'/'+locale)+'/transactional-email');
       assert.doesNotMatch(e.doc.body.textContent,/studio_carousel\./);
       assert.equal(e.doc.querySelector('.sn-studio-launch').href,'https://studio.servernet.cloud/');
@@ -50,19 +51,64 @@ for (const locale of ['fa','en','tr']) {
     }finally{e.w.close();}
   });
 }
-test('manual selection pauses rotation; play works with the play control still focused',()=>{
+test('manual selection automatically resumes rotation exactly two seconds after the click',()=>{
   const e=setup();try{
-    e.select('studio');e.tick(30000);assert.equal(e.slide(),'studio');
     const toggle=e.doc.querySelector('[data-hero-autoplay]');
+    e.select('studio');e.tick(1999);assert.equal(e.slide(),'studio');
+    assert.equal(toggle.getAttribute('aria-pressed'),'true');assert.equal(e.root.classList.contains('is-playing'),false);
+    e.tick(1);assert.equal(toggle.getAttribute('aria-pressed'),'false');assert.ok(e.root.classList.contains('is-playing'));
+    e.tick(5999);assert.equal(e.slide(),'studio');e.tick(1);assert.equal(e.slide(),'n8n');
+  }finally{e.w.close();}
+});
+test('each new click postpones the resume deadline by another two seconds',()=>{
+  const e=setup();try{
+    e.select('gpu');e.tick(1500);e.select('studio');e.tick(1500);
+    e.doc.querySelector('[data-studio-mode]').click();e.tick(1999);
+    assert.equal(e.slide(),'studio');assert.equal(e.root.classList.contains('is-playing'),false);
+    e.tick(1);assert.ok(e.root.classList.contains('is-playing'));
+    e.tick(6000);assert.equal(e.slide(),'n8n');
+  }finally{e.w.close();}
+});
+test('a real mouse click does not leave playback blocked by its retained hover or focus',()=>{
+  const e=setup();try{
+    const button=e.doc.querySelector('[data-hero-target=parts]');
+    e.doc.querySelector('.sn-hero-controls').dispatchEvent(new e.w.Event('pointerenter'));
+    e.pointer(button,'pointerdown');button.focus();e.pointer(button,'pointerup');
+    button.dispatchEvent(new e.w.MouseEvent('click',{bubbles:true,detail:1}));
+    assert.equal(e.slide(),'parts');assert.equal(e.doc.activeElement,button);
+    e.tick(1999);assert.equal(e.root.classList.contains('is-playing'),false);
+    e.tick(1);assert.ok(e.root.classList.contains('is-playing'));assert.equal(e.doc.activeElement,button);
+    e.tick(6000);assert.equal(e.slide(),'infrastructure');
+  }finally{e.w.close();}
+});
+test('a dedicated manual pause persists through selection; play works while its control is focused',()=>{
+  const e=setup();try{
+    const toggle=e.doc.querySelector('[data-hero-autoplay]');
+    toggle.click();e.select('studio');e.tick(30000);assert.equal(e.slide(),'studio');
     assert.equal(toggle.getAttribute('aria-pressed'),'true');
     toggle.focus();toggle.click();assert.ok(e.root.classList.contains('is-playing'));
     e.tick(6000);assert.equal(e.slide(),'n8n');
+  }finally{e.w.close();}
+});
+test('the Play control can resume immediately during the temporary pause',()=>{
+  const e=setup();try{
+    e.select('studio');e.tick(1000);
+    e.doc.querySelector('[data-hero-autoplay]').click();assert.ok(e.root.classList.contains('is-playing'));
+    e.tick(5999);assert.equal(e.slide(),'studio');e.tick(1);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
 test('focus in slide content pauses; leaving the carousel starts a fresh interval',()=>{
   const e=setup();try{
     e.doc.querySelector('#hero-infrastructure a').focus();e.tick(20000);assert.equal(e.slide(),'infrastructure');
     e.doc.activeElement.blur();e.tick(5999);assert.equal(e.slide(),'infrastructure');e.tick(1);assert.equal(e.slide(),'gpu');
+  }finally{e.w.close();}
+});
+test('keyboard navigation keeps focused slide controls available even after activation',()=>{
+  const e=setup();try{
+    e.select('studio');e.tick(2000);
+    const button=e.doc.querySelector('[data-studio-mode]');button.focus();button.click();
+    e.tick(20000);assert.equal(e.slide(),'studio');assert.equal(e.doc.activeElement,button);
+    button.blur();e.tick(6000);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
 test('hidden documents and off-screen heroes do not advance',()=>{
@@ -73,6 +119,14 @@ test('hidden documents and off-screen heroes do not advance',()=>{
     e.observers[0].callback([{isIntersecting:true}]);e.tick(6000);assert.equal(e.slide(),'studio');
   }finally{e.w.close();}
 });
+test('the idle deadline cannot restart off-screen or hidden playback',()=>{
+  const e=setup();try{
+    e.select('parts');e.hidden(true);e.tick(20000);assert.equal(e.slide(),'parts');
+    assert.equal(e.root.classList.contains('is-playing'),false);
+    e.observers[0].callback([{isIntersecting:false}]);e.hidden(false);e.tick(20000);assert.equal(e.slide(),'parts');
+    e.observers[0].callback([{isIntersecting:true}]);e.tick(6000);assert.equal(e.slide(),'infrastructure');
+  }finally{e.w.close();}
+});
 test('reduced motion defaults to manual selection without disabling requested play',()=>{
   const e=setup('en',true);try{
     e.tick(30000);assert.equal(e.slide(),'infrastructure');
@@ -81,7 +135,7 @@ test('reduced motion defaults to manual selection without disabling requested pl
     e.doc.querySelector('[data-hero-autoplay]').click();e.tick(6000);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
-test('four real examples switch locally and stop automatic slide changes',()=>{
+test('four real examples switch locally and resume automatic slide changes when idle',()=>{
   const e=setup();try{
     e.select('studio');
     for(const button of e.doc.querySelectorAll('[data-studio-mode]')){
@@ -90,7 +144,8 @@ test('four real examples switch locally and stop automatic slide changes',()=>{
       assert.equal(visible.length,1);assert.equal(visible[0].id,button.getAttribute('aria-controls'));
       assert.equal(e.doc.querySelectorAll('[data-studio-mode][aria-pressed="true"]').length,1);
     }
-    e.tick(20000);assert.equal(e.slide(),'studio');assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
+    e.tick(1999);assert.equal(e.slide(),'studio');assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
+    e.tick(1);assert.ok(e.root.classList.contains('is-playing'));e.tick(6000);assert.equal(e.slide(),'n8n');
   }finally{e.w.close();}
 });
 test('hovering controls pauses and a pointer leave resumes the remaining experience',()=>{
@@ -113,7 +168,8 @@ test('the static first frame remains useful before scripts initialize',()=>{
     assert.equal(d.getElementById('studio').getAttribute('aria-hidden'),'true');
     assert.equal(d.querySelectorAll('[data-studio-mode]:not([hidden])').length,0);
     assert.equal(d.querySelectorAll('form,input,textarea').length,0);
-    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/gpu','/cloud/n8n','/hosting/linux','/transactional-email','https://studio.servernet.cloud/']);
+    assert.deepEqual([...d.querySelectorAll('noscript a')].map(a=>a.getAttribute('href')),['/gpu','/cloud/n8n','/hosting/linux','/transactional-email','https://studio.servernet.cloud/','/parts']);
+    assert.equal(d.querySelector('#hero-parts img').hasAttribute('src'),false);
   }finally{dom.window.close();}
 });
 test('unrelated pages do not need a carousel',()=>{
@@ -123,26 +179,103 @@ test('unrelated pages do not need a carousel',()=>{
 
 test('every service can be selected directly with a single matching visible and accessible slide',()=>{
   const e=setup();try{
-    for(const name of ['email','hosting','n8n','studio','gpu','infrastructure']){
-      e.select(name);e.tick(20000);assert.equal(e.slide(),name);
+    for(const name of ['parts','email','hosting','n8n','studio','gpu','infrastructure']){
+      e.select(name);e.tick(1200);assert.equal(e.slide(),name);
       assert.equal(e.doc.querySelectorAll('[data-hero-slide][aria-hidden="false"]').length,1);
       assert.equal(e.doc.querySelectorAll('[data-hero-target][aria-pressed="true"]').length,1);
       for(const slide of e.doc.querySelectorAll('[data-hero-slide]')) assert.equal(slide.inert,slide.dataset.heroSlide!==name);
     }
   }finally{e.w.close();}
 });
-test('unconfigured Studio leaves a working five-service loop',()=>{
+test('unconfigured Studio leaves a working six-slide loop',()=>{
   const e=setup('fa',false,true);try{
     assert.equal(e.slide(),'infrastructure');e.tick(6000);assert.equal(e.slide(),'gpu');e.tick(6000);assert.equal(e.slide(),'n8n');
-    e.tick(6000);assert.equal(e.slide(),'hosting');e.tick(6000);assert.equal(e.slide(),'email');e.tick(6000);assert.equal(e.slide(),'infrastructure');
+    e.tick(6000);assert.equal(e.slide(),'hosting');e.tick(6000);assert.equal(e.slide(),'email');e.tick(6000);assert.equal(e.slide(),'parts');e.tick(6000);assert.equal(e.slide(),'infrastructure');
   }finally{e.w.close();}
 });
 
-test('dragging the production homepage globe pauses automatic slide changes',()=>{
+test('dragging the production homepage globe holds playback until release and two seconds of inactivity',()=>{
   const e=setup();try{
     const globe=e.doc.querySelector('.sn-globe');globe.setAttribute('data-sn-home-globe','');
-    globe.dispatchEvent(new e.w.Event('pointerdown',{bubbles:true}));e.tick(20000);
+    e.pointer(globe,'pointerdown');e.tick(20000);
     assert.equal(e.slide(),'infrastructure');
     assert.equal(e.doc.querySelector('[data-hero-autoplay]').getAttribute('aria-pressed'),'true');
+    e.pointer(e.doc.body,'pointerup');e.tick(1999);assert.equal(e.root.classList.contains('is-playing'),false);
+    e.tick(1);assert.ok(e.root.classList.contains('is-playing'));e.tick(6000);assert.equal(e.slide(),'gpu');
   }finally{e.w.close();}
+});
+test('a cancelled pointer interaction also resumes after the idle period',()=>{
+  const e=setup();try{
+    const globe=e.doc.querySelector('.sn-globe');e.pointer(globe,'pointerdown');e.tick(20000);
+    e.pointer(globe,'pointercancel');e.tick(2000);assert.ok(e.root.classList.contains('is-playing'));
+    e.tick(6000);assert.equal(e.slide(),'gpu');
+  }finally{e.w.close();}
+});
+
+for (const locale of ['fa','en','tr']) {
+  test(locale+': hardware artwork loads only on activation and all links lead to real localized catalog routes',()=>{
+    const e=setup(locale);try{
+      const slide=e.doc.getElementById('hero-parts');
+      const img=slide.querySelector('[data-parts-chassis-art]');
+      const images=[...slide.querySelectorAll('img[data-hero-image-src]')];
+      const prefix=locale==='fa'?'':'/'+locale;
+      assert.equal(images.length,5);assert.equal(images[0],img);
+      assert.ok(images.every(layer=>!layer.hasAttribute('src')));
+      e.tick(35999);assert.equal(e.slide(),'email');assert.ok(images.every(layer=>!layer.hasAttribute('src')));
+      e.tick(1);assert.equal(e.slide(),'parts');assert.ok(images.every(layer=>layer.getAttribute('src')==='assets/img/home-parts-exploded.webp'));
+      assert.equal(slide.querySelector('.btn-primary').getAttribute('href'),prefix+'/parts');
+      for (const category of ['cpu','ram','disk','raid']) {
+        const link=slide.querySelector('[data-parts-category='+category+']');
+        assert.equal(link.getAttribute('href'),prefix+'/parts/'+category);assert.ok(link.getAttribute('aria-label'));
+        assert.ok(link.querySelectorAll('.sn-parts-piece img').length===1);assert.equal(link.querySelector('.sn-parts-piece').getAttribute('aria-hidden'),'true');
+      }
+      assert.deepEqual([...slide.querySelectorAll('.sn-parts-gen-links a')].map(a=>a.getAttribute('href')),[8,9,10,11,12].map(n=>prefix+'/servers/hp/gen'+n));
+      assert.equal(slide.querySelector('.sn-parts-chassis').getAttribute('href'),prefix+'/parts/chassis');
+      assert.equal(slide.querySelector('[class*="sn-parts-frame"]'),null);
+      assert.equal(slide.querySelector('.sn-parts-halo').parentElement,slide);
+      slide.querySelector('[data-parts-explore]').dispatchEvent(new e.w.Event('pointerenter'));e.tick(30000);assert.equal(e.slide(),'parts');
+      slide.querySelector('[data-parts-explore]').dispatchEvent(new e.w.Event('pointerleave'));e.tick(6000);assert.equal(e.slide(),'infrastructure');
+    }finally{e.w.close();}
+  });
+}
+test('the extraction waits for the shared artwork to decode and is ready on the next visit',async()=>{
+  const e=setup();try{
+    const slide=e.doc.getElementById('hero-parts'),chassis=slide.querySelector('[data-parts-chassis-art]'),images=[...slide.querySelectorAll('img[data-hero-image-src]')];
+    let width=0;const decode=[];
+    Object.defineProperty(chassis,'complete',{get:()=>false});Object.defineProperty(chassis,'naturalWidth',{get:()=>width});
+    for(const image of images)image.decode=()=>new Promise(resolve=>decode.push(resolve));
+    e.select('parts');assert.equal(slide.dataset.partsArt,'pending');assert.equal(decode.length,0);
+    width=1200;chassis.dispatchEvent(new e.w.Event('load'));assert.equal(decode.length,5);
+    decode.slice(0,4).forEach(resolve=>resolve());await new Promise(resolve=>setImmediate(resolve));assert.equal(slide.dataset.partsArt,'pending');
+    decode[4]();await new Promise(resolve=>setImmediate(resolve));assert.equal(slide.dataset.partsArt,'ready');
+    e.select('email');e.select('parts');assert.equal(slide.dataset.partsArt,'ready');assert.equal(decode.length,5);
+  }finally{e.w.close();}
+});
+test('a failed artwork load leaves the category links available instead of an endless loading animation',()=>{
+  const e=setup();try{
+    const slide=e.doc.getElementById('hero-parts'),chassis=slide.querySelector('[data-parts-chassis-art]');
+    Object.defineProperty(chassis,'complete',{get:()=>false});Object.defineProperty(chassis,'naturalWidth',{get:()=>0});
+    e.select('parts');assert.equal(slide.dataset.partsArt,'pending');chassis.dispatchEvent(new e.w.Event('error'));
+    assert.equal(slide.dataset.partsArt,'unavailable');assert.equal(slide.querySelectorAll('[data-parts-category]').length,4);assert.equal(slide.inert,false);
+  }finally{e.w.close();}
+});
+test('only deliberate Pause freezes the hovering motion, while hidden or off-screen motion is suspended',()=>{
+  const e=setup();try{
+    const toggle=e.doc.querySelector('[data-hero-autoplay]');
+    e.select('parts');assert.equal(e.root.hasAttribute('data-hero-motion-still'),false);
+    e.tick(2000);toggle.click();assert.equal(e.root.hasAttribute('data-hero-motion-still'),true);
+    toggle.click();assert.equal(e.root.hasAttribute('data-hero-motion-still'),false);
+    e.hidden(true);assert.equal(e.root.hasAttribute('data-hero-motion-away'),true);
+    e.hidden(false);assert.equal(e.root.hasAttribute('data-hero-motion-away'),false);
+    e.observers[0].callback([{isIntersecting:false}]);assert.equal(e.root.hasAttribute('data-hero-motion-away'),true);
+    e.observers[0].callback([{isIntersecting:true}]);assert.equal(e.root.hasAttribute('data-hero-motion-away'),false);
+  }finally{e.w.close();}
+});
+test('the chassis has a single silhouette; four independent crops have staggered entry and no cover',()=>{
+  const mask=new JSDOM(fs.readFileSync(path.join(root,'public/assets/img/home-parts-cutout.svg'),'utf8'),{contentType:'image/svg+xml'});
+  try{assert.equal(mask.window.document.querySelectorAll('path').length,1);assert.match(mask.window.document.querySelector('path').getAttribute('d'),/^M46 561 /);}finally{mask.window.close();}
+  const style=fs.readFileSync(path.join(root,'public/assets/css/home-parts-slide.css'),'utf8');
+  const delays=[...style.matchAll(/--rise-delay:([\d.]+)s/g)].map(m=>Number(m[1]));
+  assert.equal(delays.length,4);assert.ok(delays.every((delay,i)=>!i||delay>delays[i-1]));
+  assert.equal([...style.matchAll(/--part-mask:url\(/g)].length,4);
 });
