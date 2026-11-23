@@ -97,10 +97,10 @@ html[data-theme=light] .sn-parts-mark{background:#dbedf8;color:#1889ba;border-co
   .sn-home-intro .sn-parts-copy .sn-service-eyebrow{margin-bottom:10px;font-size:.875rem}
   .sn-home-intro .sn-parts-copy h2{font-size:clamp(28px,2.6vw,36px);line-height:1.4;margin-bottom:12px}
   .sn-home-intro .sn-parts-copy .sn-service-lead{font-size:.875rem;line-height:1.78;margin-bottom:14px}
-  .sn-home-intro .sn-parts-benefits{gap:8px 15px;margin-bottom:15px}
+  .sn-home-intro .sn-parts-benefits{gap:8px 15px;margin-bottom:10px}
   .sn-home-intro .sn-parts-copy .sn-service-actions .btn{min-height:42px;padding-block:8px;font-size:.8125rem}
   .sn-parts-mark{width:33px;height:33px;border-radius:9px}.sn-parts-mark .icon{width:19px;height:19px}
-  .sn-parts-generations{margin-top:13px;gap:6px 9px}
+  .sn-parts-generations{margin-top:10px;gap:6px 9px}
   .sn-parts-gen-label{font-size:.75rem}.sn-parts-gen-links>a{min-height:30px;min-width:47px;padding:5px 7px;font-size:.6875rem}
   .sn-parts-scene-head{margin-bottom:4px;padding-inline:8px}
   .sn-parts-collection{gap:7px}.sn-parts-collection b{font-size:.875rem}.sn-parts-collection small{font-size:.55rem;letter-spacing:.045em}

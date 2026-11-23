@@ -147,8 +147,7 @@ for (const engine of engines) test(`${engine}: hardware scene fits the real head
       await check(`${engine}/${locale}/measured fallback`,true,false);
       await fallback.evaluate(el => el.remove());
     }
-    assert.deepEqual(failures,[],'geometry and hit target failures across the full matrix');
-    assert.deepEqual(pageErrors,[],'no uncaught JavaScript errors in the actual homepage');
+    assert.deepEqual([...failures,...pageErrors.map(e=>'Uncaught page error: '+e)],[],'geometry, hit target and runtime failures across the full matrix');
     console.log(`${engine}: ${count} responsive cases; all three languages, actual bars, zoom equivalents, light theme and measured fallback`);
     await context.close();
   } finally { await browser.close(); }
