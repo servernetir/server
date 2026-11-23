@@ -6,9 +6,10 @@
     var selectors = Array.from(root.querySelectorAll('[data-hero-target]'));
     var toggle = root.querySelector('[data-hero-autoplay]');
     var announcement = root.querySelector('[data-hero-announcement]');
-    if (slides.length !== 2 || selectors.length !== 2 || !toggle) return;
+    if (slides.length < 2 || selectors.length !== slides.length || !toggle) return;
+    if (selectors.some(function (button, i) { return button.dataset.heroTarget !== slides[i].dataset.heroSlide; })) return;
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches: false};
-    var interval = Math.max(5000, Number(root.dataset.interval) || 7000);
+    var interval = Math.max(5000, Number(root.dataset.interval) || 5000);
     var active = 0, timer = null, transition = null;
     var explicitPause = motion.matches, focused = false, hovered = false, inView = true;
     root.style.setProperty('--hero-duration', interval + 'ms');

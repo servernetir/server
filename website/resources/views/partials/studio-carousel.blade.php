@@ -1,8 +1,4 @@
 @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
-@push('head')
-<link rel="stylesheet" href="{{ asset_ver('assets/css/studio-carousel.css') }}">
-<script src="{{ asset_ver('assets/js/studio-carousel.js') }}" defer></script>
-@endpush
 @php $studioModes = ['chat' => 'message', 'image' => 'image', 'video' => 'video', 'audio' => 'mic']; @endphp
 <section class="sn-studio-hero" id="studio" data-studio-home data-hero-slide="studio" aria-labelledby="studio-title" aria-hidden="true" inert>
   <div class="container sn-studio-layout">

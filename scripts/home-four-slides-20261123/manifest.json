@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "source": "website/lang/fa/home_slides.php",
+      "destination": "servernet_app/lang/fa/home_slides.php",
+      "before": null,
+      "after": "e44f691588a8c85b401659215b83fa92f082045fa754794d86c7111e74485b19"
+    },
+    {
+      "source": "website/lang/en/home_slides.php",
+      "destination": "servernet_app/lang/en/home_slides.php",
+      "before": null,
+      "after": "d485f68c495708b3a84d412c9d0ac7a80172627f669aa4ef05ef08cebc133514"
+    },
+    {
+      "source": "website/lang/tr/home_slides.php",
+      "destination": "servernet_app/lang/tr/home_slides.php",
+      "before": null,
+      "after": "1344f316f199c9a85ecbd501deaf38b3661e26225f890df4c71284ce6235c7ff"
+    },
+    {
+      "source": "website/resources/views/partials/home-service-slides.blade.php",
+      "destination": "servernet_app/resources/views/partials/home-service-slides.blade.php",
+      "before": null,
+      "after": "947a5ce52d71c3314c8a27cade2f615fd60c4b7c0bea6c54fb45cdb352b25164"
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel.blade.php",
+      "before": "d393550d8f1249de6ff76b93755d93f7352052f85a6d6540e5404b3e980490eb",
+      "after": "0763339c09a37281d5b51ffb27d41d49e611f7b48b91d3be18dc9a6183a20e4e"
+    },
+    {
+      "source": "website/resources/views/partials/studio-carousel-controls.blade.php",
+      "destination": "servernet_app/resources/views/partials/studio-carousel-controls.blade.php",
+      "before": "27a797c04c91684eca95921246b4afbf4774a583eb48aa5e0199389bd6a17823",
+      "after": "ad88072845973a445c120619f1a186faf32583fe368e2c2ee7b7b5afd083131c"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "servernet_app/public/assets/css/studio-carousel.css",
+      "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
+      "after": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e"
+    },
+    {
+      "source": "website/public/assets/css/studio-carousel.css",
+      "destination": "public_html/assets/css/studio-carousel.css",
+      "before": "b8668f9ff12980e7201773a0c6e30ac579b5b22eaf247aa8b4903076e63d322d",
+      "after": "f50e7dccb334cd0a585c67fa83b448245ad90c362f0387aac7bee6e404009b8e"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "servernet_app/public/assets/js/studio-carousel.js",
+      "before": "658d15afd5bf3aeb06e9b46cddc5dfe95634fe180eb63dfdc0e8327b44c97042",
+      "after": "e60d726fd7b78d25e63d3ea198c3e0ad51e468c898a4c4db0450bff5e357acf5"
+    },
+    {
+      "source": "website/public/assets/js/studio-carousel.js",
+      "destination": "public_html/assets/js/studio-carousel.js",
+      "before": "658d15afd5bf3aeb06e9b46cddc5dfe95634fe180eb63dfdc0e8327b44c97042",
+      "after": "e60d726fd7b78d25e63d3ea198c3e0ad51e468c898a4c4db0450bff5e357acf5"
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/home.blade.php",
+      "before": "c1993378b336c57291b1bd968529724c9d8802249bd6ddc73be493cccfa1de28",
+      "after": "03543be0bd5faf871c52fca7fde156a848bdd56ae63e9adb1ab625d2c8134fab",
+      "patch_home": true
+    }
+  ],
+  "home_edits": [
+    [
+      "@include('partials.atlas-assets')\n@include('partials.atlas-seo')\n@section('content')\n@php\n",
+      "@include('partials.atlas-assets')\n@include('partials.atlas-seo')\n@push('head')\n<link rel=\"stylesheet\" href=\"{{ asset_ver('assets/css/studio-carousel.css') }}\">\n<script src=\"{{ asset_ver('assets/js/studio-carousel.js') }}\" defer></script>\n@endpush\n@section('content')\n@php\n"
+    ],
+    [
+      "@endphp\n<div class=\"sn-atlas sn-home\">\n@if($studioCarouselAvailable)\n<div class=\"sn-hero-carousel\" data-hero-carousel role=\"region\" aria-roledescription=\"{{ __('studio_carousel.carousel_role') }}\" aria-label=\"{{ __('studio_carousel.carousel_label') }}\" data-interval=\"7000\">\n<div class=\"sn-hero-slides\">\n@endif\n<section class=\"hero sn-hero\" @if($studioCarouselAvailable) id=\"hero-infrastructure\" data-hero-slide=\"infrastructure\" aria-label=\"{{ __('studio_carousel.slide_infrastructure') }}\" @endif>\n  <div class=\"container\">\n    <div class=\"sn-display-top sn-hero-topline\" aria-hidden=\"true\"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>\n",
+      "@endphp\n<div class=\"sn-atlas sn-home\">\n<div class=\"sn-home-intro\">\n<div class=\"sn-hero-carousel\" data-hero-carousel role=\"region\" aria-roledescription=\"{{ __('studio_carousel.carousel_role') }}\" aria-label=\"{{ __('home_slides.carousel_label') }}\" data-interval=\"5000\">\n<div class=\"sn-hero-slides\">\n<section class=\"hero sn-hero\" id=\"hero-infrastructure\" data-hero-slide=\"infrastructure\" aria-label=\"{{ __('studio_carousel.slide_infrastructure') }}\">\n  <div class=\"container\">\n    <div class=\"sn-display-top sn-hero-topline\" aria-hidden=\"true\"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>\n"
+    ],
+    [
+      "  </div>\n</section>\n@if($studioCarouselAvailable)\n@include('partials.studio-carousel')\n</div>\n@include('partials.studio-carousel-controls')\n</div>\n@endif\n<div class=\"sn-proof-rail\">\n  <div class=\"container sn-proof-grid\">\n",
+      "  </div>\n</section>\n@include('partials.studio-carousel')\n@include('partials.home-service-slides')\n</div>\n@include('partials.studio-carousel-controls')\n</div>\n<div class=\"sn-proof-rail\">\n  <div class=\"container sn-proof-grid\">\n"
+    ],
+    [
+      "    <div><b>{{ fa_num('99.9') }}<span>%</span></b><span>{{ __('ui.stat_uptime') }}</span></div>\n  </div>\n</div>\n<section class=\"sn-domain sn-domain-discovery\" aria-labelledby=\"sn-domain-title\">\n",
+      "    <div><b>{{ fa_num('99.9') }}<span>%</span></b><span>{{ __('ui.stat_uptime') }}</span></div>\n  </div>\n</div>\n</div>\n<section class=\"sn-domain sn-domain-discovery\" aria-labelledby=\"sn-domain-title\">\n"
+    ]
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/home-four-slides-20261123/activate.php",
+      "sha256": "29207ab1b9a8ea3920b410321dfb91540699419364e430f0fc476562ddaa4cfd"
+    }
+  },
+  "preview": [
+    {
+      "name": "review.html",
+      "source": "scripts/home-four-slides-20261123/review.html",
+      "sha256": "f5c317eb33836b1bb08680d73ebb18e2957448c0eb6c7fad664bf471c37dba24"
+    },
+    {
+      "name": "preview-fa.html",
+      "source": "docs/project/home-four-slides-2026-11-23/preview-fa.html",
+      "sha256": "3ce1d9523e183b0c855a52bf86b8e743a035cf6c609f54690b74ec6115a64af1"
+    },
+    {
+      "name": "preview-en.html",
+      "source": "docs/project/home-four-slides-2026-11-23/preview-en.html",
+      "sha256": "418e730e83ed39e67a2382f789919b8df02dd3f2f33d2c56399cac9515c73800"
+    },
+    {
+      "name": "preview-tr.html",
+      "source": "docs/project/home-four-slides-2026-11-23/preview-tr.html",
+      "sha256": "48969ade3327153e7611e9a7b8ab1ff1a9d00240d472e8605141004b34c4b574"
+    },
+    {
+      "name": "studio-coffee-campaign.webp",
+      "source": "website/public/assets/img/studio-coffee-campaign.webp",
+      "sha256": "b1c82519c349acbfdbdcec3919d0aed414c7dadc1ffd7d392290a92ce0f6821b"
+    }
+  ]
+}
