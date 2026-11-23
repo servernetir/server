@@ -213,8 +213,8 @@ html[data-theme="light"] .sn-hosting-browser{background:linear-gradient(135deg,#
   .sn-public .sn-home .sn-home-intro #hero-infrastructure>.container{position:static;z-index:auto}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-grid{position:static}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-atlas-display{position:static;z-index:auto;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding-bottom:8px}
-  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{position:absolute;z-index:0;top:54%;right:-8vw;left:auto;width:clamp(680px,70vw,1320px);height:clamp(680px,70vw,1320px);max-height:none;transform:translateY(-50%);opacity:.86;mask-image:linear-gradient(to left,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
-  html[dir="rtl"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{left:-8vw;right:auto;mask-image:linear-gradient(to right,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
+  .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{position:absolute;z-index:0;top:54%;right:-2vw;left:auto;width:clamp(570px,min(60vw,118svh),1120px);height:clamp(570px,min(60vw,118svh),1120px);max-height:none;transform:translateY(-50%);opacity:.86;mask-image:linear-gradient(to left,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
+  html[dir="rtl"] .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-globe{left:-2vw;right:auto;mask-image:linear-gradient(to right,#000 40%,rgba(0,0,0,.68) 72%,transparent 100%)}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy{z-index:2;isolation:isolate}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy::before{content:"";position:absolute;inset:-38px -60px;z-index:-1;border-radius:50%;background:var(--bg);opacity:.82;filter:blur(44px);pointer-events:none}
   .sn-public .sn-home .sn-home-intro #hero-infrastructure .sn-hero-copy :is(h1,.lead){text-shadow:0 2px 22px var(--bg)}
