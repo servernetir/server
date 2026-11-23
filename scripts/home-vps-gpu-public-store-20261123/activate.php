@@ -43,6 +43,7 @@ foreach (['pages.home', 'partials.home-gpu-slide', 'partials.studio-carousel-con
 // Match current source routes in an isolated router; never dispatch a purchase.
 $fresh = require $root.'/bootstrap/app.php';
 $fresh->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$fresh->make(Illuminate\Contracts\Http\Kernel::class);
 $router = $fresh['router'];
 foreach (['', '/en', '/tr'] as $prefix) {
     foreach (['GET', 'POST'] as $method) {
