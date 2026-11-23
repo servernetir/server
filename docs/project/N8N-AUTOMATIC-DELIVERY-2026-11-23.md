@@ -50,80 +50,109 @@ Each native period has a distinct durable operation key. An unknown financial
 response never authorizes another purchase. This does not extend the retail
 period or charge the customer's wallet again. Normal VPS renewal is unchanged.
 
-## Validation and release
+## Production status — 23 November 2026
 
-Source checks: 165 relevant PHP tests / 845 assertions passed; a further
-cleanup mutex check brings the n8n suite to 19 tests / 106 assertions.
-MariaDB CI caught an unsupported JSON object cast; installation state now
-merges under a row lock without dialect-specific JSON updates. The corrected
-MariaDB delivery job passed on `0639157c08e6fc0ab143fd492f448a935fc16ba5`. Three guest-installer tests and three release/rollback tests passed.
-The final CI SHA and database results must be recorded after publication.
+Installed and accepted in production. `n8n_sales_enabled`,
+`n8n_iran_sales_enabled` and `n8n_license_confirmed` are enabled. The ordinary
+Proxmox VPS provider remains disabled; this product's scoped Iranian switch
+does not reopen ordinary VPS sales.
 
-Legacy `CloudStoreTest`, `CloudHourlyTermSupportTest`, one hourly pricing test,
-and one cycle-conversion expectation also fail on the untouched base. These
-baseline failures are not reported as passing. A locally attempted MariaDB
-server could not create a Unix socket in this executor; MariaDB validation is
-assigned to the isolated CI service, not inferred from SQLite.
+The native scheduler completed a newly created internal Iranian allocation
+(service #994 / instance #622 / VM #111) without manual guest changes or manual
+delivery advancement. Valid public HTTPS, the allocation marker, n8n readiness
+and a real initial owner login were verified before sales activation. The
+receipt is private; no credentials are included here.
 
-Production has reviewed source differences absent from `develop`. The release
-manifest and `production-overlay.patch` preserve them, including NPM 2.15,
-financial floors and current private router dependencies. The overlay is not a
-request to roll these changes back. Candidate PHP tests cannot bootstrap all
-production-only dependencies in the local checkout; complete production
-bootstrap and page acceptance are separate steps.
+All three internal acceptance services (#989, #993, #994) are cancelled, their
+instances are deleted, and a fresh provider inventory contains no VM names for
+this acceptance run. Their DNS and NPM routes were removed by the managed
+cleanup path. Each has zero invoices; no customer wallet operations were made.
+After cleanup, the naturally scheduled delivery heartbeat reported zero
+pending services.
 
-`scripts/n8n-release/release.py` fetches a fixed SHA, checks every before/after
-hash, applies the reviewed overlay privately, backs up exact destinations and
-uses the existing account-owned FPM activation transport. Dependencies install
-before entry points. Broad cache flushes, database migrations, external-server
-purchases and customer charges are not part of this file release. Runtime sales
-activation is separate and remains off until acceptance.
+The live landing and purchase links render successfully. The live application
+currently retains the existing per-customer Iranian purchase visibility gate:
+guests do not see Iran, and eligible verified customers can select the owned
+Iranian plans. The repository's newer locale-based public visibility change is
+a separate, not-yet-installed change; this release does not deploy or bypass it.
+The catalogue contains 2 Iranian, 7 Turkish and 20 German offers at acceptance.
+Counts and prices are live values rather than fixed product definitions.
 
-Rollback restores only this manifest's prior bytes and refuses newer operator
-work. It does not remove real customer servers or reverse financial activity.
-Database schema is unchanged. External paid procurement is covered by fixtures;
-an actual paid provider purchase requires a separately bounded acceptance run.
+## Validation
 
-Status at preparation: implementation and isolated source tests complete;
-production installation and live n8n acceptance are pending.
+The final isolated PHP run passed **173 tests / 877 assertions**, covering
+managed n8n, Proxmox allocation/deletion, cloud provisioning/delivery,
+VPS.TC lifecycle/renewal and service renewal. Eight guest-installer tests passed.
+Three release/rollback tests passed; the unchanged release helper was also
+exercised across the production phases below. Related GitHub checks passed on
+each merged runtime PR, including MariaDB-backed delivery tests. One core
+birthday job was rerun after a setup-php download timeout before tests started.
 
-The CLI-only acceptance helper allocates one 2 vCPU / 2 GiB / 40 GB Proxmox
-VM for the configured internal owner, with external/once zero-price billing,
-no invoice and no wallet operations. A private durable receipt binds creation,
-HTTPS/owner-login verification and cleanup to that one allocation. Unknown
-allocation responses cannot authorize a second purchase. It is not a paid
-external-provider acceptance run.
+Legacy `CloudStoreTest`, `CloudHourlyTermSupportTest`, one hourly pricing test
+and one cycle-conversion expectation fail on the untouched base. They are not
+reported as passing. Local MariaDB could not create its Unix socket; MariaDB
+evidence comes from the isolated CI services rather than SQLite.
 
-## Live acceptance follow-up
+Germany and Türkiye paid procurement and lifecycle paths were checked with
+provider API fixtures. **No paid Hetzner or VPS.TC acceptance VM was purchased.**
+The successful live end-to-end guest installation, HTTPS and initial-login
+acceptance applies to Iran. Production migrations and the production test suite
+were not run.
 
-Core release `3e147d67d96b56b989ec16bc58a0116e98f83cca` installed 34 exact
-files and activated both account-owned FPM pools. PR #389 merged as
-`49d4928d808c190bb8ca1581e419cdcd19a58fae`. All 41 checks passed; the birthday
-MariaDB job needed a retry because GitHub timed out downloading setup-php
-before any tests ran. The delivery matrix passed 167 tests / 855 assertions.
+## Runtime follow-ups accepted in production
 
-Internal Proxmox acceptance service #989 / VM #108 was newly allocated with
-2 cores, 2048 MiB fixed memory and a verified 40 GiB disk. No customer invoice
-or wallet debit was created. Runtime sales remain closed while acceptance runs.
-The guest revealed an HTTP 403 from download.docker.com in Iran. Ubuntu's
-signed docker.io and docker-compose-v2 packages provide the bounded fallback;
-TLS errors and other unexpected repository failures remain errors.
+- MariaDB state persistence merges metadata under a row lock without
+  dialect-specific JSON object casts; delivery and removal share service locks.
+- A VM being ready is insufficient for a customer-ready notice. The actual n8n
+  application and its own HTTPS endpoint must pass verification.
+- Iranian vendor repositories returned HTTP 403. Installation uses signed
+  Ubuntu `docker.io` / `docker-compose-v2` packages when needed and reuses a
+  working Docker installation on retries. PostgreSQL and Caddy have verified
+  Docker public ECR fallbacks; n8n has its official GHCR fallback. TLS validation
+  remains enabled, and arbitrary mirrors are not used.
+- The legacy QEMU-only allocator reused an address belonging to existing LXC
+  #124. Only the temporary test VM was stopped and cleaned; LXC #124 was left
+  unchanged and verified running. Allocation now inventories QEMU and every
+  LXC network interface, reserves pending database addresses, fails closed if
+  inventory is unreadable, and serializes clones by node. The new allocation
+  pool starts at 10.10.10.140 after inventory and ARP checks; existing guests
+  were not reconfigured.
+- Fresh cloud-init can hold package locks. Installation waits for cloud-init
+  before resource/package checks and runs in a bounded separate systemd unit.
+- Proxmox refuses deletion of running VMs. Authorized deletion now stops the
+  same guest, waits for its stop task, verifies stopped status, then deletes.
+  Failed stops never authorize deletion. The real internal cleanup path passed.
 
-Ordinary Proxmox VPS sales were already globally disabled. The explicit
-`n8n_iran_sales_enabled` switch permits the owned n8n product independently,
-while retaining stock, exact-plan quarantine, current prices and Shahkar checks.
-It does not reopen ordinary VPS products or disabled foreign providers.
+## Installed releases
 
-The follow-up manifest contains only its three changed production files, with
-preimages bound to the installed core release. The original full manifest and
-its rollback recipe remain available at the immutable core release SHA.
+| Change | Pinned installed source | Merged PR |
+| --- | --- | --- |
+| Core, 34 exact destinations | `3e147d67d96b56b989ec16bc58a0116e98f83cca` | #389 |
+| Scoped Iranian sales and signed Ubuntu fallback, 3 files | `865907cc56a797d0df12c230c876679b6624a481` | #391 |
+| Official public ECR fallback, 1 file | `850b6bafecfa3485176bdbbc31ed350a1f8a7f1b` | #392 |
+| IP allocation plus final runtime fallbacks, 2 files | `c0eb09a8fa97c80687f6eda432ae6a4d059f17f3` | #396, includes #394 runtime |
+| Cloud-init ordering, 1 file | `06f97f14d7321e4e6c6e489f3795b0c81e71894b` | #398 |
+| Stop before deletion, 1 file | `f9c5255351c79e48d4170cb7c3382b485c3a0729` | #399 |
 
+Final runtime merge at this acceptance: `70d935872e0191cf0ac6061d4311c13c77795516`
+on `develop`. Concurrent homepage and other operator changes were preserved.
 
-Iranian acceptance also exposed a legacy allocator defect: QEMU-only discovery
-reused 10.10.10.60, which belongs to existing LXC #124. The temporary new VM
-was stopped and cleaned; the existing container was not modified. Allocation
-now inventories QEMU and every LXC network interface, reserves pending database
-addresses, fails closed on an unreadable inventory and serializes clones under
-a per-node lock. A separate address-pool start is used above legacy addresses.
-Three regression tests cover LXC reservations, unreadable inventory and clone
-contention. Ordinary Proxmox VPS sales remain disabled.
+Production has reviewed differences absent from the original base. Per-file
+manifests and the reviewed overlay preserve them, including NPM 2.15, financial
+floors and current private router dependencies. Each incremental manifest binds
+only that update's destinations to exact installed preimages. Earlier immutable
+manifests remain available at their pinned source commits; their superseded
+file hashes must not be mistaken for the final state.
+
+`scripts/n8n-release/release.py` fetches a fixed SHA, checks all before/after
+hashes, stages privately, backs up exact destinations and uses the existing
+same-account FPM activation transport for both observed pools. It compiles five
+target views and invalidates only relevant scripts/page keys. Broad cache
+flushes, whole-repository deploys, schema changes and paid purchases are not
+part of these releases. Financial acceptance resources were external/once,
+zero-price internal services.
+
+Rollback restores only a manifest's prior bytes and refuses newer operator
+work. Apply follow-up rollbacks in reverse order with current hashes verified.
+File rollback does not remove customer servers or reverse financial activity.
+Sales activation is a separate setting from file installation.
