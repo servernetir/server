@@ -52,4 +52,23 @@ Accordingly, GPU is removed from the inline-bundle eligibility list. It retains 
 
 Public routing follow-up: PR436 merged as `a0bfe990f0230a747993e4f59ca5da3c4c5e83a2`, installed two targets and verified both FPM pools. All 25 sampled historical mail-host duplicates redirected 301 to the matching primary URL, whose final response was 200. The canonical validation request in Search Console was observed as started on 24 November. See MAIL-CANONICAL-2026-11-24.md.
 
-Status: main release and canonical follow-up installed and accepted; the bounded GPU rendering fallback at this commit is tested locally and awaits installation. Rankings, full canonical validation and field performance remain later results.
+Status: PR437 merged as `486d92d552fc7a552a466e07f58c65c34f390ead` after all eight triggered CI workflows passed. The one-class GPU rendering fallback was installed and hash-verified. Both FPM pools confirmed external GPU styles, preserved the Python inline bundle and invalidated only three GPU page-cache paths. No view compilation or general cache flush. Main release, canonical follow-up and rendering fallback are installed and accepted. Rankings, full canonical validation and field performance remain later results.
+
+
+Final mobile GPU acceptance after the fallback: performance 99, LCP approximately 2.0 s, FCP 1.2 s, TBT 0 ms, CLS 0 and SEO 100. The first-paint layout shift disappeared while published guidance remained. This preserves the baseline performance rather than establishing a field-data improvement.
+
+Final GPU report: https://pagespeed.web.dev/analysis/https-servernet-cloud-gpu/iy2nipntmadw47aossuycn?form_factor=mobile
+
+Independent current AI-page mobile measurement: performance 98, LCP approximately 2.0 s, CLS 0, accessibility 98 and SEO 100. There is no paired AI baseline in this release, so these figures are not reported as a measured improvement.
+
+AI report: https://pagespeed.web.dev/analysis/https-servernet-cloud-ai/bjnmn3g2iykxqs56wpjrjm?form_factor=mobile
+
+The final GPU run also logged a Google Tag Manager CORS error through the pre-existing analytics worker and scored best practices 77. This release did not modify analytics delivery. That diagnostic remains separate from the zero-CLS rendering acceptance and needs its own tracking-delivery investigation.
+
+Final public GPU mobile run: performance 99, LCP 2.0 s, CLS 0, FCP 1.2 s and TBT 0 ms. The published guidance and live capacity script remain. A separate AI-home mobile run scored 98 with LCP 2.0 s and CLS 0; there is no matched pre-release AI baseline in this session. Both pages scored 100 for the basic Lighthouse SEO audits, which does not guarantee ranking or rich results.
+
+Final GPU report: https://pagespeed.web.dev/analysis/https-servernet-cloud-gpu/iy2nipntmadw47aossuycn?form_factor=mobile
+
+AI report: https://pagespeed.web.dev/analysis/https-servernet-cloud-ai/bjnmn3g2iykxqs56wpjrjm?form_factor=mobile
+
+The final GPU Best Practices score was 77 because the existing analytics worker logged a Google Tag Manager CORS error. Analytics-worker code is unchanged by these releases; event-delivery validation is a separate remaining check. A final bounded HTTP check returned 200 for all seven pages, including three GPU locales and four cache-bypass requests, with the intended guides and style behavior. One earlier request returned 503; the repeated bounded check passed, and that isolated response has not been attributed to the code.
