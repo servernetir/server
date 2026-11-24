@@ -8,11 +8,11 @@ OpenRouter's official public chat and embedding catalogues were downloaded on 24
 
 For the numerical comparison, use only the 91 token-priced GAPGPT rows last discovered on 23 November at 08:00:10–11 UTC; exclude the 48 older retained rows. Seventy-two match an OpenRouter model of the same operation, manufacturer and version. Matching uses exact identifiers after a known manufacturer prefix and documented Anthropic dash/dot version aliases; it preserves dates and distinct versions. Unverified GapGPT-hosted aliases, free/batch variants, media and unsupported metering are excluded. This matching is analytical only and changes no routing configuration.
 
-Compare uncached text at the ordinary base tariff. Multiply OpenRouter rates by 1.339 once, using the actual provider configuration rather than its public standard platform fee. GAPGPT's registered funding overhead is zero; its true credit purchase/conversion costs beyond that setting have not been independently checked. ServerNet's 7% margin and customer VAT are excluded from supplier cost comparisons and remain unchanged.
+Compare uncached text at the ordinary base tariff. Embeddings compare one million input tokens only; no output charge is invented. Multiply OpenRouter rates by 1.339 once, using the actual provider configuration rather than its public standard platform fee. GAPGPT's registered funding overhead is zero; its true credit purchase/conversion costs beyond that setting have not been independently checked. ServerNet's 7% margin and customer VAT are excluded from supplier cost comparisons and remain unchanged.
 
 ## Findings
 
-Among 72 matched identities, GAPGPT is cheaper on both input and output for 65; OpenRouter is cheaper on both for three. Four have crossed input/output prices, so the winning supplier depends on the workload. With equal quantities of input and output, GAPGPT wins 66 and OpenRouter wins six. These are model counts, not traffic-weighted savings.
+Among 72 matched identities (67 chat and five embedding models), GAPGPT is no more expensive on every billed token unit and strictly cheaper on at least one for 65; OpenRouter has that advantage for three. Four have crossed input/output prices, so the winning supplier depends on the workload. For the equal-input/output chat basket and input-only embedding basket, GAPGPT wins 66 and OpenRouter wins six. These are model counts, not traffic-weighted savings.
 
 Illustrative costs in USD for one million input plus one million output tokens, aggregated over requests within each model's ordinary pricing tier:
 
