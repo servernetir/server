@@ -297,6 +297,10 @@ class SiteController extends Controller
 
         $lines[] = '';
         $lines[] = '## Hardware purchase and compatibility guides';
+        $lines[] = "- [Hardware planning calculators]({$base}/en/parts/planner)";
+        foreach (\App\Models\ServerPart::EQUIPMENT_CATEGORIES as $category => $meta) {
+            $lines[] = '- ['.$meta['en']."]({$base}/en/parts/{$category})";
+        }
         foreach ((array) config('hardware_topics', []) as $slug => $topic) {
             $lines[] = '- ['.$topic['title']['en']."]({$base}/en/parts/catalog/{$slug})";
         }
@@ -557,6 +561,7 @@ class SiteController extends Controller
         | ⚠️ پشتِ `hasTable` است تا نقشه روی سرورِ مهاجرت‌نخورده ۵۰۰ ندهد.
         */
         $add('parts.index');
+        $add('parts.planner');
         foreach (array_keys((array) config('hardware_topics', [])) as $topic) {
             $add('parts.topic', $topic);
         }

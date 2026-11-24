@@ -54,6 +54,10 @@
         @include('partials.hardware-stock-quote')
         @include('partials.hardware-topic-links', ['topicCategory' => $category, 'currentTopic' => $topic])
         <nav class="hw-related-links">
+            @if($topic === 'enterprise-storage')
+              <a href="{{ lroute('parts.category', 'storage') }}">{{ lc(\App\Models\ServerPart::EQUIPMENT_CATEGORIES['storage']) }}</a>
+            @endif
+            <a href="{{ lroute('parts.planner') }}">{{ __('equipment.planner_title') }}</a>
             <a href="{{ lroute('servers.index') }}">{{ __('ui.srv_title') }}</a>
             <a href="{{ lroute('parts.index') }}">{{ __('ui.parts_title') }}</a>
         </nav>

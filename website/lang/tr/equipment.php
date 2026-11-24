@@ -1,0 +1,16 @@
+<?php
+
+return [
+    'eyebrow'=>'ServerNet · Data Center','hub_title'=>'Depolama, güç ve ağ ile eksiksiz veri merkezi',
+    'hub_desc'=>'Model ve teknik özellikleri karşılaştırın. Yeni veya yenilenmiş ürün için yapılandırma, stok ve durum teklifi isteyin.',
+    'category_desc'=>['storage'=>'SAN, NAS ve kurumsal depolama','rack'=>'Dikili ve duvar rack, kablo yönetimi','ups'=>'Online ve rack yedek güç','switch'=>'1G/10G, PoE ve optik ağ','pdu'=>'Rack güç dağıtımı ve ölçüm'],
+    'planner_title'=>'Altyapı planlayıcı ve sunucu hesaplayıcıları','planner_meta'=>'RAID kapasitesi, rack üniteleri, UPS gücü, VM kaynakları ve satın alma/kiralama maliyetini ServerNet araçlarıyla hesaplayın.',
+    'planner_intro'=>'Teklif öncesinde iş yükünü kapasite, güç, rack alanı ve bütçeye dönüştürün. Hesaplar tarayıcınızda yapılır.',
+    'planner_cta'=>'Altyapınızı planlayın','schematic'=>'Kategori çizimi — ürün fotoğrafı değildir','decide'=>'Bu model size uygun mu?','benefit'=>'Avantajlar ve kullanım','limitation'=>'Sınırlamalar ve satın alma kontrolleri',
+    'raid_title'=>'RAID kullanılabilir kapasite','raid_desc'=>'Eşit boyutlu diskler için basit tahmin; ham kapasite ile kullanılabilir alan farklıdır.','drives'=>'Disk sayısı','disk_tb'=>'Disk başına kapasite (TB)','raid_mode'=>'Dizi tipi','raw'=>'Ham kapasite (TB)','usable'=>'Teorik kullanılabilir kapasite (TB)','raid_note'=>'Dosya sistemi, anlık görüntü, yedek disk ve biçimlendirme öncesi; RAID yedekleme değildir.',
+    'rack_title'=>'Rack alanı tahmini','rack_desc'=>'Dolu üniteleri girin ve büyüme alanı ayırın.','used_u'=>'Toplam dolu ünite (U)','growth'=>'Büyüme payı (%)','minimum_u'=>'Hesaplanan asgari alan (U)','rack_option'=>'İncelenecek ilk yaygın boyut (U)','rack_note'=>'Yalnız yükseklik tahmini; derinlik, ray, yük ve soğutmayı ayrıca doğrulayın.',
+    'ups_title'=>'UPS kapasite tahmini','ups_desc'=>'İlk kapasite tahmini için ölçülen yük ve güç faktörünü girin.','load'=>'Toplam gerçek yük (W)','pf'=>'Yük güç faktörü (0.1–1)','minimum_w'=>'Gerekli gerçek güç (W)','minimum_va'=>'Gerekli görünür güç (VA)','ups_note'=>'Pil süresi veya elektrik devresi boyutlandırmaz. Üretici süre eğrisi ve uzman değerlendirmesi gerekir.',
+    'vm_title'=>'Sanal makine kaynak tahmini','vm_desc'=>'Sanal makinelerin toplam RAM ve vCPU ihtiyacını hesaplayın.','vms'=>'VM sayısı','ram_per'=>'VM başına RAM (GB)','vcpu_per'=>'VM başına vCPU','ram_sum'=>'Büyüme paylı RAM (GB)','vcpu_sum'=>'Toplam istenen vCPU','vm_note'=>'vCPU fiziksel çekirdek değildir; ana makine yükü ve paylaşım iş yüküne göre değerlendirilmelidir.',
+    'cost_title'=>'Satın al veya kirala?','cost_desc'=>'Sunucu sahipliği ve kiralamayı aynı süre ve para birimiyle karşılaştırın.','purchase'=>'İlk satın alma maliyeti','maintenance'=>'Aylık bakım ve elektrik','rent'=>'Aylık kira','months'=>'Karşılaştırma süresi (ay)','owned_total'=>'Satın alma ve işletme maliyeti','rent_total'=>'Toplam kiralama maliyeti','cost_note'=>'Tüm girişler aynı para biriminde olmalı; gerekiyorsa kalan değer ve vergiyi ayrıca hesaplayın.',
+    'invalid'=>'Geçersiz giriş veya RAID yapılandırması.','out_of_range'=>'Yaygın boyutları aşıyor; tasarım teklifi isteyin','quote'=>'Yapılandırma ve danışmanlık teklifi','no_script'=>'Etkileşimli hesap için JavaScript etkinleştirin. Rehberler ve ürün bağlantıları JavaScript olmadan da kullanılabilir.',
+];

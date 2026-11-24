@@ -95,6 +95,7 @@ class ServerShopController extends Controller
         };
         $add('servers.index');
         $add('parts.index');
+        $add('parts.planner');
         foreach (array_keys((array) config('hardware_topics', [])) as $topic) $add('parts.topic', $topic);
         foreach (array_keys(ServerPart::CATEGORIES) as $category) $add('parts.category', $category);
         foreach (array_keys((array) config('hp_generations')) as $generation) $add('servers.generation', $generation);

@@ -434,6 +434,14 @@ return [
                     ['route' => ['servers.generation', 'gen10'], 'fa' => 'قطعات HP نسل ۱۰', 'en' => 'HP Gen10 parts', 'tr' => 'HP Gen10 parçaları'],
                     ['route' => ['parts.index', []], 'fa' => 'همهٔ قطعات سرور', 'en' => 'All server parts', 'tr' => 'Tüm sunucu parçaları'],
                 ]],
+                ['fa' => 'تجهیزات دیتاسنتر و شبکه', 'en' => 'Datacenter equipment', 'tr' => 'Veri merkezi ekipmanı', 'items' => [
+                    ['route' => ['parts.category', 'storage'], 'fa' => 'استوریج SAN و NAS', 'en' => 'SAN & NAS storage', 'tr' => 'SAN ve NAS depolama'],
+                    ['route' => ['parts.category', 'rack'], 'fa' => 'رک سرور و شبکه', 'en' => 'Server racks', 'tr' => 'Sunucu rack kabinleri'],
+                    ['route' => ['parts.category', 'ups'], 'fa' => 'یو پی اس UPS', 'en' => 'UPS backup power', 'tr' => 'UPS yedek güç'],
+                    ['route' => ['parts.category', 'switch'], 'fa' => 'سوئیچ شبکه', 'en' => 'Network switches', 'tr' => 'Ağ anahtarları'],
+                    ['route' => ['parts.category', 'pdu'], 'fa' => 'PDU رک', 'en' => 'Rack PDUs', 'tr' => 'Rack PDU'],
+                    ['route' => ['parts.planner', []], 'fa' => 'ابزار طراحی و محاسبه ظرفیت', 'en' => 'Hardware planning tools', 'tr' => 'Donanım planlama araçları'],
+                ]],
                 ['fa' => 'بر اساس کاربرد', 'en' => 'By use case', 'tr' => 'Kullanım amacına göre', 'items' => [
                     ['slug' => 'trading', 'fa' => 'سرور مجازی ترید', 'en' => 'Trading VPS', 'tr' => 'Trade VPS'],
                     ['slug' => 'gpu',     'fa' => 'سرور مجازی گرافیکی', 'en' => 'GPU VPS', 'tr' => 'GPU VPS'],

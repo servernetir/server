@@ -93,6 +93,8 @@
             @endforeach
           </div>
           @if(!empty(\App\Services\Shop\HardwarePresentation::metadata($part->slug)['credit']))<p class="hw-note">{{ \App\Services\Shop\HardwarePresentation::text('reference_image') }}: {{ \App\Services\Shop\HardwarePresentation::metadata($part->slug)['credit']['title'] }}</p>@endif
+        @elseif(isset(\App\Models\ServerPart::EQUIPMENT_CATEGORIES[$part->category]))
+          @include('partials.equipment-schematic')
         @endif
 
         <div class="sp-card-head">
@@ -174,6 +176,17 @@
       <div class="sp-body">{{ $body }}</div>
     @endif
 
+    @php($reviewMeta = \App\Services\Shop\HardwarePresentation::metadata($part->slug))
+    @if(!empty($reviewMeta['benefit']) && !empty($reviewMeta['limitation']))
+      <section class="hw-guide">
+        <h2>{{ __('equipment.decide') }}</h2>
+        <div class="hw-guide-grid">
+          <article><h3>{{ __('equipment.benefit') }}</h3><p>{{ lc($reviewMeta['benefit']) }}</p></article>
+          <article><h3>{{ __('equipment.limitation') }}</h3><p>{{ lc($reviewMeta['limitation']) }}</p></article>
+        </div>
+        <a href="{{ lroute('parts.planner') }}">{{ __('equipment.planner_title') }}</a>
+      </section>
+    @endif
     @include('partials.hardware-guide', ['hardwareCategory' => $part->category, 'hardwareSlug' => $part->slug])
     <section class="hw-guide">
       <h2>{{ __('shop_seo.part_check_title', ['name' => $part->label()]) }}</h2>

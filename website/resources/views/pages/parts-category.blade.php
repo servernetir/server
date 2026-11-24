@@ -75,12 +75,23 @@
             ['@type' => 'ListItem', 'position' => 2, 'name' => $label],
         ],
     ];
+    $itemList = [
+        '@'.'context' => 'https://schema.org',
+        '@type' => 'ItemList',
+        'itemListElement' => $parts->values()->map(fn ($p, $i) => [
+            '@type' => 'ListItem', 'position' => $pagination->firstItem() + $i,
+            'name' => $p->label(), 'url' => lroute('parts.show', [$p->category, $p->slug]),
+        ])->all(),
+    ];
 @endphp
 
 @push('head')
 <script type="application/ld+json">{!! json_encode($crumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @if($faqLd)
 <script type="application/ld+json">{!! json_encode($faqLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endif
+@if(!$hasFilters && $parts->isNotEmpty())
+<script type="application/ld+json">{!! json_encode($itemList, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 @endif
 @endpush
 
@@ -197,6 +208,14 @@
     @endif
 
     @include('partials.hardware-stock-quote')
+    @if(isset(\App\Models\ServerPart::EQUIPMENT_CATEGORIES[$category]))
+      @include('partials.datacenter-catalogue', ['activeEquipment' => $category])
+    @endif
+    @if($category === 'storage')
+      <p class="hw-note"><a href="{{ lroute('parts.topic', 'enterprise-storage') }}">{{ lc(config('hardware_topics.enterprise-storage.title')) }}</a></p>
+    @elseif($category === 'disk')
+      <p class="hw-note"><a href="{{ lroute('parts.category', 'storage') }}">{{ lc(\App\Models\ServerPart::EQUIPMENT_CATEGORIES['storage']) }}</a></p>
+    @endif
     @if($category === 'gpu')
       <p class="hw-note"><a href="{{ lroute('gpu') }}">{{ __('shop_seo.rent_gpu') }}</a></p>
     @endif

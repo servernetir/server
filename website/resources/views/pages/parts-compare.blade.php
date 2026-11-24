@@ -23,7 +23,10 @@
     | یعنی دروغ.
     */
     $best = [];
+    $sameInternalCategory = $parts->pluck('category')->unique()->count() === 1
+        && !isset(\App\Models\ServerPart::EQUIPMENT_CATEGORIES[$parts->first()?->category ?? '']);
     foreach ($rows as $key => $row) {
+        if (!$sameInternalCategory) continue;
         $nums = collect($row['values'])
             ->filter(fn ($v) => is_numeric($v))
             ->map(fn ($v) => (float) $v);
