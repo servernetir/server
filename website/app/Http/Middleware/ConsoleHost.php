@@ -39,6 +39,11 @@ class ConsoleHost
         'domains', 'gpu', 'hosting', 'knowledge', 'official-channels',
         'parts', 'servers', 'services', 'solutions', 'tools', 'urmia',
         'vps', 'webtools',
+        // Public utility and company pages also appeared with mail self-canonicals.
+        // Keep these explicit: webmail, discovery, authentication and API paths
+        // must not inherit a blanket hostname redirect.
+        'lookup', 'speed', 'dns-lookup', 'network-scan',
+        'privacy', 'terms', 'aup', 'sla', 'abuse', 'careers', 'contact', 'badge',
     ];
 
     /** مسیرهای پنلی — روی کنسول مجازند، روی دامنهٔ اصلی به کنسول می‌روند */

@@ -14,7 +14,7 @@ class PublicPageStylesTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const EMBEDDED = [400 => 'IRANSans-web', 700 => 'IRANSans-Bold-web'];
+    private const EMBEDDED = [400 => 'IRANSans-web', 500 => 'IRANSans-Medium-web', 700 => 'IRANSans-Bold-web'];
 
     protected function setUp(): void
     {
@@ -22,7 +22,7 @@ class PublicPageStylesTest extends TestCase
         Http::preventStrayRequests();
     }
 
-    public function test_current_minified_and_expanded_css_preserve_every_rule_except_the_two_guarded_font_changes(): void
+    public function test_current_minified_and_expanded_css_preserve_every_rule_except_the_three_guarded_font_changes(): void
     {
         foreach (['assets/css/site.min.css', 'assets/css/site.css'] as $site) {
             $this->request('/gpu');
@@ -46,7 +46,7 @@ class PublicPageStylesTest extends TestCase
             }
             $this->assertStringContainsString('/assets/font/woff/IRANSans-web.woff', $styles['site']);
             $this->assertStringContainsString('/assets/font/woff/IRANSans-Bold-web.woff', $styles['site']);
-            $this->assertStringContainsString('font-weight:500;font-style:normal;font-display:optional', $styles['site']);
+            $this->assertStringContainsString('font-weight:500;font-style:normal;font-display:block', $styles['site']);
         }
     }
 
@@ -58,7 +58,7 @@ class PublicPageStylesTest extends TestCase
                 $styles = $this->fixture();
                 $this->assertCount(3, $styles->inline('assets/css/site.min.css'), $prefix.$path);
                 $this->assertCount(str_starts_with($path, '/vps/') ? 5 : 4, $styles->reads);
-                $this->assertCount(2, $styles->fontReads);
+                $this->assertCount(3, $styles->fontReads);
             }
             foreach (['/account/cloud-store', '/admin', '/login', '/cart', '/checkout', '/payment', '/cloud', '/cloud/ae-dubai', '/cloud/ph-manila', '/vps/germany', '/blog/other-guide', '/gpu-extra'] as $path) {
                 $this->request($prefix.$path);
@@ -91,7 +91,7 @@ class PublicPageStylesTest extends TestCase
             }
             $this->assertSame('.chat-panel{color:orange}', $styles->auxiliary('assets/css/chat-morph.css'));
             $this->assertCount(5, $styles->reads);
-            $this->assertCount(2, $styles->fontReads);
+            $this->assertCount(3, $styles->fontReads);
         }
     }
 
@@ -110,7 +110,7 @@ class PublicPageStylesTest extends TestCase
         $this->assertStringContainsString('.changed{color:red}', $new['site']);
         $this->assertSame($replacement, $this->embeddedBytes($new['site'])[400]);
         $this->assertCount(4, $second->reads);
-        $this->assertCount(2, $second->fontReads);
+        $this->assertCount(3, $second->fontReads);
     }
 
     public function test_expanded_font_declarations_also_block_and_unrelated_urls_are_preserved(): void
@@ -120,9 +120,9 @@ class PublicPageStylesTest extends TestCase
         $extra = '.a{background:url("/assets/example.svg?x=1#icon")} .b{background:url(https://example.test/image.png)} .c{background:url(\'data:image/svg+xml;base64,PHN2Zz4=\')}';
         $styles = $this->fixture(['assets/css/site.min.css' => $faces.$extra])->inline('assets/css/site.min.css');
         $this->assertStringContainsString($extra, $styles['site']);
-        $this->assertCount(2, $this->embeddedBytes($styles['site']));
-        $this->assertSame(2, substr_count($styles['site'], 'font-display:block'));
-        $this->assertStringContainsString('font-weight:500;font-style:normal;font-display: optional', $styles['site']);
+        $this->assertCount(3, $this->embeddedBytes($styles['site']));
+        $this->assertSame(3, substr_count($styles['site'], 'font-display:block'));
+        $this->assertStringContainsString('font-weight:500;font-style:normal;font-display:block', $styles['site']);
     }
 
     public function test_any_missing_or_unsafe_required_css_falls_back_as_a_complete_group(): void
@@ -205,7 +205,7 @@ class PublicPageStylesTest extends TestCase
                 foreach (['server-menu', 'site-select', 'vps-catalog'] as $asset) {
                     $this->assertStringContainsString('<link rel="stylesheet" href="'.asset_ver('assets/css/'.$asset.'.css').'">', $head);
                 }
-                foreach (self::EMBEDDED as $font) {
+                foreach (array_intersect_key(self::EMBEDDED, array_flip([400, 700])) as $font) {
                     $this->assertStringContainsString('<link rel="preload" href="'.asset('assets/font/woff2/'.$font.'.woff2').'" as="font"', $head);
                 }
                 $this->assertStringContainsString('<link rel="stylesheet" href="'.asset_ver('assets/css/chat-morph.css').'">', $html);
@@ -232,8 +232,8 @@ class PublicPageStylesTest extends TestCase
 
     private function embeddedBytes(string $css): array
     {
-        preg_match_all('~@font-face\{[^}]*data:font/woff2;base64,([^\'\"]+)[^}]*font-weight:(400|700);[^}]*font-display:block[^}]*\}~', $css, $matches, PREG_SET_ORDER);
-        $this->assertCount(2, $matches);
+        preg_match_all('~@font-face\{[^}]*data:font/woff2;base64,([^\'\"]+)[^}]*font-weight:(400|500|700);[^}]*font-display:block[^}]*\}~', $css, $matches, PREG_SET_ORDER);
+        $this->assertCount(3, $matches);
         $bytes = [];
         foreach ($matches as $match) {
             $bytes[(int) $match[2]] = base64_decode($match[1], true);

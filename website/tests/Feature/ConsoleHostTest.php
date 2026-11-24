@@ -93,6 +93,34 @@ class ConsoleHostTest extends TestCase
         $this->assertNotSame(301, $this->on('mail.servernet.cloud', '/blog', 'OPTIONS')->getStatusCode());
         $this->assertNotSame(301, $this->on('mail.servernet.cloud', '/blog', 'TRACE')->getStatusCode());
     }
+
+    public function test_mail_utility_and_company_pages_keep_path_query_and_language_on_the_primary_host(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            foreach (['lookup/global-http', 'lookup/global-ping', 'lookup/email', 'speed', 'dns-lookup', 'network-scan', 'privacy', 'terms', 'aup', 'sla', 'abuse', 'careers', 'contact', 'badge'] as $path) {
+                foreach (['GET', 'HEAD'] as $method) {
+                    $uri = $prefix.'/'.$path.'?source=legacy%20link&page=2';
+                    $this->on('mail.servernet.cloud', $uri, $method)
+                        ->assertStatus(301)->assertRedirect('https://servernet.cloud'.$uri);
+                }
+            }
+        }
+    }
+
+    public function test_mail_endpoints_api_and_similar_prefixes_remain_outside_the_public_redirect(): void
+    {
+        foreach (['/webmail', '/mail', '/autoconfig/mail/config-v1.1.xml', '/autodiscover/autodiscover.xml',
+            '/cpanel', '/v1/models', '/api/status', '/system/health', '/en/login', '/tr/admin',
+            '/lookup-private', '/privacy-admin', '/contact-api', '/careers-admin'] as $path) {
+            $this->assertNotSame(301, $this->on('mail.servernet.cloud', $path)->getStatusCode(), $path);
+        }
+        foreach (['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as $method) {
+            foreach (['/lookup/global-ping', '/contact', '/abuse'] as $path) {
+                $this->assertNotSame(301, $this->on('mail.servernet.cloud', $path, $method)->getStatusCode(), $method.' '.$path);
+            }
+        }
+        $this->assertNotSame(301, $this->on('mail.servernet.cloud.example.test', '/privacy')->getStatusCode());
+    }
     // ── دامنهٔ اصلی: مسیر پنلی به کنسول می‌رود ──
 
     public function test_main_host_redirects_login_to_console(): void
