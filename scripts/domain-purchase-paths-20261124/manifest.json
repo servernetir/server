@@ -1,0 +1,108 @@
+{
+  "files": [
+    {
+      "path": "lang/fa/hosting-domains.php",
+      "before": null,
+      "source_sha": "1d5f54eb2358c1c8bf688fa77d854f0c8f1bff7d0493d0d046aa706d3ab3844b",
+      "after": "1d5f54eb2358c1c8bf688fa77d854f0c8f1bff7d0493d0d046aa706d3ab3844b"
+    },
+    {
+      "path": "lang/en/hosting-domains.php",
+      "before": null,
+      "source_sha": "0500e48f36ec91380cf85771c668b01f3695ca10e25968b9cd0b767175873159",
+      "after": "0500e48f36ec91380cf85771c668b01f3695ca10e25968b9cd0b767175873159"
+    },
+    {
+      "path": "lang/tr/hosting-domains.php",
+      "before": null,
+      "source_sha": "35f04be79e4564fe28dcb17a33740ce28cdb92098b401d240e109d45b65ffb4e",
+      "after": "35f04be79e4564fe28dcb17a33740ce28cdb92098b401d240e109d45b65ffb4e"
+    },
+    {
+      "path": "app/Services/Domain/HostingDomainPurchase.php",
+      "before": null,
+      "source_sha": "2cf1f269dd3350bfc37d354973ae2f57b0b4d5fb0f920370c2d1a34dad48b3a7",
+      "after": "2cf1f269dd3350bfc37d354973ae2f57b0b4d5fb0f920370c2d1a34dad48b3a7"
+    },
+    {
+      "path": "app/Http/Controllers/Account/HostingDomainQuoteController.php",
+      "before": null,
+      "source_sha": "e4284d4e44177bdf01b62e9fe1da29cb35486f6a1b8e64a9ad7a01813fd6322c",
+      "after": "e4284d4e44177bdf01b62e9fe1da29cb35486f6a1b8e64a9ad7a01813fd6322c"
+    },
+    {
+      "path": "routes/hosting-domain-purchase.php",
+      "before": null,
+      "source_sha": "649185f6f8b3b882eb94776bd7ce07666e5eec7eb9ae10168ef4a037b7840d2e",
+      "after": "649185f6f8b3b882eb94776bd7ce07666e5eec7eb9ae10168ef4a037b7840d2e"
+    },
+    {
+      "path": "resources/views/account/partials/hosting-domain-purchase.blade.php",
+      "before": null,
+      "source_sha": "725496e6dedc3289c797c8f680272d8fb836d1160136b10ec61d978487d5ffb6",
+      "after": "725496e6dedc3289c797c8f680272d8fb836d1160136b10ec61d978487d5ffb6"
+    },
+    {
+      "path": "routes/web.php",
+      "before": "2e70d23789d2bcce33fb63d6054efa26547cc7e5b3dead8f6bdf4cb4eefa0230",
+      "source_sha": "0ff370381d52af2a4ac14b70fb6780d30cf9bdfd4127f872088fc5b6fd6ce79f",
+      "after": "dd266aacb0847bb33c40d04478b27dc19c771e44c63b5f0b49d0138c7356d1d9",
+      "edits": [
+        {
+          "old": "        Route::get('/store', [Account\\StoreController::class, 'index'])->name('store');",
+          "new": "        require __DIR__.'/hosting-domain-purchase.php';\n        Route::get('/store', [Account\\StoreController::class, 'index'])->name('store');"
+        }
+      ]
+    },
+    {
+      "path": "app/Http/Controllers/Account/StoreController.php",
+      "before": "484167bc62118b456a7aab53ee9f233809a5f66b9438b3640ee37077c960d67a",
+      "source_sha": "e4704b5bae456deeb67618d118d5ff6c79bd29da030a50caea7946187e9cce7a",
+      "after": "ea2bfc3e18c14506626792bd978e9eccf3899bfc3f476ef7b73e1fbc09a263d1",
+      "edits": [
+        {
+          "old": "    /** ثبتِ سفارش: سرویس + پیش‌فاکتور می‌سازد و به پرداخت می‌برد */\n    public function order(Request $request, Product $product): RedirectResponse\n    {\n        if (! $product->is_active) {\n            return back()->withErrors(__('ui.stf_pkg_na'));\n        }\n",
+          "new": "    /** ثبتِ سفارش: سرویس + پیش‌فاکتور می‌سازد و به پرداخت می‌برد */\n    public function order(Request $request, Product $product): RedirectResponse\n    {\n        if ($product->requires_domain && $request->input('domain_mode') === 'buy' && is_string($request->input('domain_buy'))) {\n            try {\n                return \\Illuminate\\Support\\Facades\\Cache::lock(\n                    \\App\\Services\\Domain\\DomainSupplierLifecycle::domainLockKey($request->input('domain_buy')), 180\n                )->block(5, fn () => $this->orderLocked($request, $product));\n            } catch (\\Illuminate\\Contracts\\Cache\\LockTimeoutException|\\App\\Services\\Domain\\Pricing\\DomainProcurementException) {\n                return back()->withInput()->withErrors(['domain_buy' => __('hosting-domains.recheck')]);\n            }\n        }\n        return $this->orderLocked($request, $product);\n    }\n\n    private function orderLocked(Request $request, Product $product): RedirectResponse\n    {\n        if (! $product->is_active) {\n            return back()->withErrors(__('ui.stf_pkg_na'));\n        }\n"
+        },
+        {
+          "old": "            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],\n            'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\\.[a-z]{2,}$/i'],\n            'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\\.[a-z]{2,}$/i'],\n            // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ\n            // ممنوعه. بدونِ این، مشتری می‌توانست console/mail/pay را بگیرد و\n            // زیردامنهٔ حساسِ ما به هاستِ او می‌نشست (راهِ فیشینگ).\n",
+          "new": "            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],\n            'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\\.[a-z]{2,}$/i'],\n            'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\\.[a-z]{2,}$/i'],\n            'domain_quote_id' => ['nullable', 'integer', 'min:1'],\n            // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ\n            // ممنوعه. بدونِ این، مشتری می‌توانست console/mail/pay را بگیرد و\n            // زیردامنهٔ حساسِ ما به هاستِ او می‌نشست (راهِ فیشینگ).\n"
+        },
+        {
+          "old": "        }\n        $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';\n\n        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {\n            $service = Service::create([\n                'customer_id'   => $customer->id,\n                'name'          => $product->name,\n",
+          "new": "        }\n        $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';\n\n        $domainQuote = $product->requires_domain && ($data['domain_mode'] ?? null) === 'buy'\n            ? app(\\App\\Services\\Domain\\HostingDomainPurchase::class)->prepare(\n                $customer, $domain, (int) ($data['domain_quote_id'] ?? 0), $product->currency_code)\n            : null;\n\n        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote, $domainQuote) {\n            $service = Service::create([\n                'customer_id'   => $customer->id,\n                'name'          => $product->name,\n"
+        },
+        {
+          "old": "                'domain'        => $domain,\n            ]);\n\n            return $this->issueOrderInvoice($service, $product);\n        });\n\n        \\App\\Models\\ActivityLog::record($customer->id, 'purchase',\n",
+          "new": "                'domain'        => $domain,\n            ]);\n\n            return $this->issueOrderInvoice($service, $product, $domainQuote);\n        });\n\n        \\App\\Models\\ActivityLog::record($customer->id, 'purchase',\n"
+        },
+        {
+          "old": "            ],\n            'buy' => [\n                filled($data['domain_buy'] ?? null) ? strtolower(trim($data['domain_buy'])) : null,\n                filled($data['domain_buy'] ?? null) ? '🌐 ثبتِ دامنهٔ '.strtolower(trim($data['domain_buy'])).' درخواست شده (توسط پشتیبانی انجام می‌شود).' : '',\n            ],\n            'subdomain' => [\n                filled($data['subdomain'] ?? null) ? strtolower(trim($data['subdomain'])).'.servernet.cloud' : null,\n",
+          "new": "            ],\n            'buy' => [\n                filled($data['domain_buy'] ?? null) ? strtolower(trim($data['domain_buy'])) : null,\n                '',\n            ],\n            'subdomain' => [\n                filled($data['subdomain'] ?? null) ? strtolower(trim($data['subdomain'])).'.servernet.cloud' : null,\n"
+        },
+        {
+          "old": "     * رباتِ بله هم دقیقاً همان فاکتور را می‌خواهد. اعلانِ زیر مالِ همین مسیر\n     * است (مشتری خودش سفارش داده) و عمداً منتقل نشد.\n     */\n    private function issueOrderInvoice(Service $service, Product $product): Invoice\n    {\n        $invoice = app(\\App\\Services\\Billing\\ProductInvoiceIssuer::class)->issue($service, $product);\n\n        /*\n        | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ\n",
+          "new": "     * رباتِ بله هم دقیقاً همان فاکتور را می‌خواهد. اعلانِ زیر مالِ همین مسیر\n     * است (مشتری خودش سفارش داده) و عمداً منتقل نشد.\n     */\n    private function issueOrderInvoice(Service $service, Product $product, ?\\App\\Models\\DomainQuote $domainQuote = null): Invoice\n    {\n        $invoice = app(\\App\\Services\\Billing\\ProductInvoiceIssuer::class)->issue($service, $product);\n        if ($domainQuote !== null) app(\\App\\Services\\Domain\\HostingDomainPurchase::class)->attach($service, $invoice, $domainQuote);\n\n        /*\n        | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ\n"
+        }
+      ]
+    },
+    {
+      "path": "resources/views/account/checkout.blade.php",
+      "before": "a948516045be0a9ff4e7e193e6f10fa1cca76f8886c14093c626a562bf67aae4",
+      "source_sha": "ca4af84ee17d6d7bf4e03892e3e7427c58c99473c37999e948edec30b84d5c8f",
+      "after": "ca4af84ee17d6d7bf4e03892e3e7427c58c99473c37999e948edec30b84d5c8f"
+    },
+    {
+      "path": "app/Http/Controllers/DomainCheckController.php",
+      "before": "a6d9a48b987352115bf0747b9d486783b2a6cec02766449210dd561f2cc30081",
+      "source_sha": "854d178a2c81fdbffc7e2398d168d774d5890ccbb7ce53968791438bad1197ee",
+      "after": "854d178a2c81fdbffc7e2398d168d774d5890ccbb7ce53968791438bad1197ee"
+    },
+    {
+      "path": "app/Http/Controllers/DomainSearchController.php",
+      "before": "a5cf41c25b8188684a623ad4daa2006ff970c8722e623d4217742c50767ab876",
+      "source_sha": "9e2afd7a1e9b979ee59bc968be10c58e7d0a9d166944947a5ff5e9e9d25c2c89",
+      "after": "9e2afd7a1e9b979ee59bc968be10c58e7d0a9d166944947a5ff5e9e9d25c2c89"
+    }
+  ]
+}

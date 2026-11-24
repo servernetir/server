@@ -5,6 +5,8 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Http/Controllers/Account/BuilderCheckoutController.php'
+      - 'website/app/Http/Controllers/Account/StoreController.php'
+      - 'website/app/Http/Controllers/Account/HostingDomainQuoteController.php'
       - 'website/app/Http/Controllers/Account/PaymentController.php'
       - 'website/app/Services/Domain/**'
       - 'website/app/Services/Finance/BusinessLedger.php'
@@ -18,9 +20,12 @@ on:
       - 'website/routes/**'
       - 'website/tests/**'
       - 'website/resources/views/pages/domain-search.blade.php'
+      - 'website/resources/views/account/checkout.blade.php'
+      - 'website/resources/views/account/partials/hosting-domain-purchase.blade.php'
       - 'website/resources/views/pages/home.blade.php'
       - 'website/resources/views/partials/sig-domainsearch.blade.php'
       - 'website/lang/*/domain-discovery.php'
+      - 'website/lang/*/hosting-domains.php'
       - 'website/public/assets/js/site.js'
       - 'website/public/assets/css/site.css'
       - 'scripts/run-php-tests-offline.py'
