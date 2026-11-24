@@ -26,9 +26,12 @@ final class StudioCatalog
             'pricing' => $prices
                 ? ['unit' => $prices['unit'], 'quantity' => $prices['quantity'],
                     'amount_irt' => $prices['sell'] + AiPricing::tax($prices['sell'], $vatBp)]
-                : ($model->category === 'chat' ? ['unit' => 'tokens', 'quantity' => 1_000_000,
-                    'input_irt' => $quote->pIn + AiPricing::tax($quote->pIn, $vatBp),
-                    'output_irt' => $quote->pOut + AiPricing::tax($quote->pOut, $vatBp)] : null),
+                : (in_array($model->category, ['chat', 'embedding', 'rerank'], true)
+                    ? ['unit' => 'tokens', 'quantity' => 1_000_000,
+                        'input_irt' => $quote->pIn + AiPricing::tax($quote->pIn, $vatBp)]
+                        + ($model->category === 'chat'
+                            ? ['output_irt' => $quote->pOut + AiPricing::tax($quote->pOut, $vatBp)] : [])
+                    : null),
             'studio' => $contract ? ['native_access' => $nativeAccess, 'fields' => self::fields($contract)] : null,
         ];
     }
