@@ -46,6 +46,11 @@ class PartsShopController extends Controller
         ]);
     }
 
+    public function planner(): View
+    {
+        return view('pages.hardware-planner');
+    }
+
     /** Curated editorial pages; never expose arbitrary filter combinations for indexing. */
     public function topic(string $topic): View
     {

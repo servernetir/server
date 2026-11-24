@@ -26,6 +26,8 @@
              هر کارت. همان تلهٔ فروشگاهِ سرورِ فیزیکی. --}}
         @if($thumb = img_url(\App\Services\Shop\HardwarePresentation::metadata($part->slug)['thumbnail'] ?? null) ?? img_url(((array) ($part->gallery ?? []))[0] ?? null))
             <span class="sp-thumb"><img src="{{ $thumb }}" alt="{{ \App\Services\Shop\HardwarePresentation::imageAlt($part->slug, $part->label(), $thumb) }}" width="640" height="480" loading="lazy" decoding="async"></span>
+        @elseif(isset(\App\Models\ServerPart::EQUIPMENT_CATEGORIES[$part->category]))
+            @include('partials.equipment-schematic')
         @endif
 
         <div class="sp-card-head">

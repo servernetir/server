@@ -1,0 +1,337 @@
+{
+  "baseline": "17074561fc0609c5fcb3eb50c2e87acaec2d1221",
+  "phase1": "a605d977d5800a684823ec2783bd876a7420f535",
+  "files": [
+    {
+      "source": "website/database/catalog/hardware-growth-20261123.json",
+      "destination": "servernet_app/database/catalog/hardware-growth-20261123.json",
+      "before": [
+        null,
+        "68b1b55882c00072c8c8849a79fdad265c041821eb48426c908f244e5fa86687"
+      ],
+      "after": "68b1b55882c00072c8c8849a79fdad265c041821eb48426c908f244e5fa86687"
+    },
+    {
+      "source": "website/database/catalog/datacenter-equipment-20261124.json",
+      "destination": "servernet_app/database/catalog/datacenter-equipment-20261124.json",
+      "before": [
+        null
+      ],
+      "after": "67ccc267053b5b14e8270db95507794dc729d672513952529e928adbc953dab1"
+    },
+    {
+      "source": "website/config/hardware_topics.php",
+      "destination": "servernet_app/config/hardware_topics.php",
+      "before": [
+        null,
+        "066d597c03fb81f9e6d7bcb77ee2a5e28d5973eda2b0e0a0544fca3e4dc63c92"
+      ],
+      "after": "066d597c03fb81f9e6d7bcb77ee2a5e28d5973eda2b0e0a0544fca3e4dc63c92"
+    },
+    {
+      "source": "website/config/datacenter_content.php",
+      "destination": "servernet_app/config/datacenter_content.php",
+      "before": [
+        null
+      ],
+      "after": "1096480e2b45657e5980e25573d429f78e19f9789a634c08628ffaddf89525ee"
+    },
+    {
+      "source": "website/lang/fa/equipment.php",
+      "destination": "servernet_app/lang/fa/equipment.php",
+      "before": [
+        null
+      ],
+      "after": "fd9f5af3f9826deaeb7e03058e682b4cab27817f4bb57a5b004344f0cdb780b8"
+    },
+    {
+      "source": "website/lang/en/equipment.php",
+      "destination": "servernet_app/lang/en/equipment.php",
+      "before": [
+        null
+      ],
+      "after": "946efce5212ee876119d040d01bf31d6c3917122d9b84cadff1387d280cc4602"
+    },
+    {
+      "source": "website/lang/tr/equipment.php",
+      "destination": "servernet_app/lang/tr/equipment.php",
+      "before": [
+        null
+      ],
+      "after": "7755404686e536abbc942234ece5940157462d848eae143d0e494aeaa883deb0"
+    },
+    {
+      "source": "website/resources/views/partials/hardware-stock-quote.blade.php",
+      "destination": "servernet_app/resources/views/partials/hardware-stock-quote.blade.php",
+      "before": [
+        null,
+        "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925"
+      ],
+      "after": "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925"
+    },
+    {
+      "source": "website/resources/views/partials/hardware-topic-links.blade.php",
+      "destination": "servernet_app/resources/views/partials/hardware-topic-links.blade.php",
+      "before": [
+        null,
+        "1761eff1e3d05807c57ba49571bee4bf155fa31e986d2cfb43170ddc8d946b22"
+      ],
+      "after": "1761eff1e3d05807c57ba49571bee4bf155fa31e986d2cfb43170ddc8d946b22"
+    },
+    {
+      "source": "website/resources/views/partials/datacenter-catalogue.blade.php",
+      "destination": "servernet_app/resources/views/partials/datacenter-catalogue.blade.php",
+      "before": [
+        null
+      ],
+      "after": "9e187c575bd5538a757f9e997143f108046f2b97be4c77682d53502e623d1f52"
+    },
+    {
+      "source": "website/resources/views/partials/equipment-schematic.blade.php",
+      "destination": "servernet_app/resources/views/partials/equipment-schematic.blade.php",
+      "before": [
+        null
+      ],
+      "after": "cd4f61cb870d8fa064e0ae739d6d08398395ae22143c84c835dfcd16ef2db222"
+    },
+    {
+      "source": "website/resources/views/pages/parts-topic.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-topic.blade.php",
+      "before": [
+        null,
+        "6ba5de4ac550bbbf851e3b60faa355b48660a9da599c17975b44a3bdab6b1548"
+      ],
+      "after": "92e0f69715f134b027153d03ce69f2911bd9d2bcd2eebf33ca3b5f666f5a9029"
+    },
+    {
+      "source": "website/resources/views/pages/hardware-planner.blade.php",
+      "destination": "servernet_app/resources/views/pages/hardware-planner.blade.php",
+      "before": [
+        null
+      ],
+      "after": "cb55e8c20350f68b9548c412d9637f994ab37efe1c1b538a7f1a8aa574e88b0a"
+    },
+    {
+      "source": "website/public/assets/css/datacenter-equipment.css",
+      "destination": "servernet_app/public/assets/css/datacenter-equipment.css",
+      "before": [
+        null
+      ],
+      "after": "92e069e6790ba7e8085eba13ea7b2fa258370320d1f1fd0f4c2b48df778adf73"
+    },
+    {
+      "source": "website/public/assets/css/datacenter-equipment.css",
+      "destination": "public_html/assets/css/datacenter-equipment.css",
+      "before": [
+        null
+      ],
+      "after": "92e069e6790ba7e8085eba13ea7b2fa258370320d1f1fd0f4c2b48df778adf73"
+    },
+    {
+      "source": "website/public/assets/js/datacenter-planner.js",
+      "destination": "servernet_app/public/assets/js/datacenter-planner.js",
+      "before": [
+        null
+      ],
+      "after": "e60eca12c52a02cde478941a5c1ec455e923a19eb7427602b762ea675f9354a4"
+    },
+    {
+      "source": "website/public/assets/js/datacenter-planner.js",
+      "destination": "public_html/assets/js/datacenter-planner.js",
+      "before": [
+        null
+      ],
+      "after": "e60eca12c52a02cde478941a5c1ec455e923a19eb7427602b762ea675f9354a4"
+    },
+    {
+      "source": "website/config/hardware_catalog.php",
+      "destination": "servernet_app/config/hardware_catalog.php",
+      "before": [
+        "82a32a11c45307c7e27a8bfc3ec56b0c3043f58cf7d0c9b7bddefd9d583c54b9",
+        "6b17b6691c51250e6a5787819afa6d3256a8fd4d76cfdeece951aa794a2ec89b"
+      ],
+      "after": "9ae6c41621a75be7f95997f85b27fed9c91e156032bf4e9915219a5e040e00d5"
+    },
+    {
+      "source": "website/config/hardware_shop.php",
+      "destination": "servernet_app/config/hardware_shop.php",
+      "before": [
+        "7007e2e8d14ba75ff77c2b7009c96d0bf4c52f4583fced53db289ee9a88e3af1"
+      ],
+      "after": "7240d7ac268fe07729e54803d1df8c72f2637f679284de212f2adc8dceb5d704"
+    },
+    {
+      "source": "website/config/parts_content.php",
+      "destination": "servernet_app/config/parts_content.php",
+      "before": [
+        "66309be64a2cfa13a39b3e3a16c60f929c8cb75ec6772137f24e05ab437a3557"
+      ],
+      "after": "15b4c82a3e4b4a4f302df9998315f54a4c4ac91319e97efa39f5cb5f0667f57f"
+    },
+    {
+      "source": "website/app/Models/ServerPart.php",
+      "destination": "servernet_app/app/Models/ServerPart.php",
+      "before": [
+        "27df50f31ff34e3840d9034face0d476bfd2e92d6542a8dfb92772b5a41e74e0"
+      ],
+      "after": "2dd340a90c6f5add426e742ac55946d2bffdb1d948ce343750537db151db4590"
+    },
+    {
+      "source": "website/lang/fa/shop_seo.php",
+      "destination": "servernet_app/lang/fa/shop_seo.php",
+      "before": [
+        "7ec4551e68d33ed8358982eadacf3bb594784526b35d1d9e58d3723e54e85ebd",
+        "9f49abd91b1426e939e009735237c401e157f9f91c920ff9f944ba80adf88f73"
+      ],
+      "after": "92b2956d3b8410a610b557f56a254adc5933522d805d29e4151eb65fb2cb18b7"
+    },
+    {
+      "source": "website/lang/en/shop_seo.php",
+      "destination": "servernet_app/lang/en/shop_seo.php",
+      "before": [
+        "b258b3b22830e7de6a774f29709f7911f1e7977bad1f24be33308797d0c8ad60",
+        "f606f3a65ad7654fbf6ceb0ab351155eb2626c4b587046b26ad6cd32894fb539"
+      ],
+      "after": "c91bb0588377936b5dc001a598e8a58d487da7435e054b1ef8478e7533de502f"
+    },
+    {
+      "source": "website/lang/tr/shop_seo.php",
+      "destination": "servernet_app/lang/tr/shop_seo.php",
+      "before": [
+        "84f7789551f9f3376d617f3e901298903a988fb77fca19f1280f3fcc2b86734f",
+        "e6b397dc31acca78e1a18e2fd6a78ee3e8e94f92e3b58bf2343fd43553540d79"
+      ],
+      "after": "0758083e445f924d65024e339a6fa5a36bd9ef3a3af78b2b1097057439dea972"
+    },
+    {
+      "source": "website/app/Http/Controllers/PartsShopController.php",
+      "destination": "servernet_app/app/Http/Controllers/PartsShopController.php",
+      "before": [
+        "7f1f32ad65ffff982c3a77da76ff42541dfcd146d8e9863aa44acddc4d60d53e",
+        "bd09064b5ff4b25709087fe0225e0d946c7b124eae62ef1d41918d88b198594f"
+      ],
+      "after": "a2d9130c18740147e46a54bee0cfa169131b51733a37019893c4b9998b2dc8cd"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "before": [
+        "022c68021cc0536f635b72b9d93957ebf16d22cdc3733fa6110eee0918b2130b",
+        "7449cdf5d0262ed6e3112284e06ccd3ca66aca3593ef66321424925a909468c3"
+      ],
+      "after": "85bff2d7837084689000185f456837808f592d56622c23fe43c3e7d9534fa373"
+    },
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination": "servernet_app/app/Http/Controllers/SiteController.php",
+      "before": [
+        "69d522d55615e50a3acea1e05aa7570b9140204a559a82c1ebbfe37a898aac97",
+        "de225e2bcc2192809f6e974ba38befa2fbe04ab7e7d100ae76dba211cf8d7de4"
+      ],
+      "after": "8555cba14d11f10c859d716d73e306f14ec682b7524c994729efe7177f2c2ea8"
+    },
+    {
+      "source": "website/app/Http/Controllers/ServerShopController.php",
+      "destination": "servernet_app/app/Http/Controllers/ServerShopController.php",
+      "before": [
+        "852b919e2fc549c15bca1b2a87b594fdc72069c46cb72ce5b6bc16a602f31928",
+        "801364fce71aff128646849733df03f60bb3e7a86e4678acbc175bd414f6a902"
+      ],
+      "after": "ae41ac2507d73ebcc47df4eb3c0c36a626c4287ad1fab1880abc4a05818f845e"
+    },
+    {
+      "source": "website/resources/views/partials/hardware-assets.blade.php",
+      "destination": "servernet_app/resources/views/partials/hardware-assets.blade.php",
+      "before": [
+        "4869673ad34207a0ac6d334c94ef9ffb58cb50f31a3ec1bcf3d4bbae91772c96"
+      ],
+      "after": "b885f43869583746bc030aa2cc9d26b3d7ddf19fc51e65843bc9df9b6387eb77"
+    },
+    {
+      "source": "website/resources/views/partials/hardware-guide.blade.php",
+      "destination": "servernet_app/resources/views/partials/hardware-guide.blade.php",
+      "before": [
+        "816141899c801b9d5ec20ad0d406872f397fbf80d6e03b81e239a49d495dbcc0"
+      ],
+      "after": "36301f4a2c8380cb87f4c1b6a6a58e5f9929183ac93cf2af699608a1758c3cab"
+    },
+    {
+      "source": "website/resources/views/partials/part-card.blade.php",
+      "destination": "servernet_app/resources/views/partials/part-card.blade.php",
+      "before": [
+        "6baf44da66b3903df6e2e07a3285f0e758ce2432f780f4e12565836a00a3dc39"
+      ],
+      "after": "8113d7c24b1dbab78752965eafaed1aa0f49ca0389db1f89fd298f2b585da8aa"
+    },
+    {
+      "source": "website/resources/views/pages/parts-index.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-index.blade.php",
+      "before": [
+        "e6dede5c54e3fdbf4894f281cdd8986826a454edb1a03da21c111749969ac9b7",
+        "4d4fe5f1052fc42284cae616be6d6a3a89f7ab25c75042e2c60edd1eed95919d"
+      ],
+      "after": "ee27098a70658aecfb7dd38aaaaffcac2fdb01b187cc86da541541ddb4a2b280"
+    },
+    {
+      "source": "website/resources/views/pages/parts-category.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-category.blade.php",
+      "before": [
+        "7f1ca0480812a7da8083689bd9edf8ea931f806f03eebd03a3efdde627071a46",
+        "e2168a851c4d0454483b6a95b9be95a4b6c53b2cfd723216df713405617db503"
+      ],
+      "after": "a09ccb75023af91c230bf895084713eea9bc381f83e69aaa224394e7d9e40cc3"
+    },
+    {
+      "source": "website/resources/views/pages/part-detail.blade.php",
+      "destination": "servernet_app/resources/views/pages/part-detail.blade.php",
+      "before": [
+        "2d20cb6bdd01918f670cf8bc7f8494aad1b2804c38afdfb7f7ae372aac77ecb1",
+        "be8188c8d22dd1f8d78b2e55fffdde050ba745fe437305fc8288e9372e963b60"
+      ],
+      "after": "e64179a825cca80be8f3755e4eb77b546b44a7a5642bd25ffaa82535cfaa6535"
+    },
+    {
+      "source": "website/resources/views/pages/parts-compare.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-compare.blade.php",
+      "before": [
+        "9201d5811b4ef5e54c02290e676d9fd5e7a9efc5208daba8f3ebb89c25467fcf"
+      ],
+      "after": "0243747df2bb249635efe22c569152958285587840c9b52fd7d95fb97978c9f8"
+    },
+    {
+      "source": "website/resources/views/pages/parts-generation.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-generation.blade.php",
+      "before": [
+        "b81ece3bd26ba4b48d39115e38d200f2a1ec9728669d0e9c20fad92bb0a2569b",
+        "8512b062415565c221477d9a0dea6f1e1f43105071c74441e2288899acb3437f"
+      ],
+      "after": "8512b062415565c221477d9a0dea6f1e1f43105071c74441e2288899acb3437f"
+    },
+    {
+      "source": "website/resources/views/pages/server-detail.blade.php",
+      "destination": "servernet_app/resources/views/pages/server-detail.blade.php",
+      "before": [
+        "619d16504e237ca5a3e76127f79e34e127697dae0d57e7d0d116e79114fd6dbe",
+        "558250ff6663637f343516c9a581fea96e58af22124bfc0bd7d564c23a58c6ff"
+      ],
+      "after": "bd63f1ebbd72d2402774b4028f363d68e3f3f41482ed53b2752f5e76f17aa72d"
+    },
+    {
+      "source": "website/resources/views/pages/servers-index.blade.php",
+      "destination": "servernet_app/resources/views/pages/servers-index.blade.php",
+      "before": [
+        "f59e93d32b8c7ddfe21d0438c3fc4ef8a5ee3615df20d25d8f168b0ff99e0d2c",
+        "8767db3877b15d4912fd0c6fc6731c12085a345f0238711323f4f4162dfcab1f"
+      ],
+      "after": "8767db3877b15d4912fd0c6fc6731c12085a345f0238711323f4f4162dfcab1f"
+    },
+    {
+      "source": "website/config/servernet.php",
+      "destination": "servernet_app/config/servernet.php",
+      "before": [
+        "3fcd1dc9ecbebb670a71fad9b749b4f0cf788b6d9f01530566c9a2d271850955"
+      ],
+      "after": "8838f72b0c1c0ac5b11e4de4de3e9062e9a3af0f8ec7e803944ebc13455ecc78"
+    }
+  ]
+}

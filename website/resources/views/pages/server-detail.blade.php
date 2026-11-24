@@ -15,7 +15,7 @@
   $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb'), 'catalog' => \App\Services\Shop\HardwarePresentation::text('configuration')];
   $bc = $brand['color'] ?? 'var(--cyan)';
   $partGen = null;
-  if (str_starts_with($slug, 'hpe-proliant-') && preg_match('/-gen(8|9|10|11|12)(?:-|$)/', $slug, $genMatch)) {
+  if (str_starts_with($slug, 'hpe-proliant-') && !str_contains($slug, '-plus') && preg_match('/-gen(8|9|10|11|12)(?:-|$)/', $slug, $genMatch)) {
     $partGen = 'gen'.$genMatch[1];
   }
   // اسکیمای Product برای سئو — schema_ld خودش @context/@type را می‌گذارد.

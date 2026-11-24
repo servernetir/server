@@ -25,6 +25,12 @@
             @endif
         @endforeach
         <a href="{{ lroute('servers.index') }}">{{ __('ui.srv_title') }}</a>
+        <a href="{{ lroute('parts.planner') }}">{{ __('equipment.planner_title') }}</a>
+        @foreach(\App\Models\ServerPart::EQUIPMENT_CATEGORIES as $equipmentKey => $equipmentMeta)
+          @if($equipmentKey !== $hardwareCategory)
+            <a href="{{ lroute('parts.category', $equipmentKey) }}">{{ lc($equipmentMeta) }}</a>
+          @endif
+        @endforeach
     </nav>
     @if(!empty($hardwareMeta['manufacturer_url']))
     <p class="hw-note"><a href="{{ $hardwareMeta['manufacturer_url'] }}" rel="noopener" target="_blank">{{ \App\Services\Shop\HardwarePresentation::text('manufacturer_docs') }}</a></p>

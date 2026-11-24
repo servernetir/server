@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'parts_hub_title' => 'HP Sunucu Parçaları | RAM, CPU, Disk ve Teklif | ServerNet',
-    'parts_hub_h1' => 'HP sunucu parçaları: yeni ve ikinci el seçenekler',
-    'parts_hub_desc' => 'HP ve HPE sunucu parçaları: ECC RAM, Xeon CPU, SAS ve SSD disk, güç kaynağı, RAID, Gen9 ve Gen10 yedek parçaları. Özellikleri karşılaştırın ve teklif alın.',
+    'parts_hub_title' => 'Sunucu Parçaları ve Veri Merkezi Ekipmanı | ServerNet',
+    'parts_hub_h1' => 'Sunucu parçaları ve veri merkezi ekipmanı: yeni ve ikinci el',
+    'parts_hub_desc' => 'ECC RAM, Xeon CPU, SAS/SSD, SAN/NAS depolama, rack, UPS, ağ anahtarı ve PDU ürünlerini karşılaştırın; yapılandırma teklifi alın.',
     'servers_hub_title' => 'Yeni ve ikinci el fiziksel sunucular: HP, Dell ve diğerleri',
     'stock_title' => 'İkinci el sunucu ve parçalar için teklif alın',
     'stock_copy' => 'İkinci el ve yenilenmiş seçenekler de talep edilebilir. Tam model veya parça numarasını, adedi ve yapılandırmayı paylaşın; güncel fiyat, stok, ürün durumu ve garanti koşullarını kontrol edelim.',
@@ -25,6 +25,11 @@ return [
         'psu' => 'HP sunucu güç kaynakları',
         'gpu' => 'Sunucu ekran kartları ve GPU',
         'other' => 'HP sunucu yedek parçaları ve aksesuarları',
+        'storage' => 'SAN ve NAS kurumsal depolama',
+        'rack' => 'Sunucu rack ve ağ kabinleri',
+        'ups' => 'Rack ve online sunucu UPS',
+        'switch' => 'Cisco ve MikroTik ağ anahtarları',
+        'pdu' => 'Rack PDU ve veri merkezi güç dağıtımı',
     ],
     'server_title' => ':name satın al | Özellikler ve teklif | ServerNet',
     'part_title' => ':name fiyatı | Uyumluluk ve özellikler | ServerNet',
@@ -58,5 +63,10 @@ return [
         'psu' => ['Gücü, biçimi ve parça numarasını kasayla eşleştirin.', 'Yedeklilik için ikinci PSU uyumunu ve toplam güç ihtiyacını kontrol edin.'],
         'gpu' => ['Yuva alanını, güç tüketimini, kabloyu ve PSU kapasitesini kontrol edin.', 'Pasif soğutmalı kartlar uygun kasa hava akışı ister; tam modeli doğrulayın.'],
         'other' => ['Parça numarasını tam sunucu modeliyle karşılaştırın.', 'Gerekli kablo, braket, firmware veya lisansı siparişte belirtin.'],
+        'storage' => ['Ana bilgisayar protokolü, diskler, denetleyiciler ve lisansları belirtin.', 'Kullanılabilir kapasite, bağımsız yedek ve uyumu doğrulayın.'],
+        'rack' => ['Kullanılabilir ölçü, ray, yük ve taşıma yolunu eşleştirin.', 'Soğutma, kablo alanı ve aksesuarları doğrulayın.'],
+        'ups' => ['Gerçek W/VA yükü, gerilim ve pil tipi/durumunu kontrol edin.', 'Üretici süre eğrisini kullanın; elektrik kurulumu uzmanlık gerektirir.'],
+        'switch' => ['Port tipi ve sayısı, uplink, PoE ve lisansı belirtin.', 'Optik, kablo, firmware ve port durumunu doğrulayın.'],
+        'pdu' => ['Giriş konektörü ve değeri, priz ve montaj alanını eşleştirin.', 'Elektrik kapasitesi ve kurulumu uzmana doğrulatın.'],
     ],
 ];

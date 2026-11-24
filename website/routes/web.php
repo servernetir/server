@@ -149,6 +149,7 @@ $site = function (): void {
     */
     Route::get('/parts', [PartsShopController::class, 'index'])->name('parts.index');
     Route::get('/parts/compare', [PartsShopController::class, 'compare'])->name('parts.compare');
+    Route::get('/parts/planner', [PartsShopController::class, 'planner'])->name('parts.planner');
     Route::get('/parts/catalog/{topic}', [PartsShopController::class, 'topic'])
         ->name('parts.topic')->where('topic', '[a-z0-9-]+');
     Route::get('/parts/{category}', [PartsShopController::class, 'category'])

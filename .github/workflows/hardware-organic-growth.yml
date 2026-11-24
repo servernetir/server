@@ -7,6 +7,21 @@ on:
       - 'website/app/Http/Controllers/SiteController.php'
       - 'website/config/hardware_topics.php'
       - 'website/config/hardware_catalog.php'
+      - 'website/config/datacenter_content.php'
+      - 'website/config/parts_content.php'
+      - 'website/config/hardware_shop.php'
+      - 'website/app/Models/ServerPart.php'
+      - 'website/database/catalog/datacenter-equipment-20261124.json'
+      - 'website/resources/views/pages/hardware-planner.blade.php'
+      - 'website/resources/views/partials/datacenter-*.blade.php'
+      - 'website/resources/views/partials/equipment-*.blade.php'
+      - 'website/public/assets/css/datacenter-equipment.css'
+      - 'website/public/assets/js/datacenter-planner.js'
+      - 'website/lang/**/equipment.php'
+      - 'website/tests/Feature/DatacenterEquipmentTest.php'
+      - 'website/tests/js/datacenter-planner.test.cjs'
+      - 'website/tests/js/datacenter-browser.test.cjs'
+      - 'scripts/datacenter-equipment-20261124/**'
       - 'website/database/catalog/hardware-growth-20261123.json'
       - 'website/resources/views/pages/parts-*.blade.php'
       - 'website/resources/views/pages/part-detail.blade.php'
@@ -55,5 +70,22 @@ jobs:
           php artisan package:discover --ansi
       - name: Verify hardware and SEO behavior
         working-directory: website
+        env:
+          DATACENTER_BROWSER_FIXTURES: ${{ runner.temp }}/datacenter-browser-fixtures
         run: |
-          vendor/bin/phpunit tests/Feature/HardwareOrganicGrowthTest.php tests/Feature/HardwareCatalogTest.php tests/Feature/PartsAreCrawlableTest.php tests/Feature/PartsShopTest.php tests/Feature/PartsCategoryContentIsUniqueTest.php tests/Feature/PhysicalServerShopTest.php tests/Feature/HardwareSeoOverlayTest.php tests/Feature/LlmsTxtIsCompleteTest.php --colors=never
+          mkdir -p "$DATACENTER_BROWSER_FIXTURES"
+          vendor/bin/phpunit tests/Feature/DatacenterEquipmentTest.php tests/Feature/HardwareOrganicGrowthTest.php tests/Feature/HardwareCatalogTest.php tests/Feature/PartsAreCrawlableTest.php tests/Feature/PartsShopTest.php tests/Feature/PartsCategoryContentIsUniqueTest.php tests/Feature/PartsCatalogueContentTest.php tests/Feature/PartsShopSurvivesMissingTableTest.php tests/Feature/PhysicalServerShopTest.php tests/Feature/HardwareSeoOverlayTest.php tests/Feature/LlmsTxtIsCompleteTest.php --colors=never
+      - name: Verify deterministic catalogue and calculator
+        run: |
+          node scripts/datacenter-equipment-20261124/build-catalog.cjs
+          git diff --exit-code -- website/database/catalog/datacenter-equipment-20261124.json
+          node --test website/tests/js/datacenter-planner.test.cjs
+          python3 -m unittest discover -s scripts/datacenter-equipment-20261124 -p 'test_release.py'
+      - name: Test real mobile and desktop browser interactions
+        working-directory: website
+        env:
+          DATACENTER_BROWSER_FIXTURES: ${{ runner.temp }}/datacenter-browser-fixtures
+        run: |
+          npm ci --prefix tests/js --ignore-scripts
+          tests/js/node_modules/.bin/playwright install --with-deps chromium
+          node --test tests/js/datacenter-browser.test.cjs

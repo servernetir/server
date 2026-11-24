@@ -41,7 +41,9 @@ class PartsCatalogueContentTest extends TestCase
     {
         $counts = ServerPart::selectRaw('category, count(*) c')->groupBy('category')->pluck('c', 'category');
 
-        foreach (array_keys(ServerPart::CATEGORIES) as $category) {
+        // ServerPartSeeder remains the original 97-part fixture. The separate
+        // quote-only equipment import is exercised by DatacenterEquipmentTest.
+        foreach (array_keys(array_diff_key(ServerPart::CATEGORIES, ServerPart::EQUIPMENT_CATEGORIES)) as $category) {
             $this->assertGreaterThan(0, (int) ($counts[$category] ?? 0), "دستهٔ «{$category}» هیچ قطعه‌ای ندارد");
         }
     }

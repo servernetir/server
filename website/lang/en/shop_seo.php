@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'parts_hub_title' => 'HP Server Parts | RAM, CPU, Drives & Quotes | ServerNet',
-    'parts_hub_h1' => 'HP server parts: new and used options',
-    'parts_hub_desc' => 'Explore HP and HPE server parts: ECC RAM, Xeon CPUs, SAS and SSD drives, power supplies, RAID and spares for Gen9 and Gen10. Compare specifications and request a quote.',
+    'parts_hub_title' => 'Server Parts & Datacenter Equipment | ServerNet',
+    'parts_hub_h1' => 'Server parts and datacenter equipment: new and used',
+    'parts_hub_desc' => 'Compare server parts, ECC RAM, Xeon CPUs, SAS/SSD drives, SAN/NAS storage, racks, UPS, network switches and PDUs. Request a configuration quote.',
     'servers_hub_title' => 'New and used physical servers: HP, Dell and more',
     'stock_title' => 'Request a quote for used servers and parts',
     'stock_copy' => 'Used and refurbished options can also be requested. Share the exact model or part number, quantity and configuration so we can check current pricing, availability, condition and warranty terms for the specific item.',
@@ -25,6 +25,11 @@ return [
         'psu' => 'HP server power supplies',
         'gpu' => 'Server graphics cards and GPUs',
         'other' => 'HP server replacement parts and accessories',
+        'storage' => 'SAN & NAS enterprise storage',
+        'rack' => 'Server racks and network cabinets',
+        'ups' => 'Rackmount and online server UPS',
+        'switch' => 'Cisco and MikroTik network switches',
+        'pdu' => 'Rack PDUs and datacenter power distribution',
     ],
     'server_title' => 'Buy :name | Specs & quote | ServerNet',
     'part_title' => 'Buy :name | Price & compatibility | ServerNet',
@@ -58,5 +63,10 @@ return [
         'psu' => ['Match wattage, form factor and part number to the chassis.', 'For redundancy, verify the second PSU and total build power demand.'],
         'gpu' => ['Check slot space, power draw, power cable and server PSU capacity.', 'Passively cooled cards need suitable chassis airflow; verify the exact model.'],
         'other' => ['Match the part number against the exact server model.', 'List any required cable, bracket, firmware or licence in the order.'],
+        'storage' => ['Specify host protocol, drives, controllers and licences.', 'Verify usable capacity, independent backup and host compatibility.'],
+        'rack' => ['Match usable dimensions, rails, load rating and delivery access.', 'Confirm cooling, cable space and accessories.'],
+        'ups' => ['Check actual W and VA load, voltage and battery type and condition.', 'Use vendor runtime charts; electrical installation needs qualified review.'],
+        'switch' => ['Specify port types and count, uplinks, PoE and licences.', 'Check optics, cables, firmware and port condition.'],
+        'pdu' => ['Match input connector and rating, outlets and mounting space.', 'Have a qualified professional verify electrical capacity and installation.'],
     ],
 ];

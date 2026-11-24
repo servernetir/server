@@ -12,7 +12,7 @@
       <span>{{ __('ui.parts_title') }}</span>
     </nav>
     <h1>{{ __('shop_seo.parts_hub_h1') }}</h1>
-    <p class="sp-lead">{{ __('ui.parts_lead') }}</p>
+    <p class="sp-lead">{{ __('shop_seo.parts_hub_desc') }}</p>
   </div>
 </section>
 
@@ -22,11 +22,13 @@
   <div class="sp-main">
 
     @include('partials.hardware-stock-quote')
+    @include('partials.datacenter-catalogue')
     @include('partials.hardware-topic-links')
 
     <h2 class="sp-h2">{{ __('ui.parts_browse') }}</h2>
     <div class="sp-cat-grid">
       @foreach($categories as $key => $c)
+        @continue(isset(\App\Models\ServerPart::EQUIPMENT_CATEGORIES[$key]))
         <a class="sp-cat-card" href="{{ lroute('parts.category', $key) }}">
           <svg class="icon"><use href="#i-{{ $c['icon'] }}"/></svg>
           <h3>{{ $c['label'] }}</h3>

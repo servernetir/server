@@ -544,4 +544,4 @@ return [
         ],
     ],
 
-];
+] + (require __DIR__.'/datacenter_content.php');

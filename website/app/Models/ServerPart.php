@@ -45,6 +45,14 @@ class ServerPart extends Model
      * ⚠️ ترتیب عمدی است و همان ترتیبِ سایدبار می‌شود: از چیزی که خریدار
      * بیشتر دنبالش است به کمتر. شاسی اول است چون نقطهٔ شروعِ ساختِ سرور است.
      */
+    public const EQUIPMENT_CATEGORIES = [
+        'storage' => ['icon' => 'db', 'fa' => 'استوریج SAN و NAS', 'en' => 'SAN & NAS storage', 'tr' => 'SAN ve NAS depolama'],
+        'rack' => ['icon' => 'server', 'fa' => 'رک شبکه و دیتاسنتر', 'en' => 'Network & server racks', 'tr' => 'Ağ ve sunucu rack kabinleri'],
+        'ups' => ['icon' => 'zap', 'fa' => 'UPS و برق پشتیبان', 'en' => 'UPS & backup power', 'tr' => 'UPS ve yedek güç'],
+        'switch' => ['icon' => 'globe', 'fa' => 'سوئیچ شبکه', 'en' => 'Network switches', 'tr' => 'Ağ anahtarları'],
+        'pdu' => ['icon' => 'zap', 'fa' => 'PDU و توزیع برق رک', 'en' => 'Rack power distribution', 'tr' => 'Rack güç dağıtımı'],
+    ];
+
     public const CATEGORIES = [
         'chassis' => ['icon' => 'server', 'fa' => 'شاسی و بربون', 'en' => 'Chassis & barebones', 'tr' => 'Kasa ve barebone'],
         'cpu'     => ['icon' => 'cpu',    'fa' => 'پردازنده',          'en' => 'Processors',                 'tr' => 'İşlemciler'],
@@ -55,6 +63,7 @@ class ServerPart extends Model
         'psu'     => ['icon' => 'zap',    'fa' => 'منبع تغذیه',        'en' => 'Power supplies',             'tr' => 'Güç kaynakları'],
         'gpu'     => ['icon' => 'cpu',    'fa' => 'کارت گرافیک',       'en' => 'GPUs',                       'tr' => 'Ekran kartları'],
         'other'   => ['icon' => 'box',    'fa' => 'سایر قطعات',        'en' => 'Other parts',                'tr' => 'Diğer parçalar'],
+        ...self::EQUIPMENT_CATEGORIES,
     ];
 
     /**
@@ -86,6 +95,11 @@ class ServerPart extends Model
         'watt'      => ['fa' => 'توان',         'en' => 'Output',         'tr' => 'Güç',          'unit' => 'W',    'higher_better' => true],
         'bays'      => ['fa' => 'جایگاه دیسک',  'en' => 'Drive bays',     'tr' => 'Disk yuvası',  'unit' => '',     'higher_better' => true],
         'u'         => ['fa' => 'ارتفاع رک',    'en' => 'Rack height',    'tr' => 'Raf yüksekliği', 'unit' => 'U',  'higher_better' => false],
+        'va' => ['fa' => 'توان ظاهری', 'en' => 'Apparent power', 'tr' => 'Görünür güç', 'unit' => 'VA', 'higher_better' => false],
+        'amps' => ['fa' => 'جریان نامی', 'en' => 'Rated current', 'tr' => 'Anma akımı', 'unit' => 'A', 'higher_better' => false],
+        'outlets' => ['fa' => 'تعداد خروجی', 'en' => 'Outlets', 'tr' => 'Priz sayısı', 'unit' => '', 'higher_better' => false],
+        'width_mm' => ['fa' => 'عرض', 'en' => 'Width', 'tr' => 'Genişlik', 'unit' => 'mm', 'higher_better' => false],
+        'depth_mm' => ['fa' => 'عمق', 'en' => 'Depth', 'tr' => 'Derinlik', 'unit' => 'mm', 'higher_better' => false],
     ];
 
     /**
@@ -119,7 +133,7 @@ class ServerPart extends Model
      */
     public function scopeForGeneration(Builder $q, string $gen): Builder
     {
-        return $q->where(function (Builder $w) use ($gen) {
+        return $q->whereNotIn('category', array_keys(self::EQUIPMENT_CATEGORIES))->where(function (Builder $w) use ($gen) {
             $w->whereJsonContains('compat_gens', $gen)
                 ->orWhereNull('compat_gens');
         });
