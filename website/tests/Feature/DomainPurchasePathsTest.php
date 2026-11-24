@@ -124,7 +124,7 @@ class DomainPurchasePathsTest extends TestCase
 
     public function test_hosting_quotes_are_authenticated_localized_and_hide_supplier_details(): void
     {
-        $this->postJson('/account/order-domain-quote', ['domain' => 'synthetic-hosting.com'])->assertUnauthorized();
+        $this->postJson('/account/order-domain-quote', ['domain' => 'synthetic-hosting.com'])->assertRedirect(route('login'));
         $c = $this->customer();
         foreach (['', '/en', '/tr'] as $prefix) {
             $body = $this->actingAs($c, 'customer')->postJson($prefix.'/account/order-domain-quote', ['domain' => 'synthetic-hosting.com'])
@@ -179,7 +179,7 @@ class DomainPurchasePathsTest extends TestCase
         $this->place($other, $p, $quote)->assertSessionHasErrors('domain_buy');
         $changed = $quote; $changed['domain'] = 'different-synthetic.com';
         $this->place($c, $p, $changed)->assertSessionHasErrors('domain_buy');
-        $c->profiles()->update(['is_default' => false]);
+        $c->profiles()->delete();
         $this->place($c, $p, $quote)->assertSessionHasErrors('domain_buy');
         DomainQuote::findOrFail($quote['quote_id'])->update(['honour_until' => now()->subSecond()]);
         $this->place($c, $p, $quote)->assertSessionHasErrors('domain_buy');
