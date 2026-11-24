@@ -132,8 +132,9 @@ jobs:
           npm ci --prefix tests/js --ignore-scripts --no-audit --no-fund
           for locale in fa en tr; do
             php tests/Fixtures/DomainDiscoveryPreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
+            php tests/Fixtures/HostingDomainPurchasePreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
           done
-          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs
+          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" HOSTING_DOMAIN_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs tests/js/hosting-domain-purchase.test.cjs
       - name: Retain synthetic domain UI preview for visual review
         if: matrix.database == 'sqlite' && success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -155,6 +156,7 @@ jobs:
             tests/Feature/DomainProcurementTest.php
             tests/Feature/DomainSupplierAdminSchemaTest.php
             tests/Feature/DomainSupplierCheckoutTest.php
+            tests/Feature/DomainPurchasePathsTest.php
             tests/Feature/DomainSupplierLifecycleTest.php
             tests/Feature/DomainSupplierTransferEligibilityTest.php
             tests/Feature/DomainSupplierRoutingTest.php

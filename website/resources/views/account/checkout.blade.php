@@ -70,6 +70,7 @@
         <div class="co-price-row"><span>{{ __('ui.chk_setup_fee') }}</span><b class="pnl-num">{{ cloud_price($setupFee) }}</b></div>
       @endif
       <div class="co-price-row"><span>{{ __('ui.chk_vat') }}</span><b class="pnl-num">{{ fa_num($product->tax_percent) }}{{ __('ui.cs_js_pct') }}</b></div>
+      <div class="co-price-row" id="sum-domain-row" hidden><span>{{ __('hosting-domains.summary') }}</span><b class="pnl-num" id="sum-domain"></b></div>
       <div class="co-price-row co-total"><span>{{ __('ui.chk_pay_now') }}</span><b class="pnl-num" id="sum-first">{{ cloud_price($initial['first']) }}</b></div>
       <p class="co-note" id="sum-renew">{!! __('ui.chk_renew_note', ['cycle' => '<span>'.e(\App\Models\Service::labelFor($defCycle)).'</span>']) !!}</p>
     </div>
@@ -170,9 +171,9 @@
         </div>
         <div class="co-field" data-for="buy" hidden>
           <label>{{ __('ui.chk_lbl_want_domain') }}
-            <input type="text" name="domain_buy" dir="ltr" placeholder="new-domain.com">
+            <input type="text" name="domain_buy" dir="ltr" placeholder="new-domain.com" value="{{ old('domain_buy') }}">
           </label>
-          <p class="co-note">{{ __('ui.chk_buy_note') }}</p>
+          @include('account.partials.hosting-domain-purchase')
         </div>
         <div class="co-field" data-for="subdomain" hidden>
           <label>{{ __('ui.chk_lbl_sub') }}
@@ -245,6 +246,7 @@
 .co-note{ font-size:12px; color:var(--muted); line-height:1.9; margin:10px 0 0; }
 .co-warn{ font-size:13px; color:var(--warn); line-height:2; margin:0 0 12px; }
 .co-price-row i{ font-style:normal; color:var(--text); }
+.co-price-row[hidden]{ display:none!important; }
 
 /* محلِ سرور */
 .co-flag{ font-size:24px; line-height:1; width:36px; text-align:center; flex:0 0 auto; }
@@ -300,6 +302,13 @@
 
   var set = function(id, txt){ var el = document.getElementById(id); if (el) el.textContent = txt; };
 
+  var domainExtra = 0;
+  document.getElementById('co-form').addEventListener('servernet:hosting-domain-price', function (event) {
+    var amount = event.detail && event.detail.total_toman;
+    domainExtra = Number.isSafeInteger(amount) && amount > 0 ? amount : 0;
+    var row = document.getElementById('sum-domain-row'); if (row) row.hidden = domainExtra === 0;
+    set('sum-domain', money(domainExtra)); render();
+  });
   var render = function(){
     var s = pick();
     // کارت‌های دوره را با قیمتِ مکانِ انتخابی به‌روز کن
@@ -313,8 +322,8 @@
     if (!s.row) return;
     set('sum-cycle', money(s.row.cycle));
     set('sum-per',   money(s.row.per));
-    set('sum-first', money(s.row.first));
-    set('co-btn-total', money(s.row.first));
+    set('sum-first', money(s.row.first + domainExtra));
+    set('co-btn-total', money(s.row.first + domainExtra));
     set('sum-cyclename', LABELS[s.cycle] || '');
     var rn = document.querySelector('#sum-renew span');
     if (rn) rn.textContent = LABELS[s.cycle] || '';

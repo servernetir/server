@@ -91,6 +91,13 @@ class DomainSearchController extends Controller
      */
     public function status(OpenProviderClient $op): JsonResponse
     {
+        if (app(\App\Services\Domain\DomainProcurement::class)->enabled()) {
+            return response()->json([
+                'configured' => \App\Models\DomainSupplierAccount::where('active', true)->where('environment', 'production')->exists(),
+                'connected' => \App\Models\DomainSupplierAccount::eligibleForSales()->exists(),
+                'reason' => null,
+            ]);
+        }
         if (! $op->enabled()) {
             return response()->json([
                 'configured' => false,

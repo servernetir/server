@@ -573,6 +573,7 @@ $site = function (): void {
         Route::get('/cloud/{service}/console/ticket', [Account\CloudServerController::class, 'consoleTicket'])
             ->name('cloud.console.ticket')->middleware('throttle:20,1');
         // خرید — از دکمهٔ خریدِ سایت اصلی مستقیم به تسویهٔ همان پکیج در پنل
+        require __DIR__.'/hosting-domain-purchase.php';
         Route::get('/store', [Account\StoreController::class, 'index'])->name('store');            // به کاتالوگِ سایت اصلی می‌فرستد
         Route::get('/order/{product:slug}', [Account\StoreController::class, 'checkout'])->name('order');
         Route::post('/order/{product:slug}', [Account\StoreController::class, 'order'])->name('order.place')->middleware('throttle:12,1');
