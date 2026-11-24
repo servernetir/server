@@ -16,7 +16,7 @@ Owner scope: add OpenRouter token resale, compare equivalent models, expose the 
 
 ## Validation
 
-Local baseline and head were compared using PHP 8.4 in isolated checkouts with fake providers. An initially missing local bcmath module was identified by exercising full settlement; final results below supersede those preliminary runs. Final isolated regression comparison: base 176 tests (162 passed, 2 historical failures, 11 historical errors, 1 skipped); head 191 tests (177 passed, the same failures/errors/skip). No new failures. The new routing suite passed 16 tests / 65 assertions. A selected catalogue/admin/JSON/SSE/settlement suite passed 133 tests / 984 assertions. Historical errors are old FX fixture/override expectations and are not represented as a green full suite.
+Local baseline and head were compared using PHP 8.4 in isolated checkouts with fake providers. An initially missing local bcmath module was identified by exercising full settlement; final results below supersede those preliminary runs. Final isolated regression comparison: base 176 tests (162 passed, 2 historical failures, 11 historical errors, 1 skipped); head 191 tests (177 passed, the same failures/errors/skip). No new failures. The new routing suite passed 16 tests / 65 assertions. A selected catalogue/admin/JSON/SSE/settlement suite passed 134 tests / 987 assertions. Historical errors are old FX fixture/override expectations and are not represented as a green full suite.
 
 An offline replay of the live public feeds imported 514 rows: 353 executable contracts and 161 pending contracts. This is a dated schema acceptance, not evidence that each model was called or billed by the supplier.
 
