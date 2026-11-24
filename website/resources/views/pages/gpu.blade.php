@@ -66,6 +66,9 @@
 
 @section('title', __('ui.gpu_meta_t'))
 @section('description', $gpuMetaD)
+@push('head')
+@include('partials.gpu-styles')
+@endpush
 
 @section('content')
 <script type="application/ld+json">{!! schema_ld($gpuService, 'Service') !!}</script>
@@ -444,6 +447,7 @@
       @endforeach
     </div>
 
+    @include('partials.search-growth-guide', ['searchTopic' => 'gpu'])
     @include('partials.growth-guides', ['growthPage' => 'gpu'])
 
     <section class="gpu-faq" aria-labelledby="gpu-faq-title">

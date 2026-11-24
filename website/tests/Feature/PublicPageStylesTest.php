@@ -53,14 +53,14 @@ class PublicPageStylesTest extends TestCase
     public function test_only_explicit_public_paths_are_eligible_in_three_locales(): void
     {
         foreach (['', '/en', '/tr'] as $prefix) {
-            foreach (['', '/gpu', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/blog/php-version-upgrade-guide'] as $path) {
+            foreach (['', '/gpu', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/hosting/python', '/ai', '/cloud/n8n', '/blog/php-version-upgrade-guide'] as $path) {
                 $this->request(($prefix.$path) ?: '/');
                 $styles = $this->fixture();
                 $this->assertCount(3, $styles->inline('assets/css/site.min.css'), $prefix.$path);
                 $this->assertCount(str_starts_with($path, '/vps/') ? 5 : 4, $styles->reads);
                 $this->assertCount(2, $styles->fontReads);
             }
-            foreach (['/account/cloud-store', '/admin', '/login', '/cart', '/checkout', '/payment', '/cloud', '/cloud/ae-dubai', '/cloud/ph-manila', '/vps/germany', '/hosting/python', '/blog/other-guide', '/gpu-extra'] as $path) {
+            foreach (['/account/cloud-store', '/admin', '/login', '/cart', '/checkout', '/payment', '/cloud', '/cloud/ae-dubai', '/cloud/ph-manila', '/vps/germany', '/blog/other-guide', '/gpu-extra'] as $path) {
                 $this->request($prefix.$path);
                 $styles = $this->fixture();
                 $this->assertNull($styles->inline('assets/css/site.min.css'));

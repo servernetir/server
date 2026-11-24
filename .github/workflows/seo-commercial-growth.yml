@@ -5,6 +5,13 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Services/PublicPageStyles.php'
+      - 'website/config/blog.php'
+      - 'website/config/growth.php'
+      - 'website/lang/**/search-growth.php'
+      - 'website/resources/views/pages/ai/home.blade.php'
+      - 'website/resources/content/growth/python-hosting-django-flask-deployment.json'
+      - 'website/tests/Feature/SearchGrowthExperienceTest.php'
+      - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
       - 'website/app/Http/Middleware/PageCache.php'
@@ -34,6 +41,13 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Services/PublicPageStyles.php'
+      - 'website/config/blog.php'
+      - 'website/config/growth.php'
+      - 'website/lang/**/search-growth.php'
+      - 'website/resources/views/pages/ai/home.blade.php'
+      - 'website/resources/content/growth/python-hosting-django-flask-deployment.json'
+      - 'website/tests/Feature/SearchGrowthExperienceTest.php'
+      - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
       - 'website/app/Http/Middleware/PageCache.php'
@@ -97,6 +111,8 @@ jobs:
           tools: composer:v2
       - name: Verify offline opportunity analysis
         run: python3 -m unittest discover -s scripts/seo-growth-cycle -p test_opportunities.py -v
+      - name: Verify guarded search growth release on disposable files
+        run: python3 -m unittest discover -s scripts/search-growth-20261124 -p test_release.py -v
       - name: Install locked dependencies in isolated checkout
         working-directory: website
         run: |
@@ -112,6 +128,10 @@ jobs:
         working-directory: website
         run: |
           set -euo pipefail
+          php -l tests/Feature/SearchGrowthExperienceTest.php
+          php -l config/blog.php
+          php -l config/growth.php
+          find lang -name search-growth.php -print0 | xargs -0 -n1 php -l
           php -l app/Services/PublicPageStyles.php
           php -l app/Services/Cloud/CountryLandingSeo.php
           php -l app/Services/InternalLinks.php
@@ -124,7 +144,7 @@ jobs:
           php -l tests/Feature/SitemapIndexTest.php
           php -l tests/Feature/Audit7RegressionTest.php
           find lang -name hosting-seo.php -print0 | xargs -0 -n1 php -l
-          vendor/bin/phpunit tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/IranCountryMarketingTest.php tests/Feature/CountrySitemapEligibilityTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php tests/Feature/SitemapIndexTest.php --display-warnings --fail-on-warning --colors=never
+          vendor/bin/phpunit tests/Feature/SearchGrowthExperienceTest.php tests/Feature/PythonHostingSeoTest.php tests/Feature/AiUsagePlannerDiscoveryTest.php tests/Feature/AiModelSeoTest.php tests/Feature/ManagedN8nTest.php tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/IranCountryMarketingTest.php tests/Feature/CountrySitemapEligibilityTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php tests/Feature/SitemapIndexTest.php --display-warnings --fail-on-warning --colors=never
       - name: Verify tool conversion click contract
         run: node website/tests/js/tool-next-step.test.cjs
       - name: Verify order handoff remains excluded from sitemap discovery

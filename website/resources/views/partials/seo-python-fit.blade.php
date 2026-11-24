@@ -63,3 +63,4 @@
 .python-fit .witem a{display:inline-block;margin-top:12px;color:var(--green,#34d399);font-weight:600;text-decoration:underline;text-underline-offset:3px}
 .python-fit .witem a:focus-visible,.python-fit>div>p a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 </style>
+@include('partials.search-growth-guide', ['searchTopic' => 'python'])

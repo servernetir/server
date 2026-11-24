@@ -2,7 +2,12 @@
 @section('title', __('n8n.title').' — '.__('ui.brand'))
 @section('description', __('n8n.description'))
 @push('head')
+@php $n8nInlineCss = app(\App\Services\PublicPageStyles::class)->auxiliary('assets/css/n8n.css'); @endphp
+@if($n8nInlineCss !== null)
+<style id="n8n-page-css">{!! $n8nInlineCss !!}</style>
+@else
 <link rel="stylesheet" href="{{ asset_ver('assets/css/n8n.css') }}">
+@endif
 @endpush
 @section('content')
 <div class="n8n-page">
@@ -20,6 +25,7 @@
     </ol>
   </section>
   @include('partials.n8n-guide', ['copy' => $n8nSeo['copy'], 'rates' => $n8nSeo['rates']])
+  @include('partials.search-growth-guide', ['searchTopic' => 'n8n'])
   <p class="n8n-footnote">{{ __('n8n.scope') }}</p>
 </div>
 @endsection

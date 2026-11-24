@@ -1,0 +1,72 @@
+{
+  "files": [
+    {
+      "path": "lang/fa/search-growth.php",
+      "before": null
+    },
+    {
+      "path": "lang/en/search-growth.php",
+      "before": null
+    },
+    {
+      "path": "lang/tr/search-growth.php",
+      "before": null
+    },
+    {
+      "path": "resources/content/growth/python-hosting-django-flask-deployment.json",
+      "before": null
+    },
+    {
+      "path": "resources/views/partials/search-growth-guide.blade.php",
+      "before": null
+    },
+    {
+      "path": "resources/views/partials/gpu-styles.blade.php",
+      "before": null
+    },
+    {
+      "path": "app/Services/PublicPageStyles.php",
+      "before": "70916584b27eb585f202708482b0f47ec203c6e4516f913033fc6418e570c0ac"
+    },
+    {
+      "path": "config/blog.php",
+      "before": "d44b76ffd06eb97481838d25b5d3f934f31da3f4507915c84207bcfcc6e3fc4a"
+    },
+    {
+      "path": "config/growth.php",
+      "before": "09e1e95cab5ebcf630a256f6c95eebfd12e4b3cbce5ae53f09d0e45daee95578"
+    },
+    {
+      "path": "resources/views/partials/seo-python-fit.blade.php",
+      "before": "8b7ec231ed125f9550e71e05470ba73dd91f4ee13209e3e4aae18597004d4fe3"
+    },
+    {
+      "path": "resources/views/pages/ai/home.blade.php",
+      "before": "ca0231857455c08b30b725d8d4baff57c7921348ce72db0d1967637eb9508688"
+    },
+    {
+      "path": "resources/views/pages/blog-post.blade.php",
+      "before": "2223c9961bf80ae41814dd474d4711de3fce9bcb320eae84dcd95a661883b810"
+    },
+    {
+      "path": "resources/views/pages/n8n.blade.php",
+      "before": "fe74ec6766288f6ca487729d41daa1acae72c9dce1713c5e1bbf3a4f28de1218"
+    },
+    {
+      "path": "resources/views/pages/gpu.blade.php",
+      "before": "3fc2a56377f96221acb6a3dfd20f98e76aaf929c12ff9457e869997c3c51d63e"
+    },
+    {
+      "path": "resources/views/partials/chat.blade.php",
+      "before": "f48a2e9f156569a7d82e3c86cf01d5e97fb25ef97bb4d894ac53a8ac1b5cab9c"
+    },
+    {
+      "path": "resources/views/partials/vps-plan-table.blade.php",
+      "before": "9f6053d2a686c7da317ee4ad3a974ec1fd34fe852f2497e025cf697f32eadaf8"
+    },
+    {
+      "path": "resources/views/layouts/site.blade.php",
+      "before": "6b462a52c040c03cee4ac08e3904fe7086527ea7e34ad7eaa7b623a2f7139793"
+    }
+  ]
+}

@@ -71,11 +71,16 @@
  @php
  $firstReady = $models->first(fn ($card) => $card['state']['ready']);
  $exampleSlug = ($firstReady['model'] ?? null)?->slug ?? 'SELECT_A_READY_CHAT_MODEL';
- $examplePython = "import os\nfrom openai import OpenAI\nfrom uuid import uuid4\n\nclient = OpenAI(\n    api_key=os.environ[\"SERVERNET_API_KEY\"],\n    base_url=\"https://servernet.cloud/v1\",\n    max_retries=0,\n)\n\nresponse = client.chat.completions.create(\n    model=".json_encode($exampleSlug).",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n    max_tokens=128,\n    extra_headers={\"Idempotency-Key\": str(uuid4())},\n)";
+ $examplePython = "import os\nfrom openai import OpenAI\nfrom uuid import uuid4\n\nclient = OpenAI(\n    api_key=os.environ[\"SERVERNET_API_KEY\"],\n    base_url=\"https://servernet.cloud/v1\",\n    max_retries=0,\n)\n\nresponse = client.chat.completions.create(\n    model=".json_encode($exampleSlug).",\n    messages=[{\"role\": \"user\", \"content\": \"Hello\"}],\n    max_tokens=128,\n    extra_headers={\"Idempotency-Key\": str(uuid4())},\n)\nprint(response.choices[0].message.content)";
+ $curlBody = json_encode(['model' => $exampleSlug, 'messages' => [['role' => 'user', 'content' => 'Hello']], 'max_tokens' => 128], JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_TAG | JSON_HEX_AMP);
+ $exampleCurl = "SERVERNET_REQUEST_ID=\"\$(python3 -c 'import uuid; print(uuid.uuid4())')\"\n\ncurl --fail-with-body https://servernet.cloud/v1/chat/completions \\\n  -H \"Authorization: Bearer \$SERVERNET_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: \$SERVERNET_REQUEST_ID\" \\\n  -d '".$curlBody."'";
  @endphp
  <div class="ai-code-head"><span class="ai-label">PYTHON / OPENAI SDK</span><button type="button" class="ai-btn" data-ai-copy="ai-home-example">{{ __('ai_experience.copy') }}</button></div>
  <pre class="ai-code" id="ai-home-example"><code>{{ $examplePython }}</code></pre><p class="ai-muted">{{ __('ai.retries') }} {{ __('ai.key_safety') }}</p>
+ <div class="ai-code-head"><span class="ai-label">{{ __('ai.curl') }}</span><button type="button" class="ai-btn" data-ai-copy="ai-home-curl">{{ __('ai_experience.copy') }}</button></div>
+ <pre class="ai-code" id="ai-home-curl"><code>{{ $exampleCurl }}</code></pre><p class="ai-muted">{{ __('search-growth.curl_note') }}</p>
 </section>
+@include('partials.search-growth-guide', ['searchTopic' => 'ai'])
 <section class="ai-section ai-faq"><h2>{{ __('ai.faq') }}</h2>@foreach([1,2,3] as $i)<details><summary>{{ __('ai.q'.$i) }}</summary><p class="ai-muted">{{ __('ai.a'.$i) }}</p></details>@endforeach</section>
 <section class="ai-endcap"><div><h2>{{ __('ai_experience.start_title') }}</h2><p>{{ __('ai_experience.start_text') }}</p></div><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.compare') }}">{{ __('ai_experience.compare') }}</a></div></section>
 @include('pages.ai.compare-tray')

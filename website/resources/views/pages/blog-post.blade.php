@@ -102,7 +102,7 @@
 
       <div class="bp-col">
         <article class="blog-prose reveal" id="bp-article">{!! $post['content'] ?? '' !!}</article>
-        @if(in_array($post['slug'], ['how-to-choose-a-vps', 'gpu-servers-for-ai'], true))
+        @if(config('growth.article-'.$post['slug']))
         @include('partials.growth-guides', ['growthPage' => 'article-'.$post['slug']])
         @endif
 

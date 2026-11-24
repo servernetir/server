@@ -9,7 +9,7 @@ class PublicPageStyles
 
     private const PATHS = [
         '', 'gpu', 'vps/hourly', 'vps/philippines', 'vps/uae',
-        'hosting/linux', 'blog/php-version-upgrade-guide',
+        'hosting/linux', 'hosting/python', 'ai', 'cloud/n8n', 'blog/php-version-upgrade-guide',
     ];
 
     private const FONTS = [
@@ -30,6 +30,19 @@ class PublicPageStyles
     /** Keep page and widget CSS in their original cascade positions. */
     public function auxiliary(string $asset): ?string
     {
+        $standalone = [
+            'assets/css/gpu-alternatives.css' => 'gpu',
+            'assets/css/n8n.css' => 'cloud/n8n',
+        ];
+        if (isset($standalone[$asset])) {
+            $path = preg_replace('~^(?:en|tr)(?:/|$)~', '', trim(request()->path(), '/'));
+            if ($path !== $standalone[$asset]) {
+                return null;
+            }
+            $css = $this->readStylesheet($asset);
+
+            return $css === null ? null : $this->prepare($css);
+        }
         // This small widget stylesheet is independently safe to inline even
         // when the complete page/font bundle falls back to external assets.
         if ($asset === 'assets/css/hourly-explorer.css') {
