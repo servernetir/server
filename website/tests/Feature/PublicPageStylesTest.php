@@ -25,7 +25,7 @@ class PublicPageStylesTest extends TestCase
     public function test_current_minified_and_expanded_css_preserve_every_rule_except_the_three_guarded_font_changes(): void
     {
         foreach (['assets/css/site.min.css', 'assets/css/site.css'] as $site) {
-            $this->request('/gpu');
+            $this->request('/hosting/python');
             $styles = app(PublicPageStyles::class)->inline($site);
             $this->assertSame(['site', 'server-menu', 'site-select'], array_keys($styles));
             foreach (['site' => $site, 'server-menu' => 'assets/css/server-menu.css', 'site-select' => 'assets/css/site-select.css'] as $key => $asset) {
@@ -53,14 +53,14 @@ class PublicPageStylesTest extends TestCase
     public function test_only_explicit_public_paths_are_eligible_in_three_locales(): void
     {
         foreach (['', '/en', '/tr'] as $prefix) {
-            foreach (['', '/gpu', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/hosting/python', '/ai', '/cloud/n8n', '/blog/php-version-upgrade-guide'] as $path) {
+            foreach (['', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/hosting/python', '/ai', '/cloud/n8n', '/blog/php-version-upgrade-guide'] as $path) {
                 $this->request(($prefix.$path) ?: '/');
                 $styles = $this->fixture();
                 $this->assertCount(3, $styles->inline('assets/css/site.min.css'), $prefix.$path);
                 $this->assertCount(str_starts_with($path, '/vps/') ? 5 : 4, $styles->reads);
                 $this->assertCount(3, $styles->fontReads);
             }
-            foreach (['/account/cloud-store', '/admin', '/login', '/cart', '/checkout', '/payment', '/cloud', '/cloud/ae-dubai', '/cloud/ph-manila', '/vps/germany', '/blog/other-guide', '/gpu-extra'] as $path) {
+            foreach (['/gpu', '/account/cloud-store', '/admin', '/login', '/cart', '/checkout', '/payment', '/cloud', '/cloud/ae-dubai', '/cloud/ph-manila', '/vps/germany', '/blog/other-guide', '/gpu-extra'] as $path) {
                 $this->request($prefix.$path);
                 $styles = $this->fixture();
                 $this->assertNull($styles->inline('assets/css/site.min.css'));
@@ -69,7 +69,7 @@ class PublicPageStylesTest extends TestCase
                 $this->assertSame([], $styles->fontReads);
             }
         }
-        $this->request('/gpu');
+        $this->request('/hosting/python');
         $styles = $this->fixture();
         $this->assertNull($styles->inline('../site.css'));
         $this->assertNull($styles->auxiliary('assets/css/unknown.css'));
@@ -97,7 +97,7 @@ class PublicPageStylesTest extends TestCase
 
     public function test_next_request_reads_current_css_and_font_bytes_instead_of_sharing_a_public_cache(): void
     {
-        $this->request('/gpu');
+        $this->request('/hosting/python');
         $first = $this->fixture();
         $expected = $first->inline('assets/css/site.min.css');
         $replacement = file_get_contents(public_asset_path('assets/font/woff2/IRANSans-Bold-web.woff2'));
@@ -105,7 +105,7 @@ class PublicPageStylesTest extends TestCase
         $this->assertSame($expected, $second->inline('assets/css/site.min.css'));
         $this->assertSame([], $second->reads);
         $this->assertSame([], $second->fontReads);
-        $this->request('/gpu');
+        $this->request('/hosting/python');
         $new = $second->inline('assets/css/site.min.css');
         $this->assertStringContainsString('.changed{color:red}', $new['site']);
         $this->assertSame($replacement, $this->embeddedBytes($new['site'])[400]);
@@ -115,7 +115,7 @@ class PublicPageStylesTest extends TestCase
 
     public function test_expanded_font_declarations_also_block_and_unrelated_urls_are_preserved(): void
     {
-        $this->request('/gpu');
+        $this->request('/hosting/python');
         $faces = str_replace(['font-display:swap', 'font-display:optional'], ['font-display: swap', 'font-display: optional'], $this->fontFaces());
         $extra = '.a{background:url("/assets/example.svg?x=1#icon")} .b{background:url(https://example.test/image.png)} .c{background:url(\'data:image/svg+xml;base64,PHN2Zz4=\')}';
         $styles = $this->fixture(['assets/css/site.min.css' => $faces.$extra])->inline('assets/css/site.min.css');
@@ -144,14 +144,14 @@ class PublicPageStylesTest extends TestCase
             $asset = 'assets/font/woff2/'.$font.'.woff2';
             $bytes = file_get_contents(public_asset_path($asset));
             foreach ([null, '', 'invalid-font', substr($bytes, 0, -1), substr_replace($bytes, pack('N', 1), 8, 4)] as $invalid) {
-                $this->request('/gpu');
+                $this->request('/hosting/python');
                 $styles = $this->fixture([], [$asset => $invalid]);
                 $this->assertNull($styles->inline('assets/css/site.min.css'));
                 $this->assertNull($styles->auxiliary('assets/css/chat-morph.css'));
             }
         }
         foreach ([str_replace('font-family:\'IRANSans\'', 'font-family:\'Other\'', $this->fontFaces()), $this->fontFaces().'@font-face{font-family:Extra;src:url(/assets/extra.woff2)}', $this->fontFaces().$this->fontFaces(), str_replace('font-style:normal', 'font-style:italic', $this->fontFaces())] as $invalid) {
-            $this->request('/gpu');
+            $this->request('/hosting/python');
             $this->assertNull($this->fixture(['assets/css/site.min.css' => $invalid])->inline('assets/css/site.min.css'));
         }
     }
@@ -163,7 +163,7 @@ class PublicPageStylesTest extends TestCase
             PostTranslation::create(['post_id' => $post->id, 'locale' => $locale, 'title' => 'Synthetic PHP guide', 'excerpt' => 'Fixture only', 'content' => '<p>Fixture.</p>']);
         }
         foreach (['', '/en', '/tr'] as $prefix) {
-            foreach (['', '/gpu', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/blog/php-version-upgrade-guide'] as $path) {
+            foreach (['', '/vps/hourly', '/vps/philippines', '/vps/uae', '/hosting/linux', '/blog/php-version-upgrade-guide'] as $path) {
                 $html = $this->get(($prefix.$path) ?: '/')->assertOk()->getContent();
                 $head = explode('</head>', $html)[0];
                 foreach (['site', 'server-menu', 'site-select'] as $style) {
@@ -211,6 +211,27 @@ class PublicPageStylesTest extends TestCase
                 $this->assertStringContainsString('<link rel="stylesheet" href="'.asset_ver('assets/css/chat-morph.css').'">', $html);
             }
         }
+    }
+
+    public function test_gpu_keeps_the_external_bundle_and_complete_guidance_in_all_locales(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $html = $this->get($prefix.'/gpu')->assertOk()->getContent();
+            $head = explode('</head>', $html)[0];
+            $this->assertStringNotContainsString('id="public-page-', $html);
+            $this->assertMatchesRegularExpression('~<link rel="stylesheet" href="[^"]*/assets/css/site(?:\.min)?\.css\?v=[^"]+">~', $head);
+            foreach (['server-menu', 'site-select'] as $asset) {
+                $this->assertStringContainsString('<link rel="stylesheet" href="'.asset_ver('assets/css/'.$asset.'.css').'">', $head);
+            }
+            foreach ([400, 700] as $weight) {
+                $this->assertStringContainsString('<link rel="preload" href="'.asset('assets/font/woff2/'.self::EMBEDDED[$weight].'.woff2').'" as="font"', $head);
+            }
+            $this->assertStringContainsString('id="gpu-practical-guide"', $html);
+            // The capacity-widget asset is live-only; its absence keeps the safe link fallback.
+            $this->assertStringContainsString('<link rel="stylesheet" href="'.asset_ver('assets/css/gpu-alternatives.css').'">', $head);
+            $this->assertStringContainsString('assets/js/chat-morph.js', $html);
+        }
+        Http::assertNothingSent();
     }
 
     private function selectedSite(): string

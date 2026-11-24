@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/PublicPageStyles.php",
+      "destination": "servernet_app/app/Services/PublicPageStyles.php",
+      "before": "292c89bc8c7652a8df3245f93b7de9cbe7697322d01c409a77f7e723e96d50e3",
+      "after": "c54e190b6888b9340fdccf4badac069eb1db546f2bd5fb622fc3c85394881c3f"
+    }
+  ],
+  "views": [],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/gpu-rendering-20261124/activate.php",
+      "sha256": "c454f5ac28e64673363f99d2d4bfcaa09c4e2fdfa27469eb2bc1193a0c18d38a"
+    }
+  }
+}
