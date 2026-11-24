@@ -36,16 +36,37 @@ class EquipmentReleaseTest(unittest.TestCase):
                 before = release.sha(previous)
             else:
                 before = None
-            self.rows.append(dict(row, before=[before]))
+            fixture = {k:v for k,v in row.items() if k not in ('source_sha','edits')}
+            self.rows.append(dict(fixture, before=[before],after=row.get('source_sha',row['after'])))
         self.payload = lambda _, source: (ROOT / source).read_bytes()
 
     def test_manifest_checks_every_real_source_and_dual_asset_root(self):
         self.assertEqual(39, len(self.original))
         for row in self.original:
-            self.assertEqual(row["after"], hashlib.sha256((ROOT / row["source"]).read_bytes()).hexdigest())
+            self.assertEqual(row.get('source_sha',row['after']), hashlib.sha256((ROOT / row["source"]).read_bytes()).hexdigest())
             release.target(row)
         for asset in ("css/datacenter-equipment.css", "js/datacenter-planner.js"):
             self.assertEqual(2, sum(r["source"].endswith(asset) for r in self.original))
+
+    def test_reviewed_insertions_preserve_unrelated_production_bytes(self):
+        for row in self.original:
+            if 'edits' not in row:
+                continue
+            source=(ROOT/row['source']).read_bytes()
+            original=source
+            for edit in reversed(row['edits']):
+                anchor,insertion=edit['anchor'].encode(),edit['insert'].encode()
+                self.assertEqual(1,original.count(anchor+insertion))
+                original=original.replace(anchor+insertion,anchor,1)
+            drift=b'\n// unrelated concurrent edit\n'
+            live=original+drift
+            fixture=dict(row,before=[release.sha(live)],after=release.sha(source+drift))
+            self.assertEqual(source+drift,release.overlay(fixture,live,source))
+            with self.assertRaisesRegex(AssertionError,'Unverified overlay base'):
+                release.overlay(fixture,live+b'x',source)
+            duplicated=live+row['edits'][0]['anchor'].encode()
+            with self.assertRaisesRegex(AssertionError,'Ambiguous overlay anchor'):
+                release.overlay(dict(fixture,before=[release.sha(duplicated)]),duplicated,source)
 
     def test_drift_stops_before_application_or_data_writes(self):
         (self.home / self.rows[-1]["destination"]).write_bytes(b"unexpected")

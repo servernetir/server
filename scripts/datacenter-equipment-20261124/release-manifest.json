@@ -7,7 +7,8 @@
       "destination": "servernet_app/database/catalog/hardware-growth-20261123.json",
       "before": [
         null,
-        "68b1b55882c00072c8c8849a79fdad265c041821eb48426c908f244e5fa86687"
+        "68b1b55882c00072c8c8849a79fdad265c041821eb48426c908f244e5fa86687",
+        "b74e24a90cd8b1372d875ff9eb922b02442ae74a449bd0770454bff2da1c9902"
       ],
       "after": "68b1b55882c00072c8c8849a79fdad265c041821eb48426c908f244e5fa86687"
     },
@@ -24,7 +25,8 @@
       "destination": "servernet_app/config/hardware_topics.php",
       "before": [
         null,
-        "066d597c03fb81f9e6d7bcb77ee2a5e28d5973eda2b0e0a0544fca3e4dc63c92"
+        "066d597c03fb81f9e6d7bcb77ee2a5e28d5973eda2b0e0a0544fca3e4dc63c92",
+        "e9f5790f54acbc6ae21b63b97700001013d9084922c58feb60ca34e16767b64f"
       ],
       "after": "066d597c03fb81f9e6d7bcb77ee2a5e28d5973eda2b0e0a0544fca3e4dc63c92"
     },
@@ -65,7 +67,8 @@
       "destination": "servernet_app/resources/views/partials/hardware-stock-quote.blade.php",
       "before": [
         null,
-        "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925"
+        "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925",
+        "d31e9a31a6fce769076934038bc5f6dc3082f81bd686d3c65f99a214637e226b"
       ],
       "after": "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925"
     },
@@ -74,7 +77,8 @@
       "destination": "servernet_app/resources/views/partials/hardware-topic-links.blade.php",
       "before": [
         null,
-        "1761eff1e3d05807c57ba49571bee4bf155fa31e986d2cfb43170ddc8d946b22"
+        "1761eff1e3d05807c57ba49571bee4bf155fa31e986d2cfb43170ddc8d946b22",
+        "11cfe5d46480de2e9ab41ba3d9b104b769c97f23500c48a21ff118ecd30b7464"
       ],
       "after": "1761eff1e3d05807c57ba49571bee4bf155fa31e986d2cfb43170ddc8d946b22"
     },
@@ -99,7 +103,8 @@
       "destination": "servernet_app/resources/views/pages/parts-topic.blade.php",
       "before": [
         null,
-        "6ba5de4ac550bbbf851e3b60faa355b48660a9da599c17975b44a3bdab6b1548"
+        "6ba5de4ac550bbbf851e3b60faa355b48660a9da599c17975b44a3bdab6b1548",
+        "a13bc134d9a25c58cc0d10ec0728df14bf1574d1aa321fb55ac2594ab7ce495b"
       ],
       "after": "92e0f69715f134b027153d03ce69f2911bd9d2bcd2eebf33ca3b5f666f5a9029"
     },
@@ -148,7 +153,9 @@
       "destination": "servernet_app/config/hardware_catalog.php",
       "before": [
         "82a32a11c45307c7e27a8bfc3ec56b0c3043f58cf7d0c9b7bddefd9d583c54b9",
-        "6b17b6691c51250e6a5787819afa6d3256a8fd4d76cfdeece951aa794a2ec89b"
+        "e1597f93b3524bf99dab95d586cdfef837255603e4c7a22ad0024f9e4430a6bf",
+        "6b17b6691c51250e6a5787819afa6d3256a8fd4d76cfdeece951aa794a2ec89b",
+        "aa6e928106f4b985ebfe401d0a51219f83b1e5fabb903f87d3863c6ed215444a"
       ],
       "after": "9ae6c41621a75be7f95997f85b27fed9c91e156032bf4e9915219a5e040e00d5"
     },
@@ -156,7 +163,8 @@
       "source": "website/config/hardware_shop.php",
       "destination": "servernet_app/config/hardware_shop.php",
       "before": [
-        "7007e2e8d14ba75ff77c2b7009c96d0bf4c52f4583fced53db289ee9a88e3af1"
+        "7007e2e8d14ba75ff77c2b7009c96d0bf4c52f4583fced53db289ee9a88e3af1",
+        "b6db4b5194ee5256dfd8fd19f1222d8c842050c06560bc4fbd25656c3729bbb8"
       ],
       "after": "7240d7ac268fe07729e54803d1df8c72f2637f679284de212f2adc8dceb5d704"
     },
@@ -164,7 +172,8 @@
       "source": "website/config/parts_content.php",
       "destination": "servernet_app/config/parts_content.php",
       "before": [
-        "66309be64a2cfa13a39b3e3a16c60f929c8cb75ec6772137f24e05ab437a3557"
+        "66309be64a2cfa13a39b3e3a16c60f929c8cb75ec6772137f24e05ab437a3557",
+        "75c9b067d43eb73b3466a0915d8c41fb73ef35e2b4f72bb8b59ddb82282aa209"
       ],
       "after": "15b4c82a3e4b4a4f302df9998315f54a4c4ac91319e97efa39f5cb5f0667f57f"
     },
@@ -172,7 +181,8 @@
       "source": "website/app/Models/ServerPart.php",
       "destination": "servernet_app/app/Models/ServerPart.php",
       "before": [
-        "27df50f31ff34e3840d9034face0d476bfd2e92d6542a8dfb92772b5a41e74e0"
+        "27df50f31ff34e3840d9034face0d476bfd2e92d6542a8dfb92772b5a41e74e0",
+        "7614d4ba3df15ce1c47aa649a7ca7bd3b9a95c94872edd2f191fc191f243e138"
       ],
       "after": "2dd340a90c6f5add426e742ac55946d2bffdb1d948ce343750537db151db4590"
     },
@@ -181,7 +191,9 @@
       "destination": "servernet_app/lang/fa/shop_seo.php",
       "before": [
         "7ec4551e68d33ed8358982eadacf3bb594784526b35d1d9e58d3723e54e85ebd",
-        "9f49abd91b1426e939e009735237c401e157f9f91c920ff9f944ba80adf88f73"
+        "10abd465dd2f23e13efdb458b98a91d4670e3c755ac4288b44e31fe91abe2ab6",
+        "9f49abd91b1426e939e009735237c401e157f9f91c920ff9f944ba80adf88f73",
+        "e335ec2ed95162420c5f36ae406db80a3c78ca9fd7853cb1c9bf466c4011fc7d"
       ],
       "after": "92b2956d3b8410a610b557f56a254adc5933522d805d29e4151eb65fb2cb18b7"
     },
@@ -190,7 +202,9 @@
       "destination": "servernet_app/lang/en/shop_seo.php",
       "before": [
         "b258b3b22830e7de6a774f29709f7911f1e7977bad1f24be33308797d0c8ad60",
-        "f606f3a65ad7654fbf6ceb0ab351155eb2626c4b587046b26ad6cd32894fb539"
+        "a401cb5405eed2204564d3f11a23f849b4df912a93e98422458ea76c21554807",
+        "f606f3a65ad7654fbf6ceb0ab351155eb2626c4b587046b26ad6cd32894fb539",
+        "4ffe54b490e5dd7869d75004578e5cc41dac0880e36c428c250ae3263cfdb44f"
       ],
       "after": "c91bb0588377936b5dc001a598e8a58d487da7435e054b1ef8478e7533de502f"
     },
@@ -199,7 +213,9 @@
       "destination": "servernet_app/lang/tr/shop_seo.php",
       "before": [
         "84f7789551f9f3376d617f3e901298903a988fb77fca19f1280f3fcc2b86734f",
-        "e6b397dc31acca78e1a18e2fd6a78ee3e8e94f92e3b58bf2343fd43553540d79"
+        "406fcfd4d064aeb262dc4c19d51395674d302d48d7e8686c8263343b382525b0",
+        "e6b397dc31acca78e1a18e2fd6a78ee3e8e94f92e3b58bf2343fd43553540d79",
+        "c86af7aa2786d26f0fc72217b829ba438618fd09b8257e1802fea0131ec2e850"
       ],
       "after": "0758083e445f924d65024e339a6fa5a36bd9ef3a3af78b2b1097057439dea972"
     },
@@ -208,7 +224,9 @@
       "destination": "servernet_app/app/Http/Controllers/PartsShopController.php",
       "before": [
         "7f1f32ad65ffff982c3a77da76ff42541dfcd146d8e9863aa44acddc4d60d53e",
-        "bd09064b5ff4b25709087fe0225e0d946c7b124eae62ef1d41918d88b198594f"
+        "6a4913ee107de44cafabfeacf8dbcb2f528e6094f3ea58a52282db9396169d03",
+        "bd09064b5ff4b25709087fe0225e0d946c7b124eae62ef1d41918d88b198594f",
+        "db2e4c49012c98ce20cd23a095c0276b90fd941ccefa11081f9fcf2d06dd0e6e"
       ],
       "after": "a2d9130c18740147e46a54bee0cfa169131b51733a37019893c4b9998b2dc8cd"
     },
@@ -216,26 +234,44 @@
       "source": "website/routes/web.php",
       "destination": "servernet_app/routes/web.php",
       "before": [
-        "022c68021cc0536f635b72b9d93957ebf16d22cdc3733fa6110eee0918b2130b",
-        "7449cdf5d0262ed6e3112284e06ccd3ca66aca3593ef66321424925a909468c3"
+        "d16003b4e7ef99108fa07ebe65cf416da29316f4454dc96eb62561ee834f116e"
       ],
-      "after": "85bff2d7837084689000185f456837808f592d56622c23fe43c3e7d9534fa373"
+      "after": "2e70d23789d2bcce33fb63d6054efa26547cc7e5b3dead8f6bdf4cb4eefa0230",
+      "source_sha": "85bff2d7837084689000185f456837808f592d56622c23fe43c3e7d9534fa373",
+      "edits": [
+        {
+          "anchor": "    */\n    Route::get('/parts', [PartsShopController::class, 'index'])->name('parts.index');\n    Route::get('/parts/compare', [PartsShopController::class, 'compare'])->name('parts.compare');\n",
+          "insert": "    Route::get('/parts/planner', [PartsShopController::class, 'planner'])->name('parts.planner');\n    Route::get('/parts/catalog/{topic}', [PartsShopController::class, 'topic'])\n        ->name('parts.topic')->where('topic', '[a-z0-9-]+');\n"
+        }
+      ]
     },
     {
       "source": "website/app/Http/Controllers/SiteController.php",
       "destination": "servernet_app/app/Http/Controllers/SiteController.php",
       "before": [
-        "69d522d55615e50a3acea1e05aa7570b9140204a559a82c1ebbfe37a898aac97",
-        "de225e2bcc2192809f6e974ba38befa2fbe04ab7e7d100ae76dba211cf8d7de4"
+        "cd795be3ad85f2b476ba47baf852dde72391c68b8c3dc9738352074fd549f312"
       ],
-      "after": "8555cba14d11f10c859d716d73e306f14ec682b7524c994729efe7177f2c2ea8"
+      "after": "11174cada96f03b44721b6682d878855dd7485d2aa6f331ce8eba79c13b923ed",
+      "source_sha": "8555cba14d11f10c859d716d73e306f14ec682b7524c994729efe7177f2c2ea8",
+      "edits": [
+        {
+          "anchor": "            $lines[] = \"- [{$label}]({$base}{$path})\";\n        }\n\n",
+          "insert": "        $lines[] = '';\n        $lines[] = '## Hardware purchase and compatibility guides';\n        $lines[] = \"- [Hardware planning calculators]({$base}/en/parts/planner)\";\n        foreach (\\App\\Models\\ServerPart::EQUIPMENT_CATEGORIES as $category => $meta) {\n            $lines[] = '- ['.$meta['en'].\"]({$base}/en/parts/{$category})\";\n        }\n        foreach ((array) config('hardware_topics', []) as $slug => $topic) {\n            $lines[] = '- ['.$topic['title']['en'].\"]({$base}/en/parts/catalog/{$slug})\";\n        }\n        $lines[] = '- Catalogue records are not proof of stock or exact chassis compatibility. Request confirmation of new, used or refurbished availability, configuration, condition, warranty and current price.';\n\n"
+        },
+        {
+          "anchor": "        | ⚠️ پشتِ `hasTable` است تا نقشه روی سرورِ مهاجرت‌نخورده ۵۰۰ ندهد.\n        */\n        $add('parts.index');\n",
+          "insert": "        $add('parts.planner');\n        foreach (array_keys((array) config('hardware_topics', [])) as $topic) {\n            $add('parts.topic', $topic);\n        }\n"
+        }
+      ]
     },
     {
       "source": "website/app/Http/Controllers/ServerShopController.php",
       "destination": "servernet_app/app/Http/Controllers/ServerShopController.php",
       "before": [
         "852b919e2fc549c15bca1b2a87b594fdc72069c46cb72ce5b6bc16a602f31928",
-        "801364fce71aff128646849733df03f60bb3e7a86e4678acbc175bd414f6a902"
+        "67926fd4286d3a818d3fe6b90ceb74ca9e79ba775c0e780305307d1494edf4b0",
+        "801364fce71aff128646849733df03f60bb3e7a86e4678acbc175bd414f6a902",
+        "843479e95cc8e478dfd9e82510b7edfde331ed5b2d1be7f2509dc4756c770ee8"
       ],
       "after": "ae41ac2507d73ebcc47df4eb3c0c36a626c4287ad1fab1880abc4a05818f845e"
     },
@@ -243,7 +279,8 @@
       "source": "website/resources/views/partials/hardware-assets.blade.php",
       "destination": "servernet_app/resources/views/partials/hardware-assets.blade.php",
       "before": [
-        "4869673ad34207a0ac6d334c94ef9ffb58cb50f31a3ec1bcf3d4bbae91772c96"
+        "4869673ad34207a0ac6d334c94ef9ffb58cb50f31a3ec1bcf3d4bbae91772c96",
+        "fe815f0c67b504c3a818b5b0be54910a5c25dd602a1e6273389e7143b8284fbd"
       ],
       "after": "b885f43869583746bc030aa2cc9d26b3d7ddf19fc51e65843bc9df9b6387eb77"
     },
@@ -251,7 +288,8 @@
       "source": "website/resources/views/partials/hardware-guide.blade.php",
       "destination": "servernet_app/resources/views/partials/hardware-guide.blade.php",
       "before": [
-        "816141899c801b9d5ec20ad0d406872f397fbf80d6e03b81e239a49d495dbcc0"
+        "816141899c801b9d5ec20ad0d406872f397fbf80d6e03b81e239a49d495dbcc0",
+        "0f46caebe740e75c612bc1c582115b3416c42b254efb496b9a40f672b9eab16d"
       ],
       "after": "36301f4a2c8380cb87f4c1b6a6a58e5f9929183ac93cf2af699608a1758c3cab"
     },
@@ -259,7 +297,8 @@
       "source": "website/resources/views/partials/part-card.blade.php",
       "destination": "servernet_app/resources/views/partials/part-card.blade.php",
       "before": [
-        "6baf44da66b3903df6e2e07a3285f0e758ce2432f780f4e12565836a00a3dc39"
+        "6baf44da66b3903df6e2e07a3285f0e758ce2432f780f4e12565836a00a3dc39",
+        "4ef09c782dfbebf127cd72642e8a118adcf791dcab25b4c2bc08e69f46818986"
       ],
       "after": "8113d7c24b1dbab78752965eafaed1aa0f49ca0389db1f89fd298f2b585da8aa"
     },
@@ -268,7 +307,9 @@
       "destination": "servernet_app/resources/views/pages/parts-index.blade.php",
       "before": [
         "e6dede5c54e3fdbf4894f281cdd8986826a454edb1a03da21c111749969ac9b7",
-        "4d4fe5f1052fc42284cae616be6d6a3a89f7ab25c75042e2c60edd1eed95919d"
+        "6f4737104e735ab84233470bdb961979bd5705c7f11f5d62b0ea30d01c24a5e9",
+        "4d4fe5f1052fc42284cae616be6d6a3a89f7ab25c75042e2c60edd1eed95919d",
+        "42d5412d9204d4a5630fea17381371b0ca535387d2c23c23c5833bf351b90a09"
       ],
       "after": "ee27098a70658aecfb7dd38aaaaffcac2fdb01b187cc86da541541ddb4a2b280"
     },
@@ -277,7 +318,9 @@
       "destination": "servernet_app/resources/views/pages/parts-category.blade.php",
       "before": [
         "7f1ca0480812a7da8083689bd9edf8ea931f806f03eebd03a3efdde627071a46",
-        "e2168a851c4d0454483b6a95b9be95a4b6c53b2cfd723216df713405617db503"
+        "cc059a63a9f313229a1a917afdc91a0b6b4994e6dc0377efb9279ff6d40e4394",
+        "e2168a851c4d0454483b6a95b9be95a4b6c53b2cfd723216df713405617db503",
+        "8d95c4fa26fe9d78b2a0e7b926fa0b2085c67a6b0e92b188c6648c59b63448ce"
       ],
       "after": "a09ccb75023af91c230bf895084713eea9bc381f83e69aaa224394e7d9e40cc3"
     },
@@ -286,7 +329,9 @@
       "destination": "servernet_app/resources/views/pages/part-detail.blade.php",
       "before": [
         "2d20cb6bdd01918f670cf8bc7f8494aad1b2804c38afdfb7f7ae372aac77ecb1",
-        "be8188c8d22dd1f8d78b2e55fffdde050ba745fe437305fc8288e9372e963b60"
+        "ff8f40f0d1f8b770b7db6733ca364fc0f1ba0a0c58db47727f15988acca8390e",
+        "be8188c8d22dd1f8d78b2e55fffdde050ba745fe437305fc8288e9372e963b60",
+        "2db7a1061470eea3804648e9000a168a053bab97e88fa57b1e48c9d71cf05dc2"
       ],
       "after": "e64179a825cca80be8f3755e4eb77b546b44a7a5642bd25ffaa82535cfaa6535"
     },
@@ -294,7 +339,8 @@
       "source": "website/resources/views/pages/parts-compare.blade.php",
       "destination": "servernet_app/resources/views/pages/parts-compare.blade.php",
       "before": [
-        "9201d5811b4ef5e54c02290e676d9fd5e7a9efc5208daba8f3ebb89c25467fcf"
+        "9201d5811b4ef5e54c02290e676d9fd5e7a9efc5208daba8f3ebb89c25467fcf",
+        "8290eb0d8ea4ad47eaad4eb59e463141cb77b74cc3e29250278988f2d044d48c"
       ],
       "after": "0243747df2bb249635efe22c569152958285587840c9b52fd7d95fb97978c9f8"
     },
@@ -303,7 +349,9 @@
       "destination": "servernet_app/resources/views/pages/parts-generation.blade.php",
       "before": [
         "b81ece3bd26ba4b48d39115e38d200f2a1ec9728669d0e9c20fad92bb0a2569b",
-        "8512b062415565c221477d9a0dea6f1e1f43105071c74441e2288899acb3437f"
+        "6b9240d48c24a17209fcc365fbf92d75e2eaf8a332a475c53c5e60014d0e68d0",
+        "8512b062415565c221477d9a0dea6f1e1f43105071c74441e2288899acb3437f",
+        "95b3f71ee3b3f5adb02759e54412fbb96d95c4b598fbcbfce8f611bfefa0530b"
       ],
       "after": "8512b062415565c221477d9a0dea6f1e1f43105071c74441e2288899acb3437f"
     },
@@ -312,7 +360,9 @@
       "destination": "servernet_app/resources/views/pages/server-detail.blade.php",
       "before": [
         "619d16504e237ca5a3e76127f79e34e127697dae0d57e7d0d116e79114fd6dbe",
-        "558250ff6663637f343516c9a581fea96e58af22124bfc0bd7d564c23a58c6ff"
+        "ced7650587b83e873c6b1f425e43660d4ffe7f0f368fc84173515ef32fe35dcf",
+        "558250ff6663637f343516c9a581fea96e58af22124bfc0bd7d564c23a58c6ff",
+        "9f320cea7ea7ab3ee480d332dd7f67ca0c24845eff9e2a7efcd86a695ddd14fd"
       ],
       "after": "bd63f1ebbd72d2402774b4028f363d68e3f3f41482ed53b2752f5e76f17aa72d"
     },
@@ -321,7 +371,9 @@
       "destination": "servernet_app/resources/views/pages/servers-index.blade.php",
       "before": [
         "f59e93d32b8c7ddfe21d0438c3fc4ef8a5ee3615df20d25d8f168b0ff99e0d2c",
-        "8767db3877b15d4912fd0c6fc6731c12085a345f0238711323f4f4162dfcab1f"
+        "85c0aea29ab5a2c544849fb99d17eeb79513c688376b64ab33f9acf97a818d4d",
+        "8767db3877b15d4912fd0c6fc6731c12085a345f0238711323f4f4162dfcab1f",
+        "425ab258c37729e47f8563699e646472f9d118abf677ffe762de0d3b1354b9c1"
       ],
       "after": "8767db3877b15d4912fd0c6fc6731c12085a345f0238711323f4f4162dfcab1f"
     },
@@ -329,9 +381,16 @@
       "source": "website/config/servernet.php",
       "destination": "servernet_app/config/servernet.php",
       "before": [
-        "3fcd1dc9ecbebb670a71fad9b749b4f0cf788b6d9f01530566c9a2d271850955"
+        "9fbc1b18e2a5931b6423449aa14ceab76d7879ef75ff048dbb0f9264ad1b9296"
       ],
-      "after": "8838f72b0c1c0ac5b11e4de4de3e9062e9a3af0f8ec7e803944ebc13455ecc78"
+      "after": "187d020b64aa0b33c19ca339907ed646a08bd6757d0b5bbc5b279648e3f2281d",
+      "source_sha": "8838f72b0c1c0ac5b11e4de4de3e9062e9a3af0f8ec7e803944ebc13455ecc78",
+      "edits": [
+        {
+          "anchor": "                    ['route' => ['servers.generation', 'gen10'], 'fa' => 'قطعات HP نسل ۱۰', 'en' => 'HP Gen10 parts', 'tr' => 'HP Gen10 parçaları'],\n                    ['route' => ['parts.index', []], 'fa' => 'همهٔ قطعات سرور', 'en' => 'All server parts', 'tr' => 'Tüm sunucu parçaları'],\n                ]],\n",
+          "insert": "                ['fa' => 'تجهیزات دیتاسنتر و شبکه', 'en' => 'Datacenter equipment', 'tr' => 'Veri merkezi ekipmanı', 'items' => [\n                    ['route' => ['parts.category', 'storage'], 'fa' => 'استوریج SAN و NAS', 'en' => 'SAN & NAS storage', 'tr' => 'SAN ve NAS depolama'],\n                    ['route' => ['parts.category', 'rack'], 'fa' => 'رک سرور و شبکه', 'en' => 'Server racks', 'tr' => 'Sunucu rack kabinleri'],\n                    ['route' => ['parts.category', 'ups'], 'fa' => 'یو پی اس UPS', 'en' => 'UPS backup power', 'tr' => 'UPS yedek güç'],\n                    ['route' => ['parts.category', 'switch'], 'fa' => 'سوئیچ شبکه', 'en' => 'Network switches', 'tr' => 'Ağ anahtarları'],\n                    ['route' => ['parts.category', 'pdu'], 'fa' => 'PDU رک', 'en' => 'Rack PDUs', 'tr' => 'Rack PDU'],\n                    ['route' => ['parts.planner', []], 'fa' => 'ابزار طراحی و محاسبه ظرفیت', 'en' => 'Hardware planning tools', 'tr' => 'Donanım planlama araçları'],\n                ]],\n"
+        }
+      ]
     }
   ]
 }
