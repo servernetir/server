@@ -16,7 +16,7 @@ Owner scope: add OpenRouter token resale, compare equivalent models, expose the 
 
 ## Validation
 
-Local baseline and head were compared using PHP 8.4 in isolated checkouts with fake providers. An initially missing local bcmath module was identified by exercising full settlement; final results below supersede those preliminary runs. Final isolated regression comparison: base 176 tests (162 passed, 2 historical failures, 11 historical errors, 1 skipped); head 191 tests (177 passed, the same failures/errors/skip). No new failures. The new routing suite passed 17 tests / 70 assertions. A selected catalogue/admin/JSON/SSE/settlement suite passed 135 tests / 992 assertions. Historical errors are old FX fixture/override expectations and are not represented as a green full suite.
+Local baseline and head were compared using PHP 8.4 in isolated checkouts with fake providers. An initially missing local bcmath module was identified by exercising full settlement; final results below supersede those preliminary runs. Broader isolated regression comparison before the final access/response-redaction follow-ups: base 176 tests (162 passed, 2 historical failures, 11 historical errors, 1 skipped); head 191 tests (177 passed, the same failures/errors/skip). No new failures. The new routing suite passed 17 tests / 70 assertions. A selected catalogue/admin/JSON/SSE/settlement suite passed 135 tests / 992 assertions. Historical errors are old FX fixture/override expectations and are not represented as a green full suite.
 
 An offline replay of the live public feeds imported 514 rows: 353 executable contracts and 161 pending contracts. This is a dated schema acceptance, not evidence that each model was called or billed by the supplier.
 
@@ -26,4 +26,19 @@ The pinned release manifest contains 17 runtime files. Private backups, exact be
 
 `setup.php` registers the authorized provider, disables GapGPT, enables economic selection/uniform margin, and backs up the prior non-secret configuration. It never reads or exports API keys. The operator enters the API key through the existing encrypted provider form. Rollback first disables OpenRouter/selection, then restores only matching files with `release.py rollback`; price and usage history remain. Configuration rollback must use the private backup and account for subsequent operator changes.
 
-Status: implementation prepared; production installation and API-key validation pending.
+## Production acceptance — 24 November 2026
+
+Implementation PR427 merged as `78f408f78f21d194af7301b6a0b7ce2a40043cb5`; pinned runtime source `c779f7fe971d9488eb15ffe2185ac793d704a30f`. All eight workflows on that source succeeded. SQLite: 135 tests / 992 assertions; MariaDB: 17 tests / 70 assertions.
+
+Seventeen runtime files were installed with matching hashes, private backups and targeted activation in both observed application PHP-FPM pools. Three admin views compiled; no general cache flush. Configuration setup retained the global 7% margin, set the owner-supplied OpenRouter funding overhead to 3,390 bp, disabled GapGPT and enabled economic selection/uniform ordinary margin. The hourly application scheduler already exists; no second cron was added.
+
+Official production imports: OpenRouter 514 rows, 353 executable token contracts and 161 pending contracts; DeepInfra 414 rows (129 text/input-ready, 76 native-ready, 30 pending, 179 deprecated). These readiness counts do not override manual suspensions or commercial/access gates. Exact cross-provider identities: 121. A real DeepInfra 30% promotion produced input/output rates of 140,000/420,000 micro-USD per million, confirming that the separate discount was applied once.
+
+The OpenRouter provider is ID5. The credential check returned `key_missing`; no paid inference was executed. The catalogue currently serves 205 eligible DeepInfra entries plus two direct DeepSeek entries. OpenRouter entries become customer-eligible after a valid key is entered in the existing encrypted provider form; authenticated OpenRouter inference and the final union in Studio remain pending that step.
+
+Public model listings in FA/EN/TR returned HTTP 200 with source-rendered models and no supplier names. Unauthenticated `/v1/models` returned HTTP 401. The complete catalogue calculation was profiled at four database queries and approximately 1.47 seconds in CLI; public requests measured approximately 9.2–9.4 seconds including network/rendering, without a before/after latency baseline. No speed improvement is claimed.
+
+A daily conditional health check was scheduled for 10:00 Asia/Tehran beginning 25 November. It checks catalogue freshness, economic routing, global margin and shared Studio availability, and notifies only on a material problem. Native price synchronization remains hourly.
+
+Status: installed and production catalogue/configuration verified; OpenRouter API-key entry and authenticated serving acceptance pending.
+
