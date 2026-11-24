@@ -19,7 +19,7 @@
     "gap": 66,
     "openrouter": 6
   },
-  "method": "USD cost for 1M uncached input + 1M output at base tariff, 33.9% OpenRouter funding overhead, 0% registered GapGPT overhead; excludes ServerNet margin/VAT, media and execution/access claims",
+  "method": "USD cost for 1M uncached input + 1M output at base tariff, 33.9% OpenRouter funding overhead, 0% registered GapGPT overhead; excludes ServerNet margin/VAT, media and execution/access claims; embeddings compare 1M input only (no output charge)",
   "limitations": [
     "Indicative dated tariff comparison; no inference/access acceptance",
     "Distinct variants/media/dynamic aliases and unsupported metering excluded",
