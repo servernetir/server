@@ -29,6 +29,11 @@
       "old": "        $started = hrtime(true);\n\n        try {\n            $result = $driver->chat($model, $prepared->body(), $tHttp);\n        } catch (AiProviderCallException $e) {\n            return $this->failure($usage, $model, $e, $headers);\n        } catch (\\Throwable $e) {\n",
       "new": "        $started = hrtime(true);\n\n        try {\n            $body = $prepared->body();\n            if ($model->provider?->slug === 'openrouter') {\n                $body['_servernet_max_price'] = ['prompt' => (string) \\Brick\\Math\\BigDecimal::of($usage->input_rate_micro)->dividedBy(1_000_000, 6)];\n                if ($model->category === 'chat') {\n                    $body['_servernet_max_price']['completion'] = (string) \\Brick\\Math\\BigDecimal::of($usage->output_rate_micro)->dividedBy(1_000_000, 6);\n                }\n            }\n            $result = $driver->chat($model, $body, $tHttp);\n        } catch (AiProviderCallException $e) {\n            return $this->failure($usage, $model, $e, $headers);\n        } catch (\\Throwable $e) {\n",
       "count": 1
+    },
+    {
+      "old": "        $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;\n        $body['model'] = $usage->model_slug;\n        unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],\n            $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);\n        return $body;\n    }\n",
+      "new": "        $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;\n        $body['model'] = $usage->model_slug;\n        unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],\n            $body['usage']['is_byok'], $body['provider'], $body['system_fingerprint'],\n            $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);\n        return $body;\n    }\n",
+      "count": 1
     }
   ],
   "website/app/Services/Ai/AiPricing.php": [

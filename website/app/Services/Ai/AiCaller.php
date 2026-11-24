@@ -726,6 +726,7 @@ final class AiCaller
         $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;
         $body['model'] = $usage->model_slug;
         unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],
+            $body['usage']['is_byok'], $body['provider'], $body['system_fingerprint'],
             $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);
         return $body;
     }

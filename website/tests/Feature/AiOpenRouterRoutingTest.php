@@ -266,7 +266,7 @@ class AiOpenRouterRoutingTest extends TestCase
     {
         $or = $this->pair();
         [, $key] = $this->greenKey();
-        $chunks = [['id' => 'private-id', 'model' => 'private-model', 'choices' => [['index' => 0,
+        $chunks = [['id' => 'private-id', 'model' => 'private-model', 'provider' => 'private-provider', 'choices' => [['index' => 0,
             'delta' => ['content' => 'hello'], 'finish_reason' => null]]],
             ['choices' => [], 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 1, 'cost' => '0.0000012']]];
         $stream = implode('', array_map(fn ($chunk) => 'data: '.json_encode($chunk)."\n\n", $chunks))."data: [DONE]\n\n";
@@ -309,5 +309,17 @@ JSON;
         $this->assertSame('0.00000010000000001', AiUsageParser::parse($body, $raw)['estimated_cost']);
         $body['usage']['cost'] = null;
         $this->assertNull(AiUsageParser::parse($body, '{"cost":9}')['estimated_cost']);
+    }
+
+    public function test_whitelabel_response_removes_supplier_identity_and_private_billing_metadata(): void
+    {
+        $usage = new AiUsage(['operation' => 'chat', 'public_id' => 'example-id', 'model_slug' => 'servernet-model']);
+        $body = \App\Services\Ai\AiCaller::publicBody(['model' => 'upstream/model', 'provider' => 'supplier-name',
+            'system_fingerprint' => 'supplier-host', 'usage' => ['cost' => 1, 'is_byok' => false]], $usage);
+        $this->assertSame('servernet-model', $body['model']);
+        $this->assertArrayNotHasKey('provider', $body);
+        $this->assertArrayNotHasKey('system_fingerprint', $body);
+        $this->assertArrayNotHasKey('cost', $body['usage']);
+        $this->assertArrayNotHasKey('is_byok', $body['usage']);
     }
 }
