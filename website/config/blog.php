@@ -57,12 +57,13 @@ return [
         'n8n-backup-migration-guide' => ['kind' => 'catalog', 'category' => 'cloud', 'slug' => 'n8n'],
         'object-storage-vs-block-storage' => ['kind' => 'storage', 'slug' => 'object-storage'],
         'php-version-upgrade-guide' => ['kind' => 'hosting', 'slug' => 'linux'],
+        'python-hosting-django-flask-deployment' => ['kind' => 'hosting', 'slug' => 'python'],
     ],
 
     // مسیرهای مطالعهٔ منتخب: فقط نوشتهٔ منتشرشده و ترجمهٔ همان زبان نمایش داده می‌شود.
     // این صفحات با مقالهٔ نامرتبط پُر نمی‌شوند؛ صفحات دیگر چرخش دستهٔ قبلی را دارند.
     'product_guide_posts' => [
-        'hosting/python' => ['diagnosing-slow-website', 'configuring-dns-for-new-site', 'measuring-real-user-performance'],
+        'hosting/python' => ['python-hosting-django-flask-deployment', 'diagnosing-slow-website', 'configuring-dns-for-new-site'],
         'hosting/linux' => ['php-version-upgrade-guide', 'cpanel-vs-directadmin', 'diagnosing-slow-website'],
         'hosting/wordpress' => ['php-version-upgrade-guide', 'cpanel-vs-directadmin', 'diagnosing-slow-website'],
         'cloud/object-storage' => ['object-storage-vs-block-storage'],

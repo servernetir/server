@@ -1,0 +1,141 @@
+{
+  "files": [
+    {
+      "source": "website/lang/fa/search-growth.php",
+      "destination": "servernet_app/lang/fa/search-growth.php",
+      "before": null,
+      "after": "24e0ba398399bc0a59c1f652c5403b6c1133ee7733cfc9effb61d0e7a6f4fe3d"
+    },
+    {
+      "source": "website/lang/en/search-growth.php",
+      "destination": "servernet_app/lang/en/search-growth.php",
+      "before": null,
+      "after": "573921feb5155c6131d324cbab1947e68aef536c521f8764c6de21439779b36c"
+    },
+    {
+      "source": "website/lang/tr/search-growth.php",
+      "destination": "servernet_app/lang/tr/search-growth.php",
+      "before": null,
+      "after": "58c3e6aff16fb98a12926e29b84289770caee0975ed31837d7056f78f97a0a1c"
+    },
+    {
+      "source": "website/resources/content/growth/python-hosting-django-flask-deployment.json",
+      "destination": "servernet_app/resources/content/growth/python-hosting-django-flask-deployment.json",
+      "before": null,
+      "after": "f6b67fad51b5e8a7b72cca911d65e3d3b7c1547599d5a8aef9c4582c2d64ea70"
+    },
+    {
+      "source": "website/resources/views/partials/search-growth-guide.blade.php",
+      "destination": "servernet_app/resources/views/partials/search-growth-guide.blade.php",
+      "before": null,
+      "after": "6b298704bc34787ba4492df4370f9fd2c7c9977ad38a9dd4e2f4e5ae8e606c42"
+    },
+    {
+      "source": "website/resources/views/partials/gpu-styles.blade.php",
+      "destination": "servernet_app/resources/views/partials/gpu-styles.blade.php",
+      "before": null,
+      "after": "4cfc31de91165598246ce8f1cc8636ae14688f2e6dc0a3780c276a137bdffdda"
+    },
+    {
+      "source": "website/app/Services/PublicPageStyles.php",
+      "destination": "servernet_app/app/Services/PublicPageStyles.php",
+      "before": "70916584b27eb585f202708482b0f47ec203c6e4516f913033fc6418e570c0ac",
+      "after": "d6f2bbd52ca077c0ce0aa29e1fd535050440912014b79fb8c3fd61f8db3417e6"
+    },
+    {
+      "source": "website/config/blog.php",
+      "destination": "servernet_app/config/blog.php",
+      "before": "d44b76ffd06eb97481838d25b5d3f934f31da3f4507915c84207bcfcc6e3fc4a",
+      "after": "9bdb7fd424347b8dcb001dec13d605d39f08ddc5bdbeb87bff0f7eebe5b76699"
+    },
+    {
+      "source": "website/config/growth.php",
+      "destination": "servernet_app/config/growth.php",
+      "before": "09e1e95cab5ebcf630a256f6c95eebfd12e4b3cbce5ae53f09d0e45daee95578",
+      "after": "59e30a27e298da127df63f321d462a3907aa13804586b58a83964b5dffd4c5a5"
+    },
+    {
+      "source": "website/resources/views/partials/seo-python-fit.blade.php",
+      "destination": "servernet_app/resources/views/partials/seo-python-fit.blade.php",
+      "before": "8b7ec231ed125f9550e71e05470ba73dd91f4ee13209e3e4aae18597004d4fe3",
+      "after": "341ca3eae06419a5cdbfeb87c267848679e95e3b4df475bc585c0e90549f91f2"
+    },
+    {
+      "source": "website/resources/views/pages/ai/home.blade.php",
+      "destination": "servernet_app/resources/views/pages/ai/home.blade.php",
+      "before": "ca0231857455c08b30b725d8d4baff57c7921348ce72db0d1967637eb9508688",
+      "after": "ca4540b72e81c977a73cb70d278cd03b5fb13ecd46443821c0d5f18e0cabb417"
+    },
+    {
+      "source": "website/resources/views/pages/blog-post.blade.php",
+      "destination": "servernet_app/resources/views/pages/blog-post.blade.php",
+      "before": "2223c9961bf80ae41814dd474d4711de3fce9bcb320eae84dcd95a661883b810",
+      "after": "2ee6775799c39b582f3f9fcef9c3c700e4749f608c0e3bada0bd94c62fcbeb3f"
+    },
+    {
+      "source": "website/resources/views/pages/n8n.blade.php",
+      "destination": "servernet_app/resources/views/pages/n8n.blade.php",
+      "before": "fe74ec6766288f6ca487729d41daa1acae72c9dce1713c5e1bbf3a4f28de1218",
+      "after": "84e8315860473dfe737fba5fced02ea025e7959c39647776d2d6b8b7f8d7b9d6"
+    },
+    {
+      "source": "website/resources/views/pages/gpu.blade.php",
+      "destination": "servernet_app/resources/views/pages/gpu.blade.php",
+      "before": "3fc2a56377f96221acb6a3dfd20f98e76aaf929c12ff9457e869997c3c51d63e",
+      "after": "04d12251fe814cee7f372e6a27f55bc9fb00d0ed31030cf7feddf6fc79c3c50c",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/chat.blade.php",
+      "destination": "servernet_app/resources/views/partials/chat.blade.php",
+      "before": "f48a2e9f156569a7d82e3c86cf01d5e97fb25ef97bb4d894ac53a8ac1b5cab9c",
+      "after": "39f9637f70e5b5d10cd2981a3bb956f25e3d5cee34c5eb3c0dc8c8816605a3be",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/vps-plan-table.blade.php",
+      "destination": "servernet_app/resources/views/partials/vps-plan-table.blade.php",
+      "before": "9f6053d2a686c7da317ee4ad3a974ec1fd34fe852f2497e025cf697f32eadaf8",
+      "after": "716514b4da53bc5fcdfbea43b6c3c61c5b0de59d2211ed9d813320c0b1304658",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/layouts/site.blade.php",
+      "destination": "servernet_app/resources/views/layouts/site.blade.php",
+      "before": "6b462a52c040c03cee4ac08e3904fe7086527ea7e34ad7eaa7b623a2f7139793",
+      "after": "969a01d8955b61ede21e6c0736394ed180f64ab5bedfc8aa45c21b62aa7e5028",
+      "patch": true
+    }
+  ],
+  "views": [
+    "layouts.site",
+    "pages.ai.home",
+    "pages.blog-post",
+    "pages.gpu",
+    "pages.n8n",
+    "partials.seo-python-fit",
+    "partials.search-growth-guide",
+    "partials.gpu-styles",
+    "partials.growth-guides",
+    "partials.chat",
+    "partials.vps-plan-table"
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/search-growth-20261124/activate.php",
+      "sha256": "f38646f2fb4452688a2572f51d4288c54ed543aa93086bb1ff10b020d1f3fc8a"
+    },
+    "lint.php": {
+      "path": "scripts/search-growth-20261124/lint.php",
+      "sha256": "20a9d300d0bb60372c48827cc21fe5b4efc0cabee3282b84185340454d275184"
+    }
+  }
+}

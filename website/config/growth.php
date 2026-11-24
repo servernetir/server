@@ -13,6 +13,14 @@ return [
         ['post' => 'comfyui-hourly-gpu-guide'],
         ['post' => 'jupyter-hourly-gpu-guide'],
     ],
+    'article-gpu-server-selection' => [
+        ['route' => 'gpu', 'title' => ['fa' => 'انتخاب کارت و برنامه برای اجاره GPU ساعتی', 'en' => 'Choose a card and application for hourly GPU rental', 'tr' => 'Saatlik GPU kiralamak için kart ve uygulama seçin']],
+        ['post' => 'comfyui-hourly-gpu-guide'],
+        ['post' => 'jupyter-hourly-gpu-guide'],
+    ],
+    'article-hourly-vs-monthly-billing' => [
+        ['route' => 'vps.hourly', 'title' => ['fa' => 'مقایسهٔ قیمت و شرایط خرید سرور ساعتی', 'en' => 'Compare hourly VPS prices and billing conditions', 'tr' => 'Saatlik VPS fiyatlarını ve ödeme koşullarını karşılaştırın']],
+    ],
     'hourly' => [
         ['post' => 'how-to-choose-a-vps'],
         ['route' => 'gpu', 'title' => ['fa' => 'اجاره GPU برای پردازش گرافیکی و مدل', 'en' => 'GPU rental for graphics and model workloads', 'tr' => 'Grafik ve model işleri için GPU kiralama']],
@@ -25,8 +33,13 @@ return [
         ['route' => 'vps.hourly', 'title' => ['fa' => 'VPS ساعتی برای نصب و مدیریت مستقل n8n', 'en' => 'Hourly VPS for a self-managed n8n installation', 'tr' => 'Kendi n8n kurulumunuz için saatlik VPS']],
     ],
     'python' => [
+        ['post' => 'python-hosting-django-flask-deployment'],
         ['route' => 'vps.hourly', 'title' => ['fa' => 'سرور ساعتی برای worker و کنترل سیستم‌عامل', 'en' => 'Hourly VPS for workers and OS control', 'tr' => 'Worker ve işletim sistemi kontrolü için saatlik VPS']],
         ['post' => 'jupyter-hourly-gpu-guide'],
+    ],
+    'article-python-hosting-django-flask-deployment' => [
+        ['route' => 'hosting', 'parameters' => ['slug' => 'python'], 'title' => ['fa' => 'مقایسهٔ پلن‌های هاست پایتون برای Django و Flask', 'en' => 'Compare Python hosting plans for Django and Flask', 'tr' => 'Django ve Flask için Python hosting paketlerini karşılaştırın']],
+        ['route' => 'vps.hourly', 'title' => ['fa' => 'سرور ساعتی برای WebSocket و worker دائمی', 'en' => 'Hourly VPS for WebSockets and persistent workers', 'tr' => 'WebSocket ve sürekli worker için saatlik VPS']],
     ],
     'image-cropper' => [
         ['route' => 'webtools', 'parameters' => ['slug' => 'image-compressor'], 'title' => ['fa' => 'فشرده‌سازی تصویر پس از برش', 'en' => 'Compress an image after cropping', 'tr' => 'Kırptıktan sonra görseli sıkıştırın']],

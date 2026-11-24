@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+"""Pinned commercial search performance and content release; preserves unrelated live edits."""
+import fcntl
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+
+sys.dont_write_bytecode = True
+
+HOME = Path('/home/servernetcloud')
+ROOT = HOME / 'servernet_app'
+PHP = '/opt/cpanel/ea-php84/root/usr/bin/php'
+RELEASE = 'search-growth-20261124'
+PREFIX = 'scripts/' + RELEASE + '/'
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def fetch(commit, path):
+    with urllib.request.urlopen('https://raw.githubusercontent.com/servernetir/server/' + commit + '/' + path, timeout=30) as response:
+        return response.read()
+
+
+def write(path, data, mode=0o644):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.search-growth-release-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def current(row):
+    path = HOME / row['destination']
+    assert path.is_relative_to(ROOT) and '..' not in path.parts, 'Invalid target scope'
+    assert not any(parent.is_symlink() for parent in [path, *path.parents]), 'Symlink target'
+    assert not path.exists() or (path.is_file() and path.stat().st_uid == os.getuid()), 'Invalid target identity'
+    return sha(path.read_bytes()) if path.exists() else None
+
+
+def preflight(records, phase):
+    for row in records:
+        assert current(row) == row[phase], 'Unexpected live bytes: ' + row['destination']
+
+
+def activate(stage, manifest, phase):
+    # Reuse already reviewed same-account socket ownership and HTTP-denial helpers.
+    for name, source in manifest['helpers'].items():
+        data = fetch(manifest['commit'], source['path'])
+        assert sha(data) == source['sha256'], 'Activation helper changed'
+        write(stage / name, data, 0o600)
+    modules = {}
+    for name in ['activation_common', 'fcgi']:
+        spec = importlib.util.spec_from_file_location(name, stage / (name + '.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        modules[name] = module
+    common, fcgi = modules['activation_common'], modules['fcgi']
+    fcgi.RELEASE = RELEASE
+    results = []
+    with common.temporary_primary(stage) as (primary, script_name):
+        for target in common.observe_pools():
+            assert common.owned_socket(target, os.getuid()), 'FPM ownership changed'
+            params = {'GATEWAY_INTERFACE': 'CGI/1.1', 'SERVER_PROTOCOL': 'HTTP/1.1',
+                'REQUEST_METHOD': 'POST', 'SCRIPT_FILENAME': str(primary), 'SCRIPT_NAME': script_name,
+                'REQUEST_URI': script_name, 'DOCUMENT_ROOT': str(HOME / 'public_html'),
+                'SERVER_NAME': 'servernet.cloud', 'HTTP_HOST': 'servernet.cloud', 'SERVER_PORT': '443',
+                'HTTPS': 'on', 'REMOTE_ADDR': '127.0.0.1', 'CONTENT_LENGTH': '0',
+                'SERVERNET_LOCAL_RELEASE': RELEASE, 'SERVERNET_SEARCH_PLAN': str(stage / 'prepared.json'),
+                'SERVERNET_SEARCH_PHASE': phase}
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                connection.settimeout(20)
+                connection.connect(str(target))
+                connection.sendall(fcgi.record(1, struct.pack('!HB5s', 1, 0, b'\0' * 5))
+                    + fcgi.record(4, fcgi.encode_params(params)) + fcgi.record(4) + fcgi.record(5))
+                result = fcgi.receive(connection, time.monotonic() + 20)
+            if result.get('status') == 'stopped':
+                raise RuntimeError('Scoped activation stopped: ' + json.dumps({k: result.get(k) for k in ['step', 'reason', 'file', 'line']}))
+            assert result.get('compiled_views') == len(manifest['views']) and result.get('phase') == phase and result.get('general_cache_flush') is False
+            results.append(result)
+    return results
+
+
+def run(mode, commit, stage):
+    manifest = json.loads(fetch(commit, PREFIX + 'manifest.json'))
+    manifest['commit'] = commit
+    if mode == 'prepare':
+        assert not (stage / 'receipt.json').exists(), 'Already installed'
+        records = []
+        edits_by_source = json.loads(fetch(commit, PREFIX + 'edits.json'))
+        fetched = {}
+        for index, row in enumerate(manifest['files']):
+            destination = HOME / row['destination']
+            current(row)
+            before = destination.read_bytes() if destination.exists() else None
+            assert (sha(before) if before is not None else None) == row['before'], 'Unexpected live bytes: ' + row['destination']
+            if row.get('patch'):
+                data = before
+                edits = edits_by_source[row['source']]
+                for edit in edits:
+                    old, new = edit['old'].encode(), edit['new'].encode()
+                    assert data.count(old) == edit['count'], 'Unexpected patch anchor: ' + row['destination']
+                    data = data.replace(old, new)
+            else:
+                if row['source'] not in fetched:
+                    fetched[row['source']] = fetch(commit, row['source'])
+                data = fetched[row['source']]
+            assert sha(data) == row['after'], 'Payload mismatch'
+            write(stage / 'files' / str(index), data, 0o600)
+            if row['destination'].endswith('.php'):
+                subprocess.run([PHP, '-l', str(stage / 'files' / str(index))], check=True, stdout=subprocess.DEVNULL)
+            records.append(dict(row, mode=(destination.stat().st_mode & 0o777) if before is not None else 0o644))
+        write(stage / 'prepared.json', json.dumps(records).encode(), 0o600)
+        compiler = manifest['helpers'].get('lint.php')
+        if compiler:
+            data = fetch(commit, compiler['path'])
+            assert sha(data) == compiler['sha256'], 'Compiler hash mismatch'
+            write(stage / 'lint.php', data, 0o600)
+            subprocess.run([PHP, str(stage / 'lint.php'), str(ROOT), str(stage / 'prepared.json')], check=True)
+        print(json.dumps({'status': 'prepared', 'files': len(records), 'sha': commit}))
+        return
+    records = json.loads((stage / 'prepared.json').read_text())
+    assert [{k: row[k] for k in manifest['files'][index]} for index, row in enumerate(records)] == manifest['files']
+    if mode == 'verify':
+        preflight(records, 'after')
+        print(json.dumps({'status': 'verified', 'files': len(records), 'sha': commit}))
+        return
+    if mode == 'activate':
+        preflight(records, 'after')
+        print(json.dumps({'status': 'activated', 'pools': activate(stage, manifest, 'after')}))
+        return
+    if mode == 'rollback':
+        preflight(records, 'after')
+        for index, row in enumerate(records):
+            if row['before'] is not None:
+                assert sha((stage / 'backup' / str(index)).read_bytes()) == row['before']
+        # Detach the include before retiring this release's new dependencies.
+        for index, row in reversed(list(enumerate(records))):
+            if row['before'] is not None:
+                write(HOME / row['destination'], (stage / 'backup' / str(index)).read_bytes(), row['mode'])
+        activate(stage, manifest, 'before')
+        for row in records:
+            if row['before'] is None:
+                assert current(row) == row['after']
+                (HOME / row['destination']).unlink()
+        print(json.dumps({'status': 'rolled_back', 'sha': commit}))
+        return
+    assert mode == 'apply' and not (stage / 'receipt.json').exists(), 'Already installed'
+    preflight(records, 'before')
+    for index, row in enumerate(records):
+        if row['before'] is not None:
+            write(stage / 'backup' / str(index), (HOME / row['destination']).read_bytes(), 0o600)
+    changed = []
+    try:
+        # Every dependency installs before the single homepage include.
+        for index, row in enumerate(records):
+            assert current(row) == row['before'], 'Concurrent live change'
+            data = (stage / 'files' / str(index)).read_bytes()
+            assert sha(data) == row['after']
+            write(HOME / row['destination'], data, row['mode'])
+            changed.append((index, row))
+        results = activate(stage, manifest, 'after')
+        write(stage / 'receipt.json', json.dumps({'sha': commit, 'files': records, 'activation': results}).encode(), 0o600)
+    except BaseException:
+        # Every new dependency precedes existing source patches in the manifest.
+        # Keep those files until old views/routes are active again.
+        for index, row in reversed(changed):
+            if current(row) == row['after'] and row['before'] is not None:
+                write(HOME / row['destination'], (stage / 'backup' / str(index)).read_bytes(), row['mode'])
+        if any(row['before'] is not None for _, row in changed):
+            activate(stage, manifest, 'before')
+        for _, row in reversed(changed):
+            if row['before'] is None and current(row) == row['after']:
+                (HOME / row['destination']).unlink()
+        raise
+    print(json.dumps({'status': 'installed', 'files': len(records), 'sha': commit, 'activation': results}))
+
+
+def recover_interrupted(commit, stage, previous):
+    """Only recover this release's exact once-installed new dependencies.
+
+    Existing live files must already be restored to their original bytes. The
+    previous stage must be an interrupted (not completed) release of the same
+    manifest. Refresh the old views in both pools before retiring dependencies.
+    """
+    assert not previous.is_symlink() and previous.is_dir()
+    assert not (previous / 'receipt.json').exists(), 'Previous release completed'
+    manifest = json.loads(fetch(commit, PREFIX + 'manifest.json'))
+    manifest['commit'] = commit
+    records = json.loads((previous / 'prepared.json').read_text())
+    assert [{k: row[k] for k in manifest['files'][index]} for index, row in enumerate(records)] == manifest['files']
+    for index, row in enumerate(records):
+        expected = row['before'] if row['before'] is not None else row['after']
+        assert current(row) == expected, 'Unexpected interrupted state: ' + row['destination']
+        if row['before'] is not None:
+            assert sha((previous / 'backup' / str(index)).read_bytes()) == row['before']
+    write(stage / 'prepared.json', json.dumps(records).encode(), 0o600)
+    results = activate(stage, manifest, 'before')
+    retired = previous / 'retired-dependencies'
+    retired.mkdir(mode=0o700, exist_ok=True)
+    assert not retired.is_symlink()
+    for index, row in enumerate(records):
+        if row['before'] is None:
+            assert current(row) == row['after'] and not (retired / str(index)).exists()
+            os.replace(HOME / row['destination'], retired / str(index))
+    preflight(records, 'before')
+    print(json.dumps({'status': 'recovered', 'files': len(records), 'activation': results}))
+
+
+def main():
+    mode, commit = sys.argv[1:3]
+    assert mode in ['prepare', 'apply', 'verify', 'activate', 'rollback', 'recover'] and re.fullmatch('[0-9a-f]{40}', commit)
+    assert os.getuid() != 0 and Path.home() == HOME, 'Unexpected release account'
+    stage = HOME / 'deploy-backups' / (RELEASE + '-' + commit[:12])
+    stage.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(stage, 0o700)
+    with (ROOT / 'storage/framework/servernet-release.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # This live installation has neither config nor route caches. Stop if
+        # that contract changed instead of rebuilding unrelated configuration.
+        assert not (ROOT / 'bootstrap/cache/config.php').exists(), 'Unexpected config cache'
+        assert not list((ROOT / 'bootstrap/cache').glob('routes-*.php')), 'Unexpected route cache'
+        if mode == 'recover':
+            previous_sha = sys.argv[3]
+            assert re.fullmatch('[0-9a-f]{40}', previous_sha) and previous_sha != commit
+            recover_interrupted(commit, stage, HOME / 'deploy-backups' / (RELEASE + '-' + previous_sha[:12]))
+        else:
+            run(mode, commit, stage)
+
+
+if __name__ == '__main__':
+    main()
