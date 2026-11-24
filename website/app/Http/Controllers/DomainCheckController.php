@@ -61,7 +61,14 @@ class DomainCheckController extends Controller
         $primaryTld = $ext !== '' ? $ext : 'com';
         $tlds = array_values(array_unique(array_merge([$primaryTld], self::SUGGEST)));
 
-        $rows = $search->search($name, $tlds);
+        // The common available-name path needs one exact quote, across all
+        // eligible suppliers, rather than waiting for eight alternative names.
+        $rows = $search->search($name, [$primaryTld]);
+        $primaryRow = collect($rows)->first(fn ($row) => ($row['domain'] ?? '') === $name.'.'.$primaryTld);
+        if ($primaryRow && ($primaryRow['status'] ?? '') === 'unavailable') {
+            $alternatives = array_slice(array_values(array_diff(self::SUGGEST, [$primaryTld])), 0, self::MAX_SUGGESTIONS);
+            $rows = array_merge($rows, $search->search($name, $alternatives));
+        }
 
         $byDomain = [];
         foreach ($rows as $r) {

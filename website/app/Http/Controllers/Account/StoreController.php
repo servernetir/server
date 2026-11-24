@@ -125,6 +125,20 @@ class StoreController extends Controller
     /** ثبتِ سفارش: سرویس + پیش‌فاکتور می‌سازد و به پرداخت می‌برد */
     public function order(Request $request, Product $product): RedirectResponse
     {
+        if ($product->requires_domain && $request->input('domain_mode') === 'buy' && is_string($request->input('domain_buy'))) {
+            try {
+                return \Illuminate\Support\Facades\Cache::lock(
+                    \App\Services\Domain\DomainSupplierLifecycle::domainLockKey($request->input('domain_buy')), 180
+                )->block(5, fn () => $this->orderLocked($request, $product));
+            } catch (\Illuminate\Contracts\Cache\LockTimeoutException|\App\Services\Domain\Pricing\DomainProcurementException) {
+                return back()->withInput()->withErrors(['domain_buy' => __('hosting-domains.recheck')]);
+            }
+        }
+        return $this->orderLocked($request, $product);
+    }
+
+    private function orderLocked(Request $request, Product $product): RedirectResponse
+    {
         if (! $product->is_active) {
             return back()->withErrors(__('ui.stf_pkg_na'));
         }
@@ -156,6 +170,7 @@ class StoreController extends Controller
             'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
+            'domain_quote_id' => ['nullable', 'integer', 'min:1'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
             // ممنوعه. بدونِ این، مشتری می‌توانست console/mail/pay را بگیرد و
             // زیردامنهٔ حساسِ ما به هاستِ او می‌نشست (راهِ فیشینگ).
@@ -225,7 +240,12 @@ class StoreController extends Controller
         }
         $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
 
-        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
+        $domainQuote = $product->requires_domain && ($data['domain_mode'] ?? null) === 'buy'
+            ? app(\App\Services\Domain\HostingDomainPurchase::class)->prepare(
+                $customer, $domain, (int) ($data['domain_quote_id'] ?? 0), $product->currency_code)
+            : null;
+
+        $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote, $domainQuote) {
             $service = Service::create([
                 'customer_id'   => $customer->id,
                 'name'          => $product->name,
@@ -252,7 +272,7 @@ class StoreController extends Controller
                 'domain'        => $domain,
             ]);
 
-            return $this->issueOrderInvoice($service, $product);
+            return $this->issueOrderInvoice($service, $product, $domainQuote);
         });
 
         \App\Models\ActivityLog::record($customer->id, 'purchase',
@@ -380,7 +400,7 @@ class StoreController extends Controller
             ],
             'buy' => [
                 filled($data['domain_buy'] ?? null) ? strtolower(trim($data['domain_buy'])) : null,
-                filled($data['domain_buy'] ?? null) ? '🌐 ثبتِ دامنهٔ '.strtolower(trim($data['domain_buy'])).' درخواست شده (توسط پشتیبانی انجام می‌شود).' : '',
+                '',
             ],
             'subdomain' => [
                 filled($data['subdomain'] ?? null) ? strtolower(trim($data['subdomain'])).'.servernet.cloud' : null,
@@ -397,9 +417,10 @@ class StoreController extends Controller
      * رباتِ بله هم دقیقاً همان فاکتور را می‌خواهد. اعلانِ زیر مالِ همین مسیر
      * است (مشتری خودش سفارش داده) و عمداً منتقل نشد.
      */
-    private function issueOrderInvoice(Service $service, Product $product): Invoice
+    private function issueOrderInvoice(Service $service, Product $product, ?\App\Models\DomainQuote $domainQuote = null): Invoice
     {
         $invoice = app(\App\Services\Billing\ProductInvoiceIssuer::class)->issue($service, $product);
+        if ($domainQuote !== null) app(\App\Services\Domain\HostingDomainPurchase::class)->attach($service, $invoice, $domainQuote);
 
         /*
         | دو رویداد که تا امروز هیچ‌کدام وجود نداشتند: «ثبتِ سفارش» و «صدورِ

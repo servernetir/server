@@ -237,7 +237,7 @@
         "d16003b4e7ef99108fa07ebe65cf416da29316f4454dc96eb62561ee834f116e"
       ],
       "after": "2e70d23789d2bcce33fb63d6054efa26547cc7e5b3dead8f6bdf4cb4eefa0230",
-      "source_sha": "85bff2d7837084689000185f456837808f592d56622c23fe43c3e7d9534fa373",
+      "source_sha": "0ff370381d52af2a4ac14b70fb6780d30cf9bdfd4127f872088fc5b6fd6ce79f",
       "edits": [
         {
           "anchor": "    */\n    Route::get('/parts', [PartsShopController::class, 'index'])->name('parts.index');\n    Route::get('/parts/compare', [PartsShopController::class, 'compare'])->name('parts.compare');\n",

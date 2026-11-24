@@ -5,6 +5,8 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Http/Controllers/Account/BuilderCheckoutController.php'
+      - 'website/app/Http/Controllers/Account/StoreController.php'
+      - 'website/app/Http/Controllers/Account/HostingDomainQuoteController.php'
       - 'website/app/Http/Controllers/Account/PaymentController.php'
       - 'website/app/Services/Domain/**'
       - 'website/app/Services/Finance/BusinessLedger.php'
@@ -18,9 +20,12 @@ on:
       - 'website/routes/**'
       - 'website/tests/**'
       - 'website/resources/views/pages/domain-search.blade.php'
+      - 'website/resources/views/account/checkout.blade.php'
+      - 'website/resources/views/account/partials/hosting-domain-purchase.blade.php'
       - 'website/resources/views/pages/home.blade.php'
       - 'website/resources/views/partials/sig-domainsearch.blade.php'
       - 'website/lang/*/domain-discovery.php'
+      - 'website/lang/*/hosting-domains.php'
       - 'website/public/assets/js/site.js'
       - 'website/public/assets/css/site.css'
       - 'scripts/run-php-tests-offline.py'
@@ -132,8 +137,9 @@ jobs:
           npm ci --prefix tests/js --ignore-scripts --no-audit --no-fund
           for locale in fa en tr; do
             php tests/Fixtures/DomainDiscoveryPreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
+            php tests/Fixtures/HostingDomainPurchasePreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
           done
-          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs
+          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" HOSTING_DOMAIN_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs tests/js/hosting-domain-purchase.test.cjs
       - name: Retain synthetic domain UI preview for visual review
         if: matrix.database == 'sqlite' && success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -155,6 +161,7 @@ jobs:
             tests/Feature/DomainProcurementTest.php
             tests/Feature/DomainSupplierAdminSchemaTest.php
             tests/Feature/DomainSupplierCheckoutTest.php
+            tests/Feature/DomainPurchasePathsTest.php
             tests/Feature/DomainSupplierLifecycleTest.php
             tests/Feature/DomainSupplierTransferEligibilityTest.php
             tests/Feature/DomainSupplierRoutingTest.php
