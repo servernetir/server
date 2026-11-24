@@ -146,7 +146,7 @@ class PublicPageStyles
                     return $face;
                 }
                 $seen[$weight] = true;
-                if (! in_array($weight, [400, 700], true)) {
+                if (! in_array($weight, [400, 500, 700], true)) {
                     return $face;
                 }
                 $bytes = $this->readFont(ltrim($woff2, '/'));

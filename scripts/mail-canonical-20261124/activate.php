@@ -13,10 +13,12 @@ try {
     if (!preg_match('~\A/home/servernetcloud/deploy-backups/mail-canonical-20261124-[a-f0-9]{12}/prepared\.json\z~', $plan)
         || is_link($plan) || !in_array($phase, ['after','before'], true)) throw new RuntimeException('invalid_plan');
     $records = json_decode((string) file_get_contents($plan), true, 32, JSON_THROW_ON_ERROR);
-    if (count($records) !== 1 || $records[0]['destination'] !== 'servernet_app/app/Http/Middleware/ConsoleHost.php') throw new RuntimeException('invalid_scope');
-    $file = $root.'/app/Http/Middleware/ConsoleHost.php';
-    if (is_link($file) || hash_file('sha256', $file) !== $records[0][$phase]) throw new RuntimeException('installed_source_changed');
-    if (function_exists('opcache_is_script_cached') && opcache_is_script_cached($file) && !opcache_invalidate($file, true)) throw new RuntimeException('invalidation_failed');
+    if (count($records) !== 2 || array_column($records, 'destination') !== ['servernet_app/app/Http/Middleware/ConsoleHost.php', 'servernet_app/app/Services/PublicPageStyles.php']) throw new RuntimeException('invalid_scope');
+    foreach ($records as $record) {
+        $file = '/home/servernetcloud/'.$record['destination'];
+        if (is_link($file) || hash_file('sha256', $file) !== $record[$phase]) throw new RuntimeException('installed_source_changed');
+        if (function_exists('opcache_is_script_cached') && opcache_is_script_cached($file) && !opcache_invalidate($file, true)) throw new RuntimeException('invalidation_failed');
+    }
     $step = 'bootstrap';
     require $root.'/vendor/autoload.php';
     $app = require $root.'/bootstrap/app.php';
@@ -37,11 +39,19 @@ try {
     }
     $response = $middleware->handle(Illuminate\Http\Request::create('https://mail.servernet.cloud/contact', 'POST'), fn () => response('', 204));
     if ($response->getStatusCode() !== 204) throw new RuntimeException('private_contract_failed');
+    $step = 'font_bundle_contract';
+    $app->instance('request', Illuminate\Http\Request::create('https://servernet.cloud/gpu'));
+    $_SERVER['DOCUMENT_ROOT'] = '/home/servernetcloud/public_html';
+    $source = public_asset_path('assets/css/site.css');
+    $min = public_asset_path('assets/css/site.min.css');
+    $site = $source && $min && filemtime($min) >= filemtime($source) ? 'assets/css/site.min.css' : 'assets/css/site.css';
+    $styles = app(App\Services\PublicPageStyles::class)->inline($site);
+    if (!is_array($styles) || substr_count($styles['site'], 'data:font/woff2;base64,') !== ($phase === 'after' ? 3 : 2)) throw new RuntimeException('font_contract_failed');
     echo json_encode(['release'=>$release,'phase'=>$phase,'compiled_views'=>0,'general_cache_flush'=>false,
-        'public_redirect_verified'=>true,'private_routes_preserved'=>true], JSON_THROW_ON_ERROR);
+        'public_redirect_verified'=>true,'private_routes_preserved'=>true,'embedded_fonts'=>($phase === 'after' ? 3 : 2)], JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     $codes = ['invalid_plan','invalid_scope','installed_source_changed','invalidation_failed','unexpected_bootstrap_cache',
-        'redirect_contract_failed','private_contract_failed'];
+        'redirect_contract_failed','private_contract_failed','font_contract_failed'];
     echo json_encode(['status'=>'stopped','step'=>$step,
         'reason'=>in_array($error->getMessage(), $codes, true) ? $error->getMessage() : 'activation_failed']);
 }

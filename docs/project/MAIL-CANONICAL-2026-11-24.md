@@ -8,10 +8,14 @@ Webmail, mail discovery, accounts, login, admin, API, robots and unsafe methods 
 
 Local PHP 8.4.28 acceptance: 28 tests, 375 assertions, no failures/errors/skips, covering the console host and session-cookie domain. Cases exercise all three locale prefixes, GET/HEAD, query preservation, similar-prefix isolation, mail endpoints, API paths and non-GET methods.
 
-The one-file limited release uses the exact reviewed search-growth deployment engine from develop `12e2bc6868524b0eaed40ced57d4a9d47c46c994`, pinned by SHA-256. It preflights the live middleware hash, lint, private backup and shared release lock. Both already verified FPM pools check the actual routing contract after targeted OPcache invalidation; no general cache flush or view compilation is needed. Rollback uses the same guard and verifies the old contract.
+The two-file limited release uses the exact reviewed search-growth deployment engine from develop `12e2bc6868524b0eaed40ced57d4a9d47c46c994`, pinned by SHA-256. It preflights both live source hashes, lint, private backup and shared release lock. Both already verified FPM pools check the actual routing contract after targeted OPcache invalidation; no general cache flush or view compilation is needed. Rollback uses the same guard and verifies the old contract.
 
 Before hash: `4b601e7f515668911ad9ca6cbe725a702e73d5a0a37932556dcb1cb11e6408f0`.
 
 Public acceptance must check redirects as well as the unaffected primary pages. Request Google validation only after confirming the sampled public duplicates are consolidated. Search Console's completion and rankings remain later results.
 
+Font-bundle/GPU/search-guide acceptance: 28 tests, 1,296 assertions passed.
+
 Status at this commit: implemented and tested; deployment and public acceptance are recorded separately.
+
+The first post-release mobile PageSpeed run removed the render-blocking CSS warning but reported a 0.088 layout shift attributed to the GPU hero and the remaining medium font. The guarded inline bundle now embeds the exact served 500-weight font as well as 400/700, so pricing text does not wait for an optional external font. CSS rules, glyphs and metrics are unchanged; unknown or invalid fonts still trigger the complete external fallback. The public-style tests verify exact served font bytes and fallback behavior. A fresh measurement is required after publication; the first run alone did not establish a speed improvement.

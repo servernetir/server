@@ -5,6 +5,12 @@
       "destination": "servernet_app/app/Http/Middleware/ConsoleHost.php",
       "before": "4b601e7f515668911ad9ca6cbe725a702e73d5a0a37932556dcb1cb11e6408f0",
       "after": "7a2489938669cf66b5d720e50782b4f28d9960ad60ea6eb8d89c06ff82591b42"
+    },
+    {
+      "source": "website/app/Services/PublicPageStyles.php",
+      "destination": "servernet_app/app/Services/PublicPageStyles.php",
+      "before": "d6f2bbd52ca077c0ce0aa29e1fd535050440912014b79fb8c3fd61f8db3417e6",
+      "after": "292c89bc8c7652a8df3245f93b7de9cbe7697322d01c409a77f7e723e96d50e3"
     }
   ],
   "views": [],
@@ -19,7 +25,7 @@
     },
     "activate.php": {
       "path": "scripts/mail-canonical-20261124/activate.php",
-      "sha256": "f42db5549aba4118a90e4514e4b70dbe07015f76efe6225f86b929c892fbc6e0"
+      "sha256": "8c04d73e9f6251bfdfd1a02714e3818e648988da04d972d408a2849a616ac3a2"
     }
   }
 }
