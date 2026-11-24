@@ -1,0 +1,70 @@
+name: AI provider routing
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Ai/**'
+      - 'website/app/Services/AiProviders/**'
+      - 'website/app/Models/AiProvider.php'
+      - 'website/app/Http/Controllers/Ai/V1ModelsController.php'
+      - 'website/app/Http/Controllers/AiStorefrontController.php'
+      - 'website/app/Http/Controllers/Admin/AiGatewayController.php'
+      - 'website/app/Console/Commands/AiSyncCatalog.php'
+      - 'website/resources/views/admin/ai/**'
+      - 'website/tests/Feature/AiOpenRouterRoutingTest.php'
+      - 'scripts/ai-provider-routing-20261124/**'
+      - '.github/workflows/ai-provider-routing.yml'
+permissions:
+  contents: read
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
+        working-directory: website
+      - run: vendor/bin/phpunit tests/Feature/AiOpenRouterRoutingTest.php tests/Feature/AiRegistryTest.php tests/Feature/AiPricingTest.php tests/Feature/AiExpandedCatalogTest.php tests/Feature/AiAdditionalProviderCatalogTest.php tests/Feature/AiAdminPagesTest.php tests/Feature/V1ChatTest.php tests/Feature/AiLaunchTest.php tests/Feature/AiSettlementTest.php tests/Feature/AiSupplierCostPrivacyTest.php tests/Feature/AiInputOperationsTest.php tests/Feature/AiNativeOperationsTest.php
+        working-directory: website
+  mariadb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      database:
+        image: mariadb:11.4
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes'
+          MARIADB_DATABASE: servernet_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd='healthcheck.sh --connect --innodb_initialized'
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_mysql, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
+        working-directory: website
+      - run: vendor/bin/phpunit tests/Feature/AiOpenRouterRoutingTest.php
+        working-directory: website
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: servernet_test
+          DB_USERNAME: root
+          DB_PASSWORD: ''

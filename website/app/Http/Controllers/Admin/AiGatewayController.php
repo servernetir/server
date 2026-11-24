@@ -69,7 +69,7 @@ class AiGatewayController extends Controller
             'notes'              => 'nullable|string|max:2000',
             'name'               => 'nullable|string|max:80',
             // سربارِ ارز به درصد با حداکثر دو رقمِ اعشار؛ به bp ذخیره می‌شود
-            'fx_fee_pct'         => ['nullable', 'numeric', 'min:0', 'max:25', 'regex:/^\d{1,2}(\.\d{1,2})?$/'],
+            'fx_fee_pct'         => ['nullable', 'numeric', 'min:0', 'max:'.($provider->slug === 'openrouter' ? '100' : '25'), 'regex:/^\d{1,3}(\.\d{1,2})?$/'],
             // کلیدِ API: فقط‌نوشتنی؛ خالی = «دست نزن»، برای پاک‌کردن تیکِ forget_key
             'api_key'            => 'nullable|string|max:400',
             'forget_key'         => 'nullable|boolean',

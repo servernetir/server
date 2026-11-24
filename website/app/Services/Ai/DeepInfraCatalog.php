@@ -67,6 +67,7 @@ final class DeepInfraCatalog
             if ($tierLimit !== null) {
                 $rates = $this->chatRates(array_merge($pricing, ['full' => null]));
             }
+            if ($rates !== null) $rates = $this->discountedRates($rates, $pricing);
             $deprecated = ! empty($row['deprecated']) && (int) $row['deprecated'] <= now()->timestamp;
             $ready = ($category === 'chat' && in_array('openai', $row['tags'] ?? [], true)
                 || in_array($category, ['embedding', 'rerank'], true)) && $rates !== null && ! $deprecated;
@@ -91,6 +92,8 @@ final class DeepInfraCatalog
                     'pending_reason' => $ready ? null : ($deprecated ? 'deprecated' : ($category !== 'chat' ? 'endpoint_pending' : 'pricing_or_api_pending')),
                     'replacement_upstream' => $row['replaced_by'] ?? null,
                     'pricing_context_limit' => $tierLimit,
+                    'catalogue_discount_until' => ($until = $this->discountExpiry($pricing)) !== null
+                        && \Illuminate\Support\Carbon::parse($until)->isFuture() ? $until : null,
                     'native_tariff_hash' => $native ? AiNative::fingerprint($pricing) : null,
                 ]),
             ]);
@@ -162,6 +165,34 @@ final class DeepInfraCatalog
         return $rate >= 1 && $rate <= PriceBook::MAX_SELL_RATE_MICROS ? [AiModelUnitPrice::UNIT_INPUT => $rate] : null;
     }
 
+    /** The official feed carries base token rates and a separate promotional fraction. */
+    private function discountedRates(array $rates, array $price): ?array
+    {
+        try {
+            $discount = BigDecimal::of((string) ($price['discount'] ?? '0'));
+            if ($discount->isLessThan(0) || $discount->isGreaterThanOrEqualTo(1)) return null;
+            $expiry = $this->discountExpiry($price);
+            if ($expiry !== null && \Illuminate\Support\Carbon::parse($expiry)->isPast()) return $rates;
+            foreach ($rates as $unit => $rate) {
+                $rates[$unit] = BigDecimal::of($rate)->multipliedBy(BigDecimal::of(1)->minus($discount))
+                    ->toScale(0, RoundingMode::Up)->toInt();
+                if ($rates[$unit] < 1) return null;
+            }
+            return $rates;
+        } catch (\Throwable) { return null; }
+    }
+
+    private function discountExpiry(array $price): ?string
+    {
+        if (empty($price['discount_ends_at'])) return null;
+        try {
+            $value = $price['discount_ends_at'];
+            $at = is_int($value) ? \Illuminate\Support\Carbon::createFromTimestampUTC($value)
+                : \Illuminate\Support\Carbon::parse($value);
+            return $at->toIso8601String();
+        } catch (\Throwable) { throw new \RuntimeException('Invalid promotion expiry.'); }
+    }
+
     /** Verified first-tier contracts. A changed upstream description closes the route. */
     private function tierLimit(string $upstream, array $price): ?int
     {
@@ -191,11 +222,13 @@ final class DeepInfraCatalog
         if ($model->provider?->slug === AiProvider::DIRECT_OPENAI && $source !== AiProvider::DIRECT_OPENAI) {
             return false;
         }
-        if (! in_array($source, ['deepinfra', 'deepseek', 'gapgpt', AiProvider::DIRECT_OPENAI], true)) {
+        if ($model->provider?->slug === 'openrouter' && $source !== 'openrouter') return false;
+        if (! in_array($source, ['deepinfra', 'deepseek', 'gapgpt', 'openrouter', AiProvider::DIRECT_OPENAI], true)) {
             return true;
         }
         try {
             $at = \Illuminate\Support\Carbon::parse($caps['catalogue_at'] ?? '1970-01-01');
+            if (isset($caps['catalogue_discount_until']) && \Illuminate\Support\Carbon::parse($caps['catalogue_discount_until'])->isPast()) return false;
             return ($caps['execution_ready'] ?? false) === true && $at->between(now()->subHours(self::MAX_AGE_HOURS), now()->addMinute());
         } catch (\Throwable) {
             return false;

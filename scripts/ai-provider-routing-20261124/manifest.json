@@ -1,0 +1,122 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/Ai/AiProviderRouting.php",
+      "destination": "servernet_app/app/Services/Ai/AiProviderRouting.php",
+      "before": null,
+      "after": "6b170bdb985ef87a590f01e6931371677bc4abfc17e97df3e3789d7b00404394"
+    },
+    {
+      "source": "website/app/Services/Ai/OpenRouterCatalog.php",
+      "destination": "servernet_app/app/Services/Ai/OpenRouterCatalog.php",
+      "before": null,
+      "after": "2ff017ceb55088088d22f4d2d711ef127a26189f8cb64e1162d16da0c28191f1"
+    },
+    {
+      "source": "website/app/Console/Commands/AiSyncCatalog.php",
+      "destination": "servernet_app/app/Console/Commands/AiSyncCatalog.php",
+      "before": "5030af31119a5fda46c7993956b4fa99e32afcca8270382071e45b1043a70a52",
+      "after": "b7681e013eb15f8fb6f5121f6e625e5e519fcb0804d58ce175ae3399363c4b6a"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/AiGatewayController.php",
+      "destination": "servernet_app/app/Http/Controllers/Admin/AiGatewayController.php",
+      "before": "588ed7751a524bdf1434173c0bd2d8cd9955310e895701144216df04f6192dff",
+      "after": "48eb61b3585ec013241f9a7979046a14d1cda17254e62e3846c7d32b5f03f40b"
+    },
+    {
+      "source": "website/app/Http/Controllers/Ai/V1ModelsController.php",
+      "destination": "servernet_app/app/Http/Controllers/Ai/V1ModelsController.php",
+      "before": "30ce91faccd6bcccaae610eee4f891ff3952cf5ea61fd10f020a1a693881bc05",
+      "after": "db0b614657f21653847ec3286ea304552d71fe7f6b2c241d6744fdb66adf0e2f"
+    },
+    {
+      "source": "website/app/Http/Controllers/AiStorefrontController.php",
+      "destination": "servernet_app/app/Http/Controllers/AiStorefrontController.php",
+      "before": "7f4c03a97c7709ecf4a00d8785c03486708d426da434eb3e614cab446c13b061",
+      "after": "40fc6e78e78ef4ea74b8c08fa4c8f2d7aa907e80eef1367dafdfe121f60e42d6"
+    },
+    {
+      "source": "website/app/Models/AiProvider.php",
+      "destination": "servernet_app/app/Models/AiProvider.php",
+      "before": "0dc8efcbff9966e36dadafb7f679b59b31bd27c0f8164175664d89d8dfc6aa45",
+      "after": "11f8528c963292ccdc5d2102fc89de042063663a95c99f236b80b811e79ce6b4"
+    },
+    {
+      "source": "website/app/Services/Ai/AiCaller.php",
+      "destination": "servernet_app/app/Services/Ai/AiCaller.php",
+      "before": "b6ffb2bc6d388b8f1fb7cfdc2972a80888886ae1f94c59929caf4dae1517f241",
+      "patch": true,
+      "after": "3a9f2dfe098867b833c42d95e69955dcb7d4687c28c6ac3eda2009b03810cbf0"
+    },
+    {
+      "source": "website/app/Services/Ai/AiPayload.php",
+      "destination": "servernet_app/app/Services/Ai/AiPayload.php",
+      "before": "efa7405b17d57f3c5f25d96ce6a5327953b50bc9814cdf2098cc99161b7d42f6",
+      "after": "a3f67dec91a55c90dd30518c392b3c96c53e38ab9cd8e05b46e315e4ae220fda"
+    },
+    {
+      "source": "website/app/Services/Ai/AiPricing.php",
+      "destination": "servernet_app/app/Services/Ai/AiPricing.php",
+      "before": "63301ccd77891bbf1bc917467983f14009ef23f1592823073830368473ec8fb0",
+      "patch": true,
+      "after": "cfc2b23de64072ed28f79021f0e8dea906952b3fffd4e446c641852a4e868ffa"
+    },
+    {
+      "source": "website/app/Services/Ai/AiUsageParser.php",
+      "destination": "servernet_app/app/Services/Ai/AiUsageParser.php",
+      "before": "9d6d536a658c2791febf2fa8c984361b8cd3f566a4d091528e6bb83654c4211b",
+      "after": "b099d3e19bc716b31670cf6a040c8f7e31265a218a7ae7775f32c3e2287c6e06"
+    },
+    {
+      "source": "website/app/Services/Ai/DeepInfraCatalog.php",
+      "destination": "servernet_app/app/Services/Ai/DeepInfraCatalog.php",
+      "before": "1adddc18002527863302deecc12905376e6801cec0ec016355b66fbae9f2dcc8",
+      "after": "3af11100325e6fb64467dd266be981f047580965d2a0fbacd0782ed5e61ccc67"
+    },
+    {
+      "source": "website/app/Services/Ai/PriceBook.php",
+      "destination": "servernet_app/app/Services/Ai/PriceBook.php",
+      "before": "954b458cf32aae52b44dd0989b5b617a9649bf583c1f78a902acfc9ce49d110e",
+      "after": "843af6b44982853ff758556c14a6231dfc5d9067324b765002750c6f665a2094"
+    },
+    {
+      "source": "website/app/Services/AiProviders/OpenAiCompatibleDriver.php",
+      "destination": "servernet_app/app/Services/AiProviders/OpenAiCompatibleDriver.php",
+      "before": "201ab9e36c5d7d5c4c1ffdf302be129d57124a9881874242706997e1b4b5cd92",
+      "after": "d7fe97868accc574ed73bb4ede7ad757edafe145710ffb1999d5ea2788bdd207"
+    },
+    {
+      "source": "website/resources/views/admin/ai/pricing.blade.php",
+      "destination": "servernet_app/resources/views/admin/ai/pricing.blade.php",
+      "before": "567cdee4f77085c800e9cfa96f5391b4ddcc07f9193c4418da831b6d50a4a6ba",
+      "after": "3742ab4e5276cd373a9b5e9746e709a396976acbb80a87b5a0081ad4625cd498"
+    },
+    {
+      "source": "website/resources/views/admin/ai/provider-edit.blade.php",
+      "destination": "servernet_app/resources/views/admin/ai/provider-edit.blade.php",
+      "before": "661c879ce05f15bdae50972b9768c9ee98f634372ae1a5554e6d27f1fa79be6b",
+      "after": "0978ccb36e88f036890758dfcc10da61a7de42ad5dcc750a47ecc3e908986dda"
+    },
+    {
+      "source": "website/resources/views/admin/ai/providers.blade.php",
+      "destination": "servernet_app/resources/views/admin/ai/providers.blade.php",
+      "before": "4f8914ad702ad1c7bb0afa020f78b606d4ba61d7b4073920343257103b0c97c8",
+      "after": "2c6e60b7f6ce6fdc2347ceb97759c7cb2b1e3c3a35b33d59b7f9834b9db48613"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/ai-provider-routing-20261124/activate.php",
+      "sha256": "e5097154d9955dc19ae5252ec8c5369926537bf498e8fcb52252ad642c6e6b5e"
+    }
+  }
+}

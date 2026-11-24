@@ -72,6 +72,19 @@ class OpenAiCompatibleDriver implements AiProviderDriver
         ]);
 
         $directOpenAi = $this->provider->slug === AiProvider::DIRECT_OPENAI;
+        $openRouter = $this->provider->slug === 'openrouter';
+        if ($openRouter) {
+            $maxPrice = $body['_servernet_max_price'] ?? $model->capabilities['openrouter_max_price'] ?? null;
+            unset($body['_servernet_max_price']);
+            if (! in_array($model->category, ['chat', 'embedding'], true) || ! is_array($maxPrice)
+                || ! isset($maxPrice['prompt']) || ($model->category === 'chat' && ! isset($maxPrice['completion']))) {
+                throw new AiProviderCallException('provider_unconfigured', 'A bounded token tariff is required.', sent: false);
+            }
+            // Never let provider fallback silently exceed the tariff frozen for this route.
+            $body['provider'] = ['sort' => 'price', 'require_parameters' => true,
+                'max_price' => $maxPrice, 'allow_fallbacks' => false];
+            $body['plugins'] = [];
+        }
         if ($directOpenAi) {
             if ($model->category !== AiModel::CATEGORY_CHAT || ! is_int($payload['max_tokens'] ?? null)) {
                 throw new AiProviderCallException('provider_unconfigured', 'Only bounded chat is enabled for this provider.', sent: false);
@@ -112,7 +125,7 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                 ->acceptJson()
                 ->withOptions(['stream' => ($payload['stream'] ?? false) === true, 'read_timeout' => 30, 'on_stats' => function (TransferStats $s) use (&$uploaded) {
                     $uploaded = (int) ($s->getHandlerStats()['size_upload'] ?? 0);
-                }] + ($directOpenAi ? ['allow_redirects' => false] : []))
+                }] + ($directOpenAi || $openRouter ? ['allow_redirects' => false] : []))
                 ->post(match ($model->category) {
                     'embedding' => $baseUrl.'/embeddings',
                     'rerank' => $this->provider->slug === 'deepinfra'

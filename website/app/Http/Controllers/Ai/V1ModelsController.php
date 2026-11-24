@@ -28,7 +28,9 @@ class V1ModelsController extends Controller
         $studio = $request->boolean('studio');
         $vat = $studio ? app(AiVat::class)->resolve($auth->customer)['bp'] : 0;
         $data = [];
-        foreach (AiModel::with('provider')->where('status', 'active')->orderBy('slug')->get() as $model) {
+        $catalogue = app(\App\Services\Ai\AiProviderRouting::class)->catalogue(
+            AiModel::with('provider')->where('status', 'active')->orderBy('slug')->get());
+        foreach ($catalogue as $model) {
             $availability = app(AiAvailability::class)->inspect($model);
             if (! $availability['ready']) continue;
             $native = AiNative::isNative($model);

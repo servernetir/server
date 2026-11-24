@@ -45,7 +45,10 @@
       <input type="text" inputmode="decimal" name="fx_fee_pct" dir="ltr" maxlength="5"
              value="{{ old('fx_fee_pct', \App\Services\Ai\AiPricing::bpToPercent($provider->fx_fee_bp)) }}"
              placeholder="خالی = فروختنی نیست" class="ad-input" style="padding:8px">
-      <small style="color:var(--dim)">کارمزدِ کارت/رمزارز + اسپردِ صرافی + مالیاتِ خارجیِ روی فاکتور. ۰ تا ۲۵، تا دو رقمِ اعشار. حاشیهٔ سود روی بهایِ به‌علاوهٔ همین سربار می‌نشیند.</small>
+      <small style="color:var(--dim)">کارمزدِ کارت/رمزارز + اسپردِ صرافی + مالیاتِ خارجیِ روی فاکتور. ۰ تا {{ $provider->slug === 'openrouter' ? '۱۰۰' : '۲۵' }}، تا دو رقمِ اعشار. حاشیهٔ سود روی بهایِ به‌علاوهٔ همین سربار می‌نشیند.</small>
+      @if($provider->slug === 'openrouter')
+        <small style="display:block;color:var(--muted)">سربار واقعی = (مبلغ کل پرداخت ÷ اعتبار دریافتی − ۱) × ۱۰۰؛ پس از شارژ با شرایط متفاوت، این مقدار را به‌روز کنید.</small>
+      @endif
       @error('fx_fee_pct')<small style="color:#f87171">{{ $message }}</small>@enderror
     </label>
     @else

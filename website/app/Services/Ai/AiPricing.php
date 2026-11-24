@@ -46,6 +46,7 @@ final class AiPricing
 
     /** بالاترین سربارِ ارز: ۲۵٪ */
     public const MAX_FEE_BP = 2_500;
+    public const MAX_OPENROUTER_FEE_BP = 10_000;
 
     public function __construct(
         private readonly AiFx $fx,
@@ -89,7 +90,7 @@ final class AiPricing
         $fee = $provider->getAttribute('fx_fee_bp');
         if ($fee === null) {
             $reasons[] = 'fee_unset';
-        } elseif ((int) $fee < 0 || (int) $fee > self::MAX_FEE_BP) {
+        } elseif ((int) $fee < 0 || (int) $fee > ($provider->slug === 'openrouter' ? self::MAX_OPENROUTER_FEE_BP : self::MAX_FEE_BP)) {
             $reasons[] = 'fee_invalid';
         }
 
@@ -260,7 +261,7 @@ final class AiPricing
     /** @return array{0:int,1:string,2:?string} [bp, source, blockingReason] */
     private function marginFor(AiModel $model): array
     {
-        $own = $model->getAttribute('margin_bp');
+        $own = Setting::get('ai_uniform_margin') === '1' ? null : $model->getAttribute('margin_bp');
 
         if ($own !== null) {
             $own = (int) $own;

@@ -13,6 +13,16 @@
     نگه‌داری می‌شود (رمزی؛ نامِ کلید: <code dir="ltr">ai_provider_{اسلگ}_key</code>) و هرگز این‌جا نمایش داده نمی‌شود.
     «فروش روشن» به معنای فروشِ مدل‌هایش به مشتری است؛ «فعال» صرفاً فعالِ فنی.
   </p>
+  @if(\App\Models\Setting::get('ai_price_routing_enabled') === '1')
+    @php($routing = json_decode(\App\Models\Setting::get('ai_price_routing_last_refresh', '{}'), true) ?: [])
+    <p style="padding:10px 18px;line-height:1.9;color:var(--muted)">
+      انتخاب اقتصادی DeepInfra و OpenRouter فعال است. کاتالوگ و قیمت‌ها هر ساعت بررسی می‌شوند؛
+      مقایسه با بهای ورودی و خروجی، نرخ ارز و سربار تأمین انجام می‌شود.
+      حاشیهٔ همهٔ مدل‌ها از <a href="/admin/settings?tab=pricing#ai-sales">تنظیمات سود AI</a> خوانده می‌شود.
+      مدل‌های آمادهٔ درگاه، خودکار در Studio نمایش داده می‌شوند.
+      @if(isset($routing['at']))<br>آخرین بررسی: <time dir="ltr">{{ $routing['at'] }}</time>؛ مدل‌های قابل فروش: {{ fa_num($routing['models'] ?? 0) }}.@endif
+    </p>
+  @endif
 
   @if(session('ok'))
     <p style="padding:6px 18px;color:#34d399;font-size:13px">{{ session('ok') }}</p>

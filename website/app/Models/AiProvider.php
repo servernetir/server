@@ -91,6 +91,9 @@ class AiProvider extends Model
 
     public function apiBaseUrl(): ?string
     {
+        if ($this->slug === 'openrouter') {
+            return \App\Services\Ai\OpenRouterCatalog::BASE_URL;
+        }
         if ($this->slug === self::DIRECT_OPENAI) {
             return self::DIRECT_OPENAI_URL;
         }

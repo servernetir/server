@@ -67,11 +67,33 @@ final class AiUsageParser
     /** رقم‌به‌رقم از متنِ خام؛ اگر متنِ خام نبود، از مقدارِ رشته‌ایِ JSON */
     private static function estimatedCost(string $raw, array $usage): ?string
     {
-        if ($raw !== '' && preg_match('/"estimated_cost"\s*:\s*"?([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)"?/', $raw, $m) === 1) {
-            return $m[1];
+        // Scope to the actual usage object; model text or nested provider metadata is never a tariff.
+        if ($raw !== '') {
+            $lossless = '';
+            $quoted = $escaped = false;
+            for ($i = 0, $length = strlen($raw); $i < $length; $i++) {
+                $char = $raw[$i];
+                if (! $quoted && ($char === '-' || ctype_digit($char))
+                    && preg_match('/\G-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/', $raw, $match, 0, $i)) {
+                    $lossless .= '"'.$match[0].'"';
+                    $i += strlen($match[0]) - 1;
+                    continue;
+                }
+                $lossless .= $char;
+                if ($quoted) {
+                    if ($escaped) $escaped = false;
+                    elseif ($char === '\\') $escaped = true;
+                    elseif ($char === '"') $quoted = false;
+                } elseif ($char === '"') $quoted = true;
+            }
+            $object = json_decode($lossless, true);
+            foreach (['estimated_cost', 'cost'] as $field) {
+                $value = $object['usage'][$field] ?? null;
+                if (is_string($value) && is_numeric($value) && ! str_starts_with($value, '-')) return $value;
+            }
         }
 
-        $v = $usage['estimated_cost'] ?? null;
+        $v = $usage['estimated_cost'] ?? $usage['cost'] ?? null;
 
         return is_string($v) && is_numeric($v) ? $v : null;
     }
