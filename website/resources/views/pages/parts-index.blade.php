@@ -1,6 +1,6 @@
 @extends('layouts.site')
-@section('title', __('ui.parts_title').' — '.__('ui.brand'))
-@section('description', __('ui.parts_desc'))
+@section('title', __('shop_seo.parts_hub_title'))
+@section('description', __('shop_seo.parts_hub_desc'))
 @include('partials.hardware-assets')
 @section('content')
 
@@ -11,7 +11,7 @@
       <a href="{{ lroute('servers.index') }}">{{ __('ui.srv_title') }}</a><span>/</span>
       <span>{{ __('ui.parts_title') }}</span>
     </nav>
-    <h1>{{ __('ui.parts_h1') }}</h1>
+    <h1>{{ __('shop_seo.parts_hub_h1') }}</h1>
     <p class="sp-lead">{{ __('ui.parts_lead') }}</p>
   </div>
 </section>
@@ -20,6 +20,9 @@
   @include('partials.parts-sidebar')
 
   <div class="sp-main">
+
+    @include('partials.hardware-stock-quote')
+    @include('partials.hardware-topic-links')
 
     <h2 class="sp-h2">{{ __('ui.parts_browse') }}</h2>
     <div class="sp-cat-grid">

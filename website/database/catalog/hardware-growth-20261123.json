@@ -1,0 +1,102 @@
+[
+  {
+    "slug": "gpu-nvidia-a40",
+    "kind": "part",
+    "reference": "https://www.nvidia.com/en-us/data-center/a40/",
+    "data": {
+      "category": "gpu", "brand": "NVIDIA", "condition": "catalog", "price_contact": true,
+      "in_stock": false, "active": true, "popular": false, "sort": 2000, "compat_gens": [],
+      "name": {"fa": "کارت گرافیک سرور NVIDIA A40 48GB", "en": "NVIDIA A40 48GB server GPU", "tr": "NVIDIA A40 48GB sunucu GPU"},
+      "tagline": {"fa": "کارت دیتاسنتری Ampere با حافظه ECC", "en": "Ampere data center GPU with ECC memory", "tr": "ECC bellekli Ampere veri merkezi GPU"},
+      "summary": {"fa": "بررسی خرید NVIDIA A40 با 48GB GDDR6 ECC، رابط PCIe Gen4 و توان حداکثر 300W برای پردازش گرافیکی و مجازی‌سازی.", "en": "Request an NVIDIA A40 quote: 48 GB ECC GDDR6, PCIe Gen4 and up to 300 W for visualization and virtualization.", "tr": "Görselleştirme ve sanallaştırma için 48 GB ECC GDDR6, PCIe Gen4 ve azami 300 W NVIDIA A40 teklifi alın."},
+      "body": {
+        "fa": "A40 برای پردازش گرافیکی دیتاسنتری و ایستگاه کاری مجازی قابل بررسی است. حافظه 48 گیگابایتی آن برای صحنه‌ها و داده‌هایی که در کارت‌های کم‌حافظه جا نمی‌شوند مزیت دارد؛ حجم حافظه به‌تنهایی سرعت بیشتر را تضمین نمی‌کند.\n\nدر مقایسه با L4، ظرفیت حافظه بیشتری دارد اما توان و فضای نصب بالاتری نیاز دارد. خنک‌کننده غیرفعال است و برای نصب به جریان هوای مناسب سرور، کیت برق و اسلات مورد تأیید سازنده نیاز دارد. هزینه لایسنس نرم‌افزار vGPU را نیز در بودجه بیاورید. برای مدل نو یا استوک، شماره فنی، گزارش سلامت و قیمت را استعلام کنید. مرجع فنی: NVIDIA A40.",
+        "en": "The A40 is worth evaluating for data-center graphics and virtual workstations. Its 48 GB memory can accommodate larger scenes and datasets than smaller-memory cards, but capacity alone does not guarantee throughput.\n\nCompared with the L4, it offers more memory at the expense of power and slot space. Its passive cooler requires approved server airflow, a power kit and a compatible slot. Include any required vGPU software licensing in the budget. Request a quote and condition report for a new or used unit. Technical reference: NVIDIA A40.",
+        "tr": "A40 veri merkezi grafikleri ve sanal iş istasyonları için değerlendirilebilir. 48 GB bellek daha küçük bellekli kartlara sığmayan sahneleri ve verileri alabilir; kapasite tek başına hızı garanti etmez.\n\nL4 ile karşılaştırıldığında daha fazla bellek sunar ancak daha fazla güç ve yuva alanı ister. Pasif soğutma, uygun sunucu hava akışı, güç kiti ve onaylı yuva gerektirir. Gerekli vGPU yazılım lisansını da bütçeye ekleyin. Yeni veya ikinci el ürün için fiyat ve durum raporu isteyin. Teknik referans: NVIDIA A40."
+      },
+      "specs": [
+        {"label":{"fa":"حافظه","en":"Memory","tr":"Bellek"},"value":{"fa":"48 GB GDDR6 ECC","en":"48 GB GDDR6 ECC","tr":"48 GB GDDR6 ECC"}},
+        {"label":{"fa":"رابط","en":"Interface","tr":"Arayüz"},"value":{"fa":"PCIe Gen4","en":"PCIe Gen4","tr":"PCIe Gen4"}},
+        {"label":{"fa":"توان حداکثر","en":"Maximum power","tr":"Azami güç"},"value":{"fa":"300 W","en":"300 W","tr":"300 W"}},
+        {"label":{"fa":"خنک‌کاری","en":"Cooling","tr":"Soğutma"},"value":{"fa":"غیرفعال؛ دو اسلات","en":"Passive; dual slot","tr":"Pasif; çift yuva"}}
+      ],
+      "attrs": {"kind": "gpu", "gb": 48, "tdp": 300, "interface": "PCIe Gen4"}, "gallery": []
+    }
+  },
+  {
+    "slug": "gpu-nvidia-l4",
+    "kind": "part",
+    "reference": "https://www.nvidia.com/en-us/data-center/l4/",
+    "data": {
+      "category": "gpu", "brand": "NVIDIA", "condition": "catalog", "price_contact": true,
+      "in_stock": false, "active": true, "popular": false, "sort": 2001, "compat_gens": [],
+      "name": {"fa": "کارت گرافیک سرور NVIDIA L4 24GB", "en": "NVIDIA L4 24GB server GPU", "tr": "NVIDIA L4 24GB sunucu GPU"},
+      "tagline": {"fa": "شتاب‌دهنده تک‌اسلات کم‌مصرف", "en": "Single-slot low-power accelerator", "tr": "Tek yuvalı düşük güçlü hızlandırıcı"},
+      "summary": {"fa": "NVIDIA L4 با 24GB حافظه، PCIe Gen4 x16 و TDP برابر 72W برای ارزیابی پردازش AI و ویدئو.", "en": "NVIDIA L4 with 24 GB memory, PCIe Gen4 x16 and 72 W TDP for AI and video workloads.", "tr": "AI ve video iş yükleri için 24 GB bellek, PCIe Gen4 x16 ve 72 W TDP sunan NVIDIA L4."},
+      "body": {
+        "fa": "L4 شتاب‌دهنده تک‌اسلات کم‌ارتفاع است که می‌توان آن را برای پردازش ویدئو و اجرای مدل‌های هوش مصنوعی سبک‌تر بررسی کرد. توان طراحی حرارتی 72 وات آن در برابر کارت‌های پرمصرف به تراکم بالاتر کمک می‌کند، مشروط به پشتیبانی شاسی.\n\nدر مقایسه با A40، حافظه کمتری دارد؛ برای مدل یا صحنه بزرگ‌تر ابتدا مصرف حافظه و سرعت موردنیاز را برآورد کنید. قبل از خرید، فضای کیس، خنک‌کاری، PCIe و نیاز نرم‌افزاری را با کانفیگ واقعی بررسی کنید. موجودی، وضعیت و قیمت همان SKU فقط پس از استعلام تأیید می‌شود. مرجع فنی: NVIDIA L4.",
+        "en": "L4 is a low-profile, single-slot accelerator suitable for evaluating video processing and lighter AI workloads. Its 72 W thermal specification can help improve deployment density versus higher-power cards when the chassis supports it.\n\nIt has less memory than A40; estimate the memory footprint and required throughput for larger models or scenes first. Confirm clearance, cooling, PCIe and software requirements for the actual configuration. Availability, condition and price are confirmed by quotation. Technical reference: NVIDIA L4.",
+        "tr": "L4, video işleme ve daha hafif AI iş yükleri için değerlendirilebilen düşük profilli tek yuvalı hızlandırıcıdır. Kasa desteklediğinde 72 W termal tasarımı yüksek güçlü kartlara göre yerleşim yoğunluğunu artırabilir.\n\nA40'tan daha az belleğe sahiptir; büyük model veya sahne için bellek ihtiyacını ve gereken performansı önce hesaplayın. Gerçek yapılandırmada alanı, soğutmayı, PCIe ve yazılım gereksinimlerini doğrulayın. Stok, durum ve fiyat teklif ile doğrulanır. Teknik referans: NVIDIA L4."
+      },
+      "specs": [
+        {"label":{"fa":"حافظه","en":"Memory","tr":"Bellek"},"value":{"fa":"24 GB","en":"24 GB","tr":"24 GB"}},
+        {"label":{"fa":"رابط","en":"Interface","tr":"Arayüz"},"value":{"fa":"PCIe Gen4 x16","en":"PCIe Gen4 x16","tr":"PCIe Gen4 x16"}},
+        {"label":{"fa":"توان طراحی حرارتی","en":"TDP","tr":"TDP"},"value":{"fa":"72 W","en":"72 W","tr":"72 W"}},
+        {"label":{"fa":"ابعاد","en":"Form factor","tr":"Boyut"},"value":{"fa":"تک اسلات، کم‌ارتفاع","en":"Single-slot low-profile","tr":"Tek yuva, düşük profil"}}
+      ],
+      "attrs": {"kind": "gpu", "gb": 24, "tdp": 72, "interface": "PCIe Gen4 x16"}, "gallery": []
+    }
+  },
+  {
+    "slug": "dell-poweredge-r750",
+    "kind": "server",
+    "reference": "https://i.dell.com/sites/csdocuments/Product_Docs/en/poweredge-r750-spec-sheet.pdf",
+    "data": {
+      "brand": "dell", "condition": "catalog", "price_contact": true, "active": true, "popular": false, "sort": 2002,
+      "name": {"fa":"سرور Dell PowerEdge R750","en":"Dell PowerEdge R750 server","tr":"Dell PowerEdge R750 sunucu"},
+      "tag": {"fa":"سرور رک 2U با Xeon نسل سوم","en":"2U rack server with 3rd Gen Xeon","tr":"3. nesil Xeon ile 2U rack sunucu"},
+      "hero_d": {"fa":"R750 یک گزینه دو سوکته برای مجازی‌سازی، دیتابیس و استوریج با 32 اسلات DDR4 است؛ کانفیگ قابل تحویل را استعلام کنید.","en":"R750 is a dual-socket option for virtualization, databases and storage with 32 DDR4 DIMM slots; request your intended configuration.","tr":"R750 sanallaştırma, veritabanı ve depolama için 32 DDR4 DIMM yuvalı çift soketli seçenektir; yapılandırma teklifi isteyin."},
+      "description": {"fa":"مدل‌های مختلف شاسی R750 از ترکیب‌های متفاوت دیسک پشتیبانی می‌کنند. برای انتخاب اقتصادی نوع دیسک، کنترلر، رم و پردازنده واقعی دستگاه را مشخص کنید.","en":"R750 chassis variants support different drive configurations. For an economic choice specify actual drives, controller, memory and processors.","tr":"R750 kasa seçenekleri farklı disk düzenleri sunar. Ekonomik seçim için gerçek disk, denetleyici, bellek ve işlemcileri belirleyin."},
+      "body": {"fa":"PowerEdge R750 با پردازنده‌های Xeon Scalable نسل سوم و حافظه DDR4 برای تجمیع سرویس‌ها قابل بررسی است. تعداد اسلات بالا امکان برنامه‌ریزی ارتقا را فراهم می‌کند، اما ظرفیت واقعی به ماژول و تعداد CPU بستگی دارد.\n\nدر مقایسه با R760، حافظه DDR4 ممکن است برای ارتقای اقتصادی مناسب‌تر باشد؛ R760 به DDR5 مهاجرت کرده است. برای ذخیره‌سازی پرترافیک، شماره بک‌پلین و کنترلر را بررسی کنید. وضعیت استوک، سلامت دیسک، لایسنس مدیریت، ریل و گارانتی را در پیش‌فاکتور بخواهید.", "en":"PowerEdge R750 with third-generation Xeon Scalable and DDR4 is worth considering for consolidating services. Its DIMM count enables upgrade planning, but installed capacity depends on modules and CPU count.\n\nCompared with R760, DDR4 may suit budget upgrades; R760 uses DDR5. For storage-intensive configurations, confirm the backplane and controller. Ask for used condition, drive health, management licensing, rails and warranty in the quotation.", "tr":"Üçüncü nesil Xeon Scalable ve DDR4 kullanılan PowerEdge R750 servis birleştirme için değerlendirilebilir. DIMM sayısı yükseltme planlaması sağlar ancak gerçek kapasite modül ve CPU sayısına bağlıdır.\n\nR760'a göre DDR4 ekonomik yükseltmeye uygun olabilir; R760 DDR5 kullanır. Yoğun depolamada backplane ve denetleyiciyi doğrulayın. Teklifte ikinci el durumu, disk sağlığı, yönetim lisansı, ray ve garantiyi isteyin."},
+      "strengths": {"fa":["32 اسلات DDR4 برای برنامه‌ریزی ظرفیت","پیکربندی رک 2U و گزینه‌های مختلف ذخیره‌سازی"],"en":["32 DDR4 slots for capacity planning","2U rack configuration and varied storage options"],"tr":["Kapasite planlaması için 32 DDR4 yuva","2U rack ve çeşitli depolama seçenekleri"]},
+      "weaknesses": {"fa":["DDR5 با این نسل سازگار نیست","کانفیگ بک‌پلین و کنترلر باید جداگانه تطبیق داده شود"],"en":["Not a DDR5 platform","Backplane and controller must be matched separately"],"tr":["DDR5 platformu değildir","Backplane ve denetleyici ayrı eşleştirilmelidir"]},
+      "specs": [
+        {"label":{"fa":"پردازنده","en":"Processor","tr":"İşlemci"},"fa":"تا 2 × Intel Xeon Scalable نسل سوم","en":"Up to 2 × 3rd Gen Intel Xeon Scalable","tr":"2 adede kadar 3. nesil Intel Xeon Scalable"},
+        {"label":{"fa":"حافظه","en":"Memory","tr":"Bellek"},"fa":"32 DIMM، DDR4","en":"32 DIMMs, DDR4","tr":"32 DIMM, DDR4"},
+        {"label":{"fa":"فرم‌فاکتور","en":"Form factor","tr":"Boyut"},"fa":"2U rack","en":"2U rack","tr":"2U rack"}
+      ], "gallery": []
+    }
+  },
+  {
+    "slug": "dell-poweredge-r760",
+    "kind": "server",
+    "reference": "https://i.dell.com/sites/csdocuments/Product_Docs/en/poweredge-r760-spec-sheet.pdf",
+    "data": {
+      "brand":"dell","condition":"catalog","price_contact":true,"active":true,"popular":false,"sort":2003,
+      "name":{"fa":"سرور Dell PowerEdge R760","en":"Dell PowerEdge R760 server","tr":"Dell PowerEdge R760 sunucu"},
+      "tag":{"fa":"سرور رک 2U مجهز به DDR5","en":"2U DDR5 rack server","tr":"2U DDR5 rack sunucu"},
+      "hero_d":{"fa":"Dell R760 برای بررسی زیرساخت سازمانی با دو پردازنده و 32 اسلات DDR5؛ سفارش با کانفیگ اختصاصی پس از استعلام.","en":"Evaluate Dell R760 for enterprise infrastructure with dual processors and 32 DDR5 slots; request a configuration quote.","tr":"Çift işlemci ve 32 DDR5 yuvalı Dell R760 kurumsal altyapı için değerlendirilebilir; yapılandırma teklifi alın."},
+      "description":{"fa":"انتخاب R760 برای پروژه‌ای که ظرفیت و پهنای باند حافظه مهم است ارزش بررسی دارد. تعداد CPU، دیسک، کنترلر و پاور واقعی باید در سفارش مشخص شود.","en":"R760 is worth evaluating where memory capacity and bandwidth matter. Specify installed CPUs, drives, controller and PSU in the order.","tr":"Bellek kapasitesi ve bant genişliğinin önemli olduğu projelerde R760 değerlendirilebilir. Siparişte gerçek CPU, disk, denetleyici ve güç kaynağını belirtin."},
+      "body":{"fa":"R760 یک شاسی رک‌مونت دو سوکته است. گذار به DDR5 امکان استفاده از پلتفرم جدیدتر را فراهم می‌کند؛ برای هزینه کل مالکیت، قیمت ماژول‌ها و مصرف برق کانفیگ انتخابی را حساب کنید.\n\nدر مقایسه با R750، مزیت DDR5 با هزینه و عدم امکان استفاده مستقیم از رم DDR4 همراه است. تعداد دیسک و نوع SAS، SATA یا NVMe از مدل بک‌پلین پیروی می‌کند. برای خرید سازمانی شرایط سلامت، قطعات همراه و گارانتی همان دستگاه را استعلام کنید.","en":"R760 is a dual-socket rack chassis. DDR5 enables a newer memory platform; calculate module cost and selected configuration power draw for total ownership cost.\n\nCompared with R750, DDR5 brings a newer platform but existing DDR4 DIMMs cannot be reused directly. Drive count and SAS, SATA or NVMe support depend on the backplane. Request condition, included items and warranty for the exact server.","tr":"R760 çift soketli rack kasadır. DDR5 daha yeni bellek platformu sağlar; toplam sahip olma maliyeti için modül fiyatını ve seçilen yapılandırmanın tüketimini hesaplayın.\n\nR750 ile karşılaştırıldığında DDR5 yeni platform sunar ancak mevcut DDR4 modülleri doğrudan kullanılmaz. Disk sayısı ve SAS, SATA veya NVMe desteği backplane'e bağlıdır. Tam cihazın durum, dahil parçalar ve garanti teklifini isteyin."},
+      "strengths":{"fa":["32 اسلات DDR5","گزینه‌های متعدد بک‌پلین برای طراحی ذخیره‌سازی"],"en":["32 DDR5 slots","Multiple backplane options for storage design"],"tr":["32 DDR5 yuva","Depolama için farklı backplane seçenekleri"]},
+      "weaknesses":{"fa":["عدم امکان استفاده مستقیم از حافظه DDR4","هزینه و سازگاری متغیر بر اساس کانفیگ"],"en":["No direct DDR4 reuse","Cost and compatibility depend on configuration"],"tr":["DDR4 doğrudan kullanılamaz","Maliyet ve uyum yapılandırmaya bağlıdır"]},
+      "specs":[{"label":{"fa":"پردازنده","en":"Processor","tr":"İşlemci"},"fa":"تا 2 پردازنده Intel Xeon Scalable","en":"Up to 2 Intel Xeon Scalable CPUs","tr":"2 adede kadar Intel Xeon Scalable"},{"label":{"fa":"حافظه","en":"Memory","tr":"Bellek"},"fa":"32 DDR5 DIMM","en":"32 DDR5 DIMMs","tr":"32 DDR5 DIMM"},{"label":{"fa":"فرم‌فاکتور","en":"Form factor","tr":"Boyut"},"fa":"2U rack","en":"2U rack","tr":"2U rack"}],"gallery":[]
+    }
+  },
+  {
+    "slug":"hpe-proliant-dl380-gen12",
+    "kind":"server",
+    "reference":"https://www.hpe.com/psnow/doc/a00073551enw",
+    "data":{
+      "brand":"hp","condition":"catalog","price_contact":true,"active":true,"popular":false,"sort":2004,
+      "name":{"fa":"سرور HPE ProLiant DL380 Gen12","en":"HPE ProLiant Compute DL380 Gen12 server","tr":"HPE ProLiant Compute DL380 Gen12 sunucu"},
+      "tag":{"fa":"رک 2U با Intel Xeon 6 و PCIe Gen5","en":"2U rack with Intel Xeon 6 and PCIe Gen5","tr":"Intel Xeon 6 ve PCIe Gen5 ile 2U rack"},
+      "hero_d":{"fa":"DL380 Gen12 برای بررسی بارهای سازمانی سنگین، پردازش و شتاب‌دهنده؛ پشتیبانی تا دو Xeon 6 با کانفیگ وابسته به مدل.","en":"Evaluate DL380 Gen12 for enterprise compute and accelerator workloads, with support for up to two Xeon 6 CPUs depending on configuration.","tr":"DL380 Gen12 kurumsal hesaplama ve hızlandırıcı iş yükleri için değerlendirilebilir; yapılandırmaya göre iki Xeon 6 işlemciye kadar destek."},
+      "description":{"fa":"این مدل 2U از نسل جدید پردازنده و حافظه بهره می‌گیرد؛ ظرفیت و تعداد کارت‌های قابل نصب به کانفیگ دقیق بستگی دارد.","en":"This 2U model uses a newer CPU and memory platform; installed capacity and expansion options depend on exact configuration.","tr":"Bu 2U model yeni CPU ve bellek platformu kullanır; kapasite ve genişleme seçenekleri tam yapılandırmaya bağlıdır."},
+      "body":{"fa":"DL380 Gen12 برای سازمان‌هایی که توسعه زیرساخت و عمر عملیاتی بلندمدت در اولویت است ارزش بررسی دارد. QuickSpecs سازنده سقف ظرفیت حافظه تا 8 TB را برای ترکیب‌های پشتیبانی‌شده ذکر می‌کند؛ این سقف کانفیگ نصب‌شده نیست.\n\nدر مقابل سرورهای استوک نسل ۹ و ۱۰، پلتفرم جدید مزیت توسعه دارد اما ممکن است هزینه خرید و قطعات آن بسیار متفاوت باشد. بررسی کنید آیا نیاز واقعی بار کاری توجیه‌کننده تغییر نسل است. مدل CPU، تعداد ماژول‌های DIMM، نوع بک‌پلین، لایسنس و گارانتی را قبل از سفارش تأیید کنید.","en":"DL380 Gen12 merits evaluation for organizations prioritizing expansion and a longer infrastructure lifecycle. HPE QuickSpecs lists up to 8 TB memory for supported configurations; that limit is not the installed configuration.\n\nCompared with used Gen9 or Gen10 servers, the newer platform offers expansion advantages but purchase and component costs may differ considerably. Check whether the workload justifies the generation change. Confirm CPU, DIMM population, backplane, licensing and warranty before ordering.","tr":"DL380 Gen12 genişleme ve uzun altyapı yaşam döngüsünü önemseyen kuruluşlar için değerlendirilebilir. HPE QuickSpecs desteklenen yapılandırmalarda 8 TB'a kadar bellek listeler; bu takılı kapasite değildir.\n\nİkinci el Gen9 veya Gen10 sunuculara göre yeni platform genişleme avantajı sunar fakat satın alma ve parça maliyetleri ciddi biçimde farklı olabilir. İş yükünün nesil geçişini gerektirip gerektirmediğini değerlendirin. Siparişten önce CPU, DIMM yerleşimi, backplane, lisans ve garantiyi doğrulayın."},
+      "strengths":{"fa":["پلتفرم Xeon 6 و PCIe Gen5","گزینه‌های توسعه برای بار کاری سازمانی"],"en":["Xeon 6 and PCIe Gen5 platform","Expansion options for enterprise workloads"],"tr":["Xeon 6 ve PCIe Gen5 platformu","Kurumsal iş yükleri için genişleme seçenekleri"]},
+      "weaknesses":{"fa":["هزینه خرید و قطعات ممکن است بیشتر باشد","قطعات نسل‌های قدیمی به‌طور خودکار سازگار نیستند"],"en":["Purchase and component costs may be higher","Older generation parts are not automatically compatible"],"tr":["Satın alma ve parça maliyetleri daha yüksek olabilir","Eski nesil parçalar otomatik uyumlu değildir"]},
+      "specs":[{"label":{"fa":"پردازنده","en":"Processor","tr":"İşlemci"},"fa":"تا 2 × Intel Xeon 6","en":"Up to 2 × Intel Xeon 6","tr":"2 adede kadar Intel Xeon 6"},{"label":{"fa":"ظرفیت قابل پشتیبانی حافظه","en":"Supported memory ceiling","tr":"Desteklenen bellek üst sınırı"},"fa":"تا 8 TB در کانفیگ پشتیبانی‌شده","en":"Up to 8 TB in supported configurations","tr":"Desteklenen yapılandırmada 8 TB'a kadar"},{"label":{"fa":"فرم‌فاکتور","en":"Form factor","tr":"Boyut"},"fa":"2U rack","en":"2U rack","tr":"2U rack"}],"gallery":[]
+    }
+  }
+]

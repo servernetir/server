@@ -89,6 +89,7 @@
     </div>
 
     <h2 class="sp-h2">{{ __('ui.parts_gen_parts') }}</h2>
+    @include('partials.hardware-topic-links', ['topicGeneration' => $gen])
 
     @if($byCategory->isEmpty())
       <p class="sp-empty">{{ __('ui.parts_soon') }}</p>
