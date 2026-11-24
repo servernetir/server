@@ -28,6 +28,26 @@ class AiInputOperationsTest extends TestCase
             $extra + ['model' => $this->model->slug, 'input' => ['Hello', 'World']]);
     }
 
+    public function test_studio_lists_input_only_models_with_their_endpoint_and_taxed_input_price(): void
+    {
+        [, $key] = $this->greenKey(tokenOver: ['abilities' => ['ai:models:read']]);
+        Http::fake();
+        foreach (['embedding' => '/v1/embeddings', 'rerank' => '/v1/rerank'] as $category => $endpoint) {
+            $this->model->update(['category' => $category]);
+            $response = $this->withToken($key)->getJson('/v1/models?studio=1')->assertOk()
+                ->assertJsonCount(1, 'data')->assertJsonPath('data.0.category', $category)
+                ->assertJsonPath('data.0.endpoint', $endpoint)->assertJsonPath('data.0.scope', 'ai:'.$category)
+                ->assertJsonPath('data.0.pricing.unit', 'tokens')->assertJsonPath('data.0.pricing.quantity', 1_000_000);
+            $this->assertGreaterThan(0, $response->json('data.0.pricing.input_irt'));
+            $this->assertArrayNotHasKey('output_irt', $response->json('data.0.pricing'));
+            $this->assertArrayNotHasKey('provider', $response->json('data.0'));
+        }
+        $this->model->update(['suspended_at' => now()]);
+        $this->withToken($key)->getJson('/v1/models?studio=1')->assertOk()->assertJsonCount(0, 'data');
+        Http::assertNothingSent();
+        $this->assertSame(0, AiUsage::count());
+    }
+
     public function test_embeddings_are_input_only_settled_and_replayed_once(): void
     {
         [$customer, $key] = $this->greenKey(tokenOver: ['abilities' => ['ai:embedding']]);

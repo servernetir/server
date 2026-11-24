@@ -1,0 +1,53 @@
+{
+  "studio_commit": "b32821a00912e1920c8b2b2ea87a76ed84aca1d1",
+  "source_before": "https://github.com/servernetir/servernet-studio/tree/d11102d490f33e46a850fb48a307f7d818403ac5",
+  "payload_sha256": "0752b2583d7841f5aef43593eca12d9bc76a6824fb6707dd09bfe1d32288d861",
+  "files": [
+    {
+      "destination": "studio-stage.sOsXeb/servernet/web/dist/assets/index-DRDqPPPB.js",
+      "payload": "web/dist/assets/index-DRDqPPPB.js",
+      "before": null,
+      "after": "56cc59174ddfed5a419d059c51f74c9af75a245e1d84eaa35d570b7a89ddd02a"
+    },
+    {
+      "destination": "studio-stage.sOsXeb/servernet/web/dist/assets/index-tsmPX0xU.css",
+      "payload": "web/dist/assets/index-tsmPX0xU.css",
+      "before": null,
+      "after": "512b0e5ca1ad0127ce0f71fd5108686e0cb962f4e10ef5b57f9f5f7020033965"
+    },
+    {
+      "destination": "servernet_app/app/Services/Studio/StudioCatalog.php",
+      "source": "website/app/Services/Studio/StudioCatalog.php",
+      "before": "1b6cabb0d25195bac70bf5ff567d30f06e67421d95de5447fb054c9e2265473c",
+      "after": "68d16b5d83090ce12d81b57ac41c58d3b3be720a4ac585135b1b03aa9552e442"
+    },
+    {
+      "destination": "servernet_app/app/Http/Controllers/Ai/V1ModelsController.php",
+      "source": "website/app/Http/Controllers/Ai/V1ModelsController.php",
+      "before": "db0b614657f21653847ec3286ea304552d71fe7f6b2c241d6744fdb66adf0e2f",
+      "after": "0af647a28a1a079c0d32ca7a42003ca2e06698d9e6e454cc05b32e8cffcc9221"
+    },
+    {
+      "destination": "studio-stage.sOsXeb/servernet/hosted/app.py",
+      "payload": "hosted/app.py",
+      "before": "fd5fc3ff749bd96feda85fb6e0a44710ef0c5864b0699677bd4c8f0e8813bef4",
+      "after": "f4c95f431eb3cf0dd3da500840af0612a761f9b4ffc5ad5f7df292fc98d1d2dc"
+    },
+    {
+      "destination": "studio-stage.sOsXeb/servernet/web/dist/index.html",
+      "payload": "web/dist/index.html",
+      "before": "94427234a02ccf41931e287aad7e73d4b62a83915a5ca84d41a85d5452e342e8",
+      "after": "1b87b1e2a7e4e2054f1bb799b57b16b79baba6a398d5a68c2203903fd0f39139"
+    }
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    }
+  }
+}

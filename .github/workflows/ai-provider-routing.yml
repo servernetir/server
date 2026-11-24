@@ -5,6 +5,7 @@ on:
     paths:
       - 'website/app/Services/Ai/**'
       - 'website/app/Services/AiProviders/**'
+      - 'website/app/Services/Studio/StudioCatalog.php'
       - 'website/app/Models/AiProvider.php'
       - 'website/app/Http/Controllers/Ai/V1ModelsController.php'
       - 'website/app/Http/Controllers/AiStorefrontController.php'
@@ -12,6 +13,7 @@ on:
       - 'website/app/Console/Commands/AiSyncCatalog.php'
       - 'website/resources/views/admin/ai/**'
       - 'website/tests/Feature/AiOpenRouterRoutingTest.php'
+      - 'website/tests/Feature/AiInputOperationsTest.php'
       - 'scripts/ai-provider-routing-20261124/**'
       - '.github/workflows/ai-provider-routing.yml'
 permissions:
@@ -59,7 +61,7 @@ jobs:
           tools: composer:v2
       - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
         working-directory: website
-      - run: vendor/bin/phpunit tests/Feature/AiOpenRouterRoutingTest.php
+      - run: vendor/bin/phpunit tests/Feature/AiOpenRouterRoutingTest.php tests/Feature/AiInputOperationsTest.php
         working-directory: website
         env:
           DB_CONNECTION: mysql

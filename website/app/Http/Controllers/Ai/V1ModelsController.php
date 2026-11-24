@@ -38,6 +38,10 @@ class V1ModelsController extends Controller
                 'owned_by' => 'servernet', 'category' => $model->category] + ($native
                     ? ['endpoint' => '/v1/inference', 'scope' => 'ai:native', 'billing_unit' => $availability['quote']->native['pricing']['type']]
                     : ['context_length' => $model->context_tokens, 'max_output_tokens' => $model->max_output_tokens]);
+            if (in_array($model->category, ['embedding', 'rerank'], true)) {
+                $entry += ['endpoint' => $model->category === 'embedding' ? '/v1/embeddings' : '/v1/rerank',
+                    'scope' => 'ai:'.$model->category];
+            }
             if ($studio) {
                 try {
                     $entry += StudioCatalog::model($model, $availability['quote'], $vat, $token->can('ai:native'));
