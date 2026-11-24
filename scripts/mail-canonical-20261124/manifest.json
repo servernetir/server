@@ -1,0 +1,25 @@
+{
+  "files": [
+    {
+      "source": "website/app/Http/Middleware/ConsoleHost.php",
+      "destination": "servernet_app/app/Http/Middleware/ConsoleHost.php",
+      "before": "4b601e7f515668911ad9ca6cbe725a702e73d5a0a37932556dcb1cb11e6408f0",
+      "after": "7a2489938669cf66b5d720e50782b4f28d9960ad60ea6eb8d89c06ff82591b42"
+    }
+  ],
+  "views": [],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/mail-canonical-20261124/activate.php",
+      "sha256": "f42db5549aba4118a90e4514e4b70dbe07015f76efe6225f86b929c892fbc6e0"
+    }
+  }
+}
