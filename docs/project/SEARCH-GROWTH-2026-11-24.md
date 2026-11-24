@@ -38,4 +38,18 @@ Commands take a fixed reviewed develop SHA: `prepare`, `apply`, `verify`, `activ
 
 After publication verify three languages, the GPU configurator, AI copy buttons, article links, canonical/hreflang, sitemap inclusion and a fresh PageSpeed comparison. Assess traffic after a comparable full period. Field-data validation and completed indexing require Google's later result.
 
-Status at this commit: implemented and tested locally; production installation and acceptance are tracked separately.
+## Production acceptance
+
+PR435 merged to develop `12e2bc6868524b0eaed40ced57d4a9d47c46c994` after all nine triggered CI workflows succeeded. The pinned 17-file manifest was prepared, installed and verified on production. Both existing FPM pools activated the release, compiled 11 listed views and refreshed only 45 explicit page paths. No general cache flush.
+
+Twelve public pages (AI, GPU, Python and n8n in three locales) returned 200 with the new guidance, correct language, one H1 and self-canonical. GPU capacity refresh and the live purchase widget were preserved. Browser acceptance exercised GPU filtering/selection and recalculated totals without submitting an order, and copied the AI cURL example successfully.
+
+The three-language Python article was independently published. All three public URLs return 200 with matching canonical/hreflang and appear in the current blog sitemap. The native Google-discovery worker recorded sitemap acceptance for the article; this is not a direct indexing request or an indexing guarantee.
+
+The first post-release mobile run was performance 97, LCP 1.9 s and CLS 0.088. A second run after embedding the exact served medium font was performance 96, LCP 2.0 s and CLS 0.089. Render-blocking stylesheet warnings disappeared, but the GPU hero still shifted and the runs did not establish a speed gain.
+
+Accordingly, GPU is removed from the inline-bundle eligibility list. It retains the original external CSS/font-preload path, the independently safe small auxiliary CSS, all published guidance and its configurator. Other explicit eligible public pages retain their guarded complete bundles. This measured fallback is a one-class limited release with live hash checks, targeted GPU page-cache invalidation and both-pool style-contract checks. A final fresh public measurement is recorded separately; the 28-day field result remains a later outcome.
+
+Public routing follow-up: PR436 merged as `a0bfe990f0230a747993e4f59ca5da3c4c5e83a2`, installed two targets and verified both FPM pools. All 25 sampled historical mail-host duplicates redirected 301 to the matching primary URL, whose final response was 200. The canonical validation request in Search Console was observed as started on 24 November. See MAIL-CANONICAL-2026-11-24.md.
+
+Status: main release and canonical follow-up installed and accepted; the bounded GPU rendering fallback at this commit is tested locally and awaits installation. Rankings, full canonical validation and field performance remain later results.

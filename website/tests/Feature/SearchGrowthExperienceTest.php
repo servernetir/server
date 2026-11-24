@@ -37,7 +37,11 @@ class SearchGrowthExperienceTest extends TestCase
                 $this->assertSame(3, $nodes->query($section.'//article')->length);
                 $this->assertSame(3, $nodes->query($section.'//li')->length);
                 $this->assertSame(trans('search-growth.'.$topic.'.title', [], $locale), trim($nodes->query($section.'/h2')->item(0)->textContent));
-                $this->assertStringContainsString('id="public-page-site-css"', $html);
+                if ($topic === 'gpu') {
+                    $this->assertStringNotContainsString('id="public-page-site-css"', $html);
+                } else {
+                    $this->assertStringContainsString('id="public-page-site-css"', $html);
+                }
                 $this->assertStringNotContainsString('search-growth.', $html);
                 $this->assertStringContainsString('rel="canonical" href="http://localhost'.$prefix.$path.'"', $html);
                 foreach ($nodes->query($section.'//a') as $anchor) {

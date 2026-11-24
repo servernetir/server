@@ -16,6 +16,10 @@ Public acceptance must check redirects as well as the unaffected primary pages. 
 
 Font-bundle/GPU/search-guide acceptance: 28 tests, 1,296 assertions passed.
 
-Status at this commit: implemented and tested; deployment and public acceptance are recorded separately.
+Production: PR436 merged as `a0bfe990f0230a747993e4f59ca5da3c4c5e83a2` after all eight triggered CI workflows succeeded. Two runtime targets installed and verified. Both FPM pools confirmed the redirect/private-route contracts and three served embedded fonts, with zero compiled views and no general cache flush.
+
+Public acceptance: 25 of 25 historical sampled mail-host URLs returned 301 to the exact HTTPS primary path; all 25 primary destinations returned 200. Search Console showed Validation started, dated 24 November 2026. These samples do not prove all 454 historical group URLs are resolved, and Google's final verdict remains pending.
 
 The first post-release mobile PageSpeed run removed the render-blocking CSS warning but reported a 0.088 layout shift attributed to the GPU hero and the remaining medium font. The guarded inline bundle now embeds the exact served 500-weight font as well as 400/700, so pricing text does not wait for an optional external font. CSS rules, glyphs and metrics are unchanged; unknown or invalid fonts still trigger the complete external fallback. The public-style tests verify exact served font bytes and fallback behavior. A fresh measurement is required after publication; the first run alone did not establish a speed improvement.
+
+A later fresh GPU run still showed hero CLS 0.089 after the medium-font change. The separate gpu-rendering-20261124 release therefore retains external full styles specifically for GPU. The main-host routing fix is unchanged.

@@ -7,8 +7,10 @@ class PublicPageStyles
 {
     private const REQUEST_CACHE = 'servernet.public-page-styles';
 
+    // GPU retains external styles: live mobile measurements showed an initial
+    // hero layout shift with the inline bundle. Small auxiliary CSS is independent.
     private const PATHS = [
-        '', 'gpu', 'vps/hourly', 'vps/philippines', 'vps/uae',
+        '', 'vps/hourly', 'vps/philippines', 'vps/uae',
         'hosting/linux', 'hosting/python', 'ai', 'cloud/n8n', 'blog/php-version-upgrade-guide',
     ];
 
