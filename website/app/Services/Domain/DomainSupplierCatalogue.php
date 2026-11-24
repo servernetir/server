@@ -57,7 +57,7 @@ class DomainSupplierCatalogue
                     || ! is_string($stored['identity'] ?? null) || ! hash_equals($identity, $stored['identity'])) return null;
                 $index = ['fetched_at' => $snapshot['fetched_at'], 'offers' => []];
                 foreach ($stored['offers'] ?? [] as $q) {
-                    if (! is_array($q) || ($q['premium'] ?? null) !== false) continue;
+                    if (! is_array($q) || ($q['premium'] ?? null) !== false || ($q['promotion'] ?? false) !== true) continue;
                     $key = json_encode([$q['tld'] ?? null, $q['operation'] ?? null, $q['period_months'] ?? null,
                         $q['amount_minor'] ?? null, $q['currency'] ?? null], JSON_THROW_ON_ERROR);
                     $index['offers'][$key][] = ['valid_until' => $q['valid_until'] ?? null,
@@ -94,6 +94,13 @@ class DomainSupplierCatalogue
                         || count($catalogue['offers']) > 200000 || ! is_array($catalogue['suffixes'] ?? null)) {
                         throw new \RuntimeException('supplier_catalogue_incomplete');
                     }
+                    // The catalogue needs the final landed cost and promotion evidence.
+                    // Itemized accounting stays in each exact purchase quote; retaining it
+                    // for every renewal term exhausts the 128 MB catalogue worker.
+                    $fields = array_flip(['tld', 'operation', 'period_months', 'currency', 'amount_minor',
+                        'provider_debit_minor', 'premium', 'tax_included', 'promotion', 'valid_until', 'promotion_evidence']);
+                    foreach ($catalogue['offers'] as &$offer) $offer = array_intersect_key($offer, $fields);
+                    unset($offer);
                     // Discovery is evidence, never automatic management/IDN/premium authorization.
                     $accounts[(string) $account->id] = ['identity' => self::identity($account),
                         'offers' => $catalogue['offers'], 'suffixes' => $catalogue['suffixes'],

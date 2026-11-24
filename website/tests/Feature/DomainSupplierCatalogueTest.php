@@ -79,6 +79,30 @@ class DomainSupplierCatalogueTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_compact_refresh_preserves_landed_cost_promotion_and_the_winners_renewal(): void
+    {
+        $joker = $this->account(); $op = $this->account('openprovider');
+        $promotion = $this->offer('com', 800) + ['promotion' => true, 'promotion_evidence' => [
+            'regular_amount_minor' => 1000, 'currency' => 'USD', 'period_months' => 12,
+            'starts_at' => now()->subHour()->toIso8601String(), 'ends_at' => now()->addHours(12)->toIso8601String(),
+        ]];
+        $promotion['provider_debit_minor'] = 750;
+        $promotion['components'] = ['domain_minor' => 750, 'funding_fee_minor' => 50];
+        $this->factory([$joker->id => [$promotion, $this->offer('com', 1500, 'renew')],
+            $op->id => [$this->offer('com', 900), $this->offer('com', 500, 'renew')]]);
+
+        app(TldPriceBook::class)->refreshAll();
+        $row = app(TldPriceBook::class)->cachedFullForTlds(['com'])['com'];
+        $this->assertSame(808000, $row['register'], 'compare the landed total, including funding');
+        $this->assertSame(1515000, $row['renew'], 'keep the registration winners renewal');
+        $this->assertSame(1010000, $row['regular_price_toman']);
+        $this->assertSame(20, $row['discount_percent']);
+        $this->assertSame($promotion['promotion_evidence'], DomainSupplierCatalogue::promotionEvidence(
+            $joker, 'com', 'create', 12, 800, 'USD'));
+        $this->assertNull(DomainSupplierCatalogue::promotionEvidence($joker, 'com', 'create', 12, 750, 'USD'));
+        Http::assertNothingSent();
+    }
+
     public function test_catalogue_never_compares_one_year_with_two_year_totals(): void
     {
         $a = $this->account(); $b = $this->account('openprovider');
