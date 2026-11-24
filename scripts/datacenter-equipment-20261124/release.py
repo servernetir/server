@@ -21,6 +21,7 @@ RELEASE = 'datacenter-equipment-20261124'
 PREFIX = 'scripts/' + RELEASE + '/'
 CATALOGUES = ('website/database/catalog/hardware-growth-20261123.json',
               'website/database/catalog/datacenter-equipment-20261124.json')
+OVERLAYS = {'website/routes/web.php', 'website/app/Http/Controllers/SiteController.php', 'website/config/servernet.php'}
 
 
 def sha(data):
@@ -72,11 +73,31 @@ def manifest(commit):
     rows = json.loads(fetch(commit, PREFIX + 'release-manifest.json'))['files']
     assert len(rows) == 39 and len({r['destination'] for r in rows}) == len(rows), 'Unexpected release scope'
     for row in rows:
-        assert set(row) == {'source', 'destination', 'before', 'after'}
+        fields = {'source', 'destination', 'before', 'after'}
+        if row['source'] in OVERLAYS:
+            fields |= {'source_sha', 'edits'}
+            assert re.fullmatch('[a-f0-9]{64}', row['source_sha'])
+            assert len(row['before']) == 1 and row['before'][0] is not None
+            assert row['edits'] and all(set(e)=={'anchor','insert'} and e['anchor'] and e['insert'] for e in row['edits'])
+        assert set(row) == fields
         assert row['before'] and all(x is None or re.fullmatch('[a-f0-9]{64}',x) for x in row['before'])
         assert re.fullmatch('[a-f0-9]{64}', row['after'])
         target(row)
     return rows
+
+
+def overlay(row, original, source):
+    assert sha(source)==row['source_sha'], 'Unverified overlay source'
+    if sha(original)==row['after']:
+        return original
+    assert sha(original) in row['before'], 'Unverified overlay base'
+    for edit in row['edits']:
+        anchor, insertion = edit['anchor'].encode(), edit['insert'].encode()
+        assert source.count(anchor+insertion)==1, 'Overlay does not match reviewed source'
+        assert original.count(anchor)==1 and insertion not in original, 'Ambiguous overlay anchor'
+        original=original.replace(anchor,anchor+insertion,1)
+    assert sha(original)==row['after'], 'Unexpected overlay result'
+    return original
 
 
 def preflight_catalogue(combined):
@@ -141,6 +162,8 @@ def apply(commit, stage, rows):
         p = target(row)
         if row['source'] not in payloads:
             payloads[row['source']] = fetch(commit,row['source'])
+            if 'edits' in row:
+                payloads[row['source']] = overlay(row,p.read_bytes(),payloads[row['source']])
         assert sha(payloads[row['source']]) == row['after']
         row.update(original=original, mode=(p.stat().st_mode & 0o777) if p.exists() else 0o644)
     records = [record for source in CATALOGUES for record in json.loads(payloads[source])]
