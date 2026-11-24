@@ -46,6 +46,10 @@ def current(row):
     if path.is_symlink(): raise RuntimeError('symlink_destination')
     return sha(path.read_bytes()) if path.exists() else None
 
+def matches(row, phase):
+    observed = current(row)
+    return observed == row[phase] or (phase == 'before' and row['before'] is None and observed == row['after'])
+
 def activate(stage, manifest, commit, phase):
     for name, row in manifest['helpers'].items():
         data = fetch(commit, row['path'])
@@ -96,7 +100,7 @@ def run(mode, commit, stage):
             expected = {row['payload'] for row in manifest['files'] if 'payload' in row}
             assert {m.name for m in archive.getmembers()} == expected and all(m.isfile() for m in archive.getmembers())
             for i,row in enumerate(manifest['files']):
-                assert '..' not in Path(row['destination']).parts and current(row) == row['before'], 'live_hash_changed'
+                assert '..' not in Path(row['destination']).parts and matches(row, 'before'), 'live_hash_changed'
                 data = archive.extractfile(row['payload']).read() if 'payload' in row else fetch(commit,row['source'])
                 assert sha(data) == row['after'], 'source_hash_mismatch'
                 write(stage/('new-'+str(i)),data)
@@ -114,7 +118,7 @@ def run(mode, commit, stage):
         print(json.dumps({'status':'prepared','files':len(plan['files']),'commit':commit})); return
     plan = json.loads((stage/'prepared.json').read_text()); rows = plan['files']
     phase = 'after' if mode in ['verify','rollback'] else 'before'
-    assert all(current(row) == row[phase] for row in rows), 'live_hash_changed'
+    assert all(matches(row, phase) for row in rows), 'live_hash_changed'
     assert sha(config.read_bytes()) == plan['config_'+phase], 'configuration_changed'
     if mode == 'verify':
         print(json.dumps({'status':'verified','files':len(rows),'commit':commit})); return
@@ -128,7 +132,9 @@ def run(mode, commit, stage):
     changed = []
     try:
         for i,row in enumerate(rows):
-            assert current(row) == row['before'], 'concurrent_file_change'
+            assert matches(row, 'before'), 'concurrent_file_change'
+            if row['before'] is None and current(row) == row['after']:
+                continue  # A prior failed activation/rollback retained these exact immutable assets.
             write(HOME/row['destination'],(stage/('new-'+str(i))).read_bytes(),row['mode']); changed.append((i,row))
         assert sha(config.read_bytes()) == plan['config_before'], 'concurrent_config_change'
         write(config,(stage/'config-after.bin').read_bytes(),plan['config_mode'])

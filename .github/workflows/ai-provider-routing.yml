@@ -15,6 +15,7 @@ on:
       - 'website/tests/Feature/AiOpenRouterRoutingTest.php'
       - 'website/tests/Feature/AiInputOperationsTest.php'
       - 'scripts/ai-provider-routing-20261124/**'
+      - 'scripts/studio-catalogue-union-20261124/**'
       - '.github/workflows/ai-provider-routing.yml'
 permissions:
   contents: read
@@ -34,6 +35,7 @@ jobs:
           tools: composer:v2
       - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
         working-directory: website
+      - run: python3 scripts/studio-catalogue-union-20261124/test_release.py
       - run: vendor/bin/phpunit tests/Feature/AiOpenRouterRoutingTest.php tests/Feature/AiRegistryTest.php tests/Feature/AiPricingTest.php tests/Feature/AiExpandedCatalogTest.php tests/Feature/AiAdditionalProviderCatalogTest.php tests/Feature/AiAdminPagesTest.php tests/Feature/V1ChatTest.php tests/Feature/AiLaunchTest.php tests/Feature/AiSettlementTest.php tests/Feature/AiSupplierCostPrivacyTest.php tests/Feature/AiInputOperationsTest.php tests/Feature/AiNativeOperationsTest.php
         working-directory: website
   mariadb:
