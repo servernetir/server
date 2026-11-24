@@ -1,0 +1,56 @@
+{
+  "website/app/Services/Ai/AiCaller.php": [
+    {
+      "old": "        if ($model->suspended_at !== null) {\n            return AiCallOutcome::fail('model_suspended', 'این مدل موقتاً معلق است.', 503);\n        }\n        if (! DeepInfraCatalog::isFresh($model)) {\n            return AiCallOutcome::fail('catalogue_unavailable', 'Model catalogue or pricing needs a refresh.', 503);\n        }\n",
+      "new": "        if ($model->suspended_at !== null) {\n            return AiCallOutcome::fail('model_suspended', 'این مدل موقتاً معلق است.', 503);\n        }\n        $model = app(AiProviderRouting::class)->forRequest($model, $client, $operation);\n        if (! DeepInfraCatalog::isFresh($model)) {\n            return AiCallOutcome::fail('catalogue_unavailable', 'Model catalogue or pricing needs a refresh.', 503);\n        }\n",
+      "count": 1
+    },
+    {
+      "old": "        }\n\n        // ── A7: قفلِ مشتری ──\n        $opened = $this->open($auth, $model, $quote, $vat, $prepared, $hold, $idempotencyKey);\n        if ($opened instanceof AiCallOutcome) {\n            return $opened;\n        }\n",
+      "new": "        }\n\n        // ── A7: قفلِ مشتری ──\n        $opened = $this->open($auth, $model, $quote, $vat, $prepared, $hold, $idempotencyKey, $slug);\n        if ($opened instanceof AiCallOutcome) {\n            return $opened;\n        }\n",
+      "count": 1
+    },
+    {
+      "old": "     * @return AiCallOutcome|array{usage?:AiUsage,replay?:AiUsage}\n     */\n    private function open(AiAuthContext $auth, AiModel $model, AiPriceQuote $q, array $vat,\n        AiPreparedRequest $prepared, array $hold, ?string $key): AiCallOutcome|array\n    {\n        $customerId = (int) $auth->customer->id;\n        $tHttp = $prepared->operation === 'native' ? 300 : self::httpTimeout($prepared->maxOutput);\n\n        try {\n            return DB::transaction(function () use ($auth, $model, $q, $vat, $prepared, $hold, $key, $customerId, $tHttp) {\n                Customer::whereKey($customerId)->lockForUpdate()->first();\n\n                $this->sweepOwn($customerId);\n",
+      "new": "     * @return AiCallOutcome|array{usage?:AiUsage,replay?:AiUsage}\n     */\n    private function open(AiAuthContext $auth, AiModel $model, AiPriceQuote $q, array $vat,\n        AiPreparedRequest $prepared, array $hold, ?string $key, string $publicSlug): AiCallOutcome|array\n    {\n        $customerId = (int) $auth->customer->id;\n        $tHttp = $prepared->operation === 'native' ? 300 : self::httpTimeout($prepared->maxOutput);\n\n        try {\n            return DB::transaction(function () use ($auth, $model, $q, $vat, $prepared, $hold, $key, $customerId, $tHttp, $publicSlug) {\n                Customer::whereKey($customerId)->lockForUpdate()->first();\n\n                $this->sweepOwn($customerId);\n",
+      "count": 1
+    },
+    {
+      "old": "                    'status' => AiReservation::STATUS_PENDING,\n                    'idempotency_key' => $key,\n                    'purpose' => 'ai',\n                    'reference' => $model->slug,\n                    'expires_at' => null,                            // M5: تصمیم با decide_by، نه با ساعت\n                    'pricing_version' => AiReservation::PRICING_M5,\n                    'ai_project_id' => $auth->project?->id,\n",
+      "new": "                    'status' => AiReservation::STATUS_PENDING,\n                    'idempotency_key' => $key,\n                    'purpose' => 'ai',\n                    'reference' => $publicSlug,\n                    'expires_at' => null,                            // M5: تصمیم با decide_by، نه با ساعت\n                    'pricing_version' => AiReservation::PRICING_M5,\n                    'ai_project_id' => $auth->project?->id,\n",
+      "count": 1
+    },
+    {
+      "old": "                    'customer_api_token_id' => $auth->token?->id,\n                    'ai_provider_id' => $model->ai_provider_id,\n                    'ai_model_id' => $model->id,\n                    'model_slug' => $model->slug,\n                    'upstream_model' => $model->upstream_model,\n                    'idempotency_key' => $key,\n                    'request_sha256' => $prepared->sha256,\n",
+      "new": "                    'customer_api_token_id' => $auth->token?->id,\n                    'ai_provider_id' => $model->ai_provider_id,\n                    'ai_model_id' => $model->id,\n                    'model_slug' => $publicSlug,\n                    'upstream_model' => $model->upstream_model,\n                    'idempotency_key' => $key,\n                    'request_sha256' => $prepared->sha256,\n",
+      "count": 1
+    },
+    {
+      "old": "        $started = hrtime(true);\n\n        try {\n            $result = $driver->chat($model, $prepared->body(), $tHttp);\n        } catch (AiProviderCallException $e) {\n            return $this->failure($usage, $model, $e, $headers);\n        } catch (\\Throwable $e) {\n",
+      "new": "        $started = hrtime(true);\n\n        try {\n            $body = $prepared->body();\n            if ($model->provider?->slug === 'openrouter') {\n                $body['_servernet_max_price'] = ['prompt' => (string) \\Brick\\Math\\BigDecimal::of($usage->input_rate_micro)->dividedBy(1_000_000, 6)];\n                if ($model->category === 'chat') {\n                    $body['_servernet_max_price']['completion'] = (string) \\Brick\\Math\\BigDecimal::of($usage->output_rate_micro)->dividedBy(1_000_000, 6);\n                }\n            }\n            $result = $driver->chat($model, $body, $tHttp);\n        } catch (AiProviderCallException $e) {\n            return $this->failure($usage, $model, $e, $headers);\n        } catch (\\Throwable $e) {\n",
+      "count": 1
+    },
+    {
+      "old": "        $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;\n        $body['model'] = $usage->model_slug;\n        unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],\n            $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);\n        return $body;\n    }\n",
+      "new": "        $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;\n        $body['model'] = $usage->model_slug;\n        unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],\n            $body['usage']['is_byok'], $body['provider'], $body['system_fingerprint'],\n            $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);\n        return $body;\n    }\n",
+      "count": 1
+    }
+  ],
+  "website/app/Services/Ai/AiPricing.php": [
+    {
+      "old": "\n    /** بالاترین سربارِ ارز: ۲۵٪ */\n    public const MAX_FEE_BP = 2_500;\n\n    public function __construct(\n        private readonly AiFx $fx,\n",
+      "new": "\n    /** بالاترین سربارِ ارز: ۲۵٪ */\n    public const MAX_FEE_BP = 2_500;\n    public const MAX_OPENROUTER_FEE_BP = 10_000;\n\n    public function __construct(\n        private readonly AiFx $fx,\n",
+      "count": 1
+    },
+    {
+      "old": "        $fee = $provider->getAttribute('fx_fee_bp');\n        if ($fee === null) {\n            $reasons[] = 'fee_unset';\n        } elseif ((int) $fee < 0 || (int) $fee > self::MAX_FEE_BP) {\n            $reasons[] = 'fee_invalid';\n        }\n\n",
+      "new": "        $fee = $provider->getAttribute('fx_fee_bp');\n        if ($fee === null) {\n            $reasons[] = 'fee_unset';\n        } elseif ((int) $fee < 0 || (int) $fee > ($provider->slug === 'openrouter' ? self::MAX_OPENROUTER_FEE_BP : self::MAX_FEE_BP)) {\n            $reasons[] = 'fee_invalid';\n        }\n\n",
+      "count": 1
+    },
+    {
+      "old": "    /** @return array{0:int,1:string,2:?string} [bp, source, blockingReason] */\n    private function marginFor(AiModel $model): array\n    {\n        $own = $model->getAttribute('margin_bp');\n\n        if ($own !== null) {\n            $own = (int) $own;\n",
+      "new": "    /** @return array{0:int,1:string,2:?string} [bp, source, blockingReason] */\n    private function marginFor(AiModel $model): array\n    {\n        $own = Setting::get('ai_uniform_margin') === '1' ? null : $model->getAttribute('margin_bp');\n\n        if ($own !== null) {\n            $own = (int) $own;\n",
+      "count": 1
+    }
+  ]
+}

@@ -90,6 +90,7 @@ final class PriceBook
         }
 
         $basis = $this->billingUnitFor($unit);
+        $model->unsetRelation('activeUnitPrices');
 
         return DB::transaction(function () use ($model, $unit, $rateMicros, $basis, $createdBy, $note, $currency) {
             /* نسخهٔ فعالِ همین مدل/واحد را (با claimِ قفل‌دار) بسته */
@@ -158,7 +159,9 @@ final class PriceBook
             'cached' => AiModelUnitPrice::UNIT_CACHED_INPUT,
             'output' => AiModelUnitPrice::UNIT_OUTPUT,
         ] as $key => $unit) {
-            $row = AiModelUnitPrice::query()
+            $row = $model->relationLoaded('activeUnitPrices')
+                ? $model->activeUnitPrices->whereNull('customer_id')->where('unit', $unit)->sortByDesc('id')->first()
+                : AiModelUnitPrice::query()
                 ->where('ai_model_id', $model->id)
                 ->whereNull('customer_id')
                 ->where('unit', $unit)

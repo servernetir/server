@@ -143,7 +143,7 @@ final class AiPayload
         if (is_int($tierLimit) && $input + $output > $tierLimit) {
             throw new AiRequestException('request_too_large', 'Input and output exceed this model pricing tier limit.', 413);
         }
-        if (in_array($model->provider?->slug, ['gapgpt', 'deepseek'], true) && $input + $output > $model->context_tokens) {
+        if (in_array($model->provider?->slug, ['gapgpt', 'deepseek', 'openrouter'], true) && $input + $output > $model->context_tokens) {
             throw new AiRequestException('request_too_large', 'Input and output exceed the verified context limit.', 413);
         }
 

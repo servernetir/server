@@ -1,3 +1,5 @@
+Current follow-up: [OpenRouter/DeepInfra price routing, uniform margin and Studio catalogue](../project/AI-PROVIDER-ROUTING-2026-11-24.md). This dated record supersedes older provider/count notes only where it records current verification.
+
 # AI gateway (M5) — where the plan lives
 
 ## Current deployment — 2026-10-10

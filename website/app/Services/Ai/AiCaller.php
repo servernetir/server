@@ -90,6 +90,7 @@ final class AiCaller
         if ($model->suspended_at !== null) {
             return AiCallOutcome::fail('model_suspended', 'این مدل موقتاً معلق است.', 503);
         }
+        $model = app(AiProviderRouting::class)->forRequest($model, $client, $operation);
         if (! DeepInfraCatalog::isFresh($model)) {
             return AiCallOutcome::fail('catalogue_unavailable', 'Model catalogue or pricing needs a refresh.', 503);
         }
@@ -140,7 +141,7 @@ final class AiCaller
         }
 
         // ── A7: قفلِ مشتری ──
-        $opened = $this->open($auth, $model, $quote, $vat, $prepared, $hold, $idempotencyKey);
+        $opened = $this->open($auth, $model, $quote, $vat, $prepared, $hold, $idempotencyKey, $slug);
         if ($opened instanceof AiCallOutcome) {
             return $opened;
         }
@@ -281,13 +282,13 @@ final class AiCaller
      * @return AiCallOutcome|array{usage?:AiUsage,replay?:AiUsage}
      */
     private function open(AiAuthContext $auth, AiModel $model, AiPriceQuote $q, array $vat,
-        AiPreparedRequest $prepared, array $hold, ?string $key): AiCallOutcome|array
+        AiPreparedRequest $prepared, array $hold, ?string $key, string $publicSlug): AiCallOutcome|array
     {
         $customerId = (int) $auth->customer->id;
         $tHttp = $prepared->operation === 'native' ? 300 : self::httpTimeout($prepared->maxOutput);
 
         try {
-            return DB::transaction(function () use ($auth, $model, $q, $vat, $prepared, $hold, $key, $customerId, $tHttp) {
+            return DB::transaction(function () use ($auth, $model, $q, $vat, $prepared, $hold, $key, $customerId, $tHttp, $publicSlug) {
                 Customer::whereKey($customerId)->lockForUpdate()->first();
 
                 $this->sweepOwn($customerId);
@@ -339,7 +340,7 @@ final class AiCaller
                     'status' => AiReservation::STATUS_PENDING,
                     'idempotency_key' => $key,
                     'purpose' => 'ai',
-                    'reference' => $model->slug,
+                    'reference' => $publicSlug,
                     'expires_at' => null,                            // M5: تصمیم با decide_by، نه با ساعت
                     'pricing_version' => AiReservation::PRICING_M5,
                     'ai_project_id' => $auth->project?->id,
@@ -353,7 +354,7 @@ final class AiCaller
                     'customer_api_token_id' => $auth->token?->id,
                     'ai_provider_id' => $model->ai_provider_id,
                     'ai_model_id' => $model->id,
-                    'model_slug' => $model->slug,
+                    'model_slug' => $publicSlug,
                     'upstream_model' => $model->upstream_model,
                     'idempotency_key' => $key,
                     'request_sha256' => $prepared->sha256,
@@ -475,7 +476,14 @@ final class AiCaller
         $started = hrtime(true);
 
         try {
-            $result = $driver->chat($model, $prepared->body(), $tHttp);
+            $body = $prepared->body();
+            if ($model->provider?->slug === 'openrouter') {
+                $body['_servernet_max_price'] = ['prompt' => (string) \Brick\Math\BigDecimal::of($usage->input_rate_micro)->dividedBy(1_000_000, 6)];
+                if ($model->category === 'chat') {
+                    $body['_servernet_max_price']['completion'] = (string) \Brick\Math\BigDecimal::of($usage->output_rate_micro)->dividedBy(1_000_000, 6);
+                }
+            }
+            $result = $driver->chat($model, $body, $tHttp);
         } catch (AiProviderCallException $e) {
             return $this->failure($usage, $model, $e, $headers);
         } catch (\Throwable $e) {
@@ -718,6 +726,7 @@ final class AiCaller
         $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;
         $body['model'] = $usage->model_slug;
         unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],
+            $body['usage']['is_byok'], $body['provider'], $body['system_fingerprint'],
             $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);
         return $body;
     }

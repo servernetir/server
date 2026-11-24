@@ -18,7 +18,7 @@ class AiStorefrontController extends Controller
 
     public function models(Request $request)
     {
-        $query = AiModel::with('provider')->orderBy('name');
+        $query = AiModel::with(['provider', 'activeUnitPrices'])->orderBy('name');
         $rawSearch = $request->query('q', '');
         $rawCategory = $request->query('type', '');
         abort_unless(is_string($rawSearch) && is_string($rawCategory), 400);
@@ -31,7 +31,15 @@ class AiStorefrontController extends Controller
         if (in_array($category, AiModel::CATEGORIES, true)) {
             $query->where('category', $category);
         }
-        $page = $query->paginate(24)->withQueryString();
+        if (app(\App\Services\Ai\AiProviderRouting::class)->enabled()) {
+            $catalogue = app(\App\Services\Ai\AiProviderRouting::class)->catalogue($query->get())
+                ->filter(fn ($m) => app(AiAvailability::class)->inspect($m)['ready'])->values();
+            $current = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+            $page = new \Illuminate\Pagination\LengthAwarePaginator($catalogue->forPage($current, 24)->values(),
+                $catalogue->count(), 24, $current, ['path' => $request->url(), 'query' => $request->query()]);
+        } else {
+            $page = $query->paginate(24)->withQueryString();
+        }
         $categories = $this->categories();
         $categoryPage = $search === '' && in_array($category, $categories, true) && $page->isNotEmpty();
         $canonicalParams = $categoryPage ? ['type' => $category] : [];
