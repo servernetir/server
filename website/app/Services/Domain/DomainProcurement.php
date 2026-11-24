@@ -429,7 +429,12 @@ class DomainProcurement
                     if (! is_int($debit) || $debit < 1 || ! is_int($offer['amount_minor'] ?? null)
                         || $debit > $offer['amount_minor'] || $account->balance_minor === null
                         || $account->balance_currency !== ($offer['currency'] ?? null) || $account->balance_minor < $debit) continue;
-                    $priced = $this->costedOffer($tld, $offer) + ['account_id' => (int) $account->id];
+                    // Keep only comparison/display values for the many catalogue terms.
+                    // Exact purchase quotes retain the complete accounting snapshot.
+                    $priced = array_intersect_key($this->costedOffer($tld, $offer), array_flip([
+                        'sell_toman', 'comparison_numerator', 'comparison_denominator',
+                        'is_promotion', 'regular_price_toman', 'discount_percent', 'promotion_ends_at',
+                    ])) + ['account_id' => (int) $account->id];
                     $old = $groups[$tld][$months][$op][$account->id] ?? null;
                     if ($old === null || $this->cheaper($priced, $old)) $groups[$tld][$months][$op][$account->id] = $priced;
                 } catch (\Throwable) { /* Exclude only the unverified offer/account. */ }
