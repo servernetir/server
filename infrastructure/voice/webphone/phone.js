@@ -3,6 +3,10 @@
   'use strict';
 
   const WSS_URL = 'wss://pbx.servernet.cloud/sip/';
+  const STUN_URL = 'stun:pbx.servernet.cloud:3478';
+  function mediaConfiguration() {
+    return { iceServers: [{ urls: STUN_URL }] };
+  }
   const messages = {
     fa: {
       offline: 'قطع ارتباط', connecting: 'در حال اتصال…', registering: 'در حال ثبت داخلی…',
@@ -17,6 +21,7 @@
       disconnected: 'ارتباط قطع شد. برای اتصال دوباره دکمه اتصال را بزنید.',
       invalidNumber: 'شماره داخلی یا شماره تلفن معتبر وارد کنید.',
       callFailed: 'تماس برقرار نشد. شماره و وضعیت خط را بررسی کنید.',
+      mediaFailed: 'ارتباط صوتی تماس برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.',
       busy: 'مقصد مشغول است.', rejected: 'تماس رد شد.', noAnswer: 'پاسخی دریافت نشد.',
       codec: 'کدک صوتی این تماس پشتیبانی نمی‌شود.',
       dtmfFailed: 'ارسال کلید انجام نشد.', mute: 'بی‌صدا کردن', unmute: 'فعال کردن میکروفن',
@@ -37,6 +42,7 @@
       disconnected: 'Connection lost. Select Connect to reconnect.',
       invalidNumber: 'Enter a valid extension or telephone number.',
       callFailed: 'The call could not connect. Check the number and line status.',
+      mediaFailed: 'Audio could not connect. Check your network and try again.',
       busy: 'The destination is busy.', rejected: 'Call rejected.', noAnswer: 'No answer.',
       codec: 'This call does not support the required audio codec.',
       dtmfFailed: 'Could not send the keypad tone.', mute: 'Mute', unmute: 'Unmute',
@@ -56,6 +62,7 @@
       disconnected: 'Bağlantı kesildi. Yeniden bağlanmak için Bağlan düğmesine basın.',
       invalidNumber: 'Geçerli bir dahili veya telefon numarası girin.',
       callFailed: 'Arama bağlanamadı. Numarayı ve hat durumunu kontrol edin.',
+      mediaFailed: 'Ses bağlantısı kurulamadı. Ağınızı kontrol edip yeniden deneyin.',
       busy: 'Aranan numara meşgul.', rejected: 'Arama reddedildi.', noAnswer: 'Yanıt yok.',
       codec: 'Bu arama gerekli ses kodeğini desteklemiyor.',
       dtmfFailed: 'Tuş sesi gönderilemedi.', mute: 'Sessize al', unmute: 'Mikrofonu aç',
@@ -221,7 +228,12 @@
       });
     }
     function failureLabel(event) {
-      const cause = String(event && event.cause || '');
+      const cause = event && typeof event.cause === 'string' ? event.cause : '';
+      const statusCode = Number(event && event.message && event.message.status_code);
+      const errorName = event && event.error && event.error.name;
+      if (errorName === 'NotAllowedError' || /user denied media access/i.test(cause)) return 'microphoneDenied';
+      if (statusCode === 488 || /\b(?:sdp|webrtc|ice|media|rtp|codec)\b/i.test(cause) ||
+          errorName === 'OperationError' || errorName === 'NotSupportedError') return 'mediaFailed';
       if (/busy/i.test(cause)) return 'busy';
       if (/reject|denied/i.test(cause)) return 'rejected';
       if (/no answer|request timeout|unavailable/i.test(cause)) return 'noAnswer';
@@ -416,13 +428,20 @@
         const outgoing = activeUa.call('sip:' + number + '@' + domain, {
           mediaStream: stream, mediaConstraints: { audio: true, video: false },
           rtcOfferConstraints: { offerToReceiveAudio: true, offerToReceiveVideo: false },
-          pcConfig: { iceServers: [] }
+          pcConfig: mediaConfiguration()
         });
         if (session !== outgoing) attachSession(outgoing);
-      } catch (_) {
-        clearMedia();
-        callStatus('callFailed');
-        updateControls();
+      } catch (error) {
+        const label = failureLabel({ error });
+        const activeSession = session;
+        if (activeSession) {
+          releaseCall(activeSession, label);
+          try { activeSession.terminate(); } catch (_) { /* already ended */ }
+        } else {
+          clearMedia();
+          callStatus(label);
+          updateControls();
+        }
       }
     }
     async function answer() {
@@ -437,12 +456,12 @@
       try {
         activeSession.answer({ mediaStream: stream, mediaConstraints: { audio: true, video: false },
           rtcAnswerConstraints: { offerToReceiveAudio: true, offerToReceiveVideo: false },
-          pcConfig: { iceServers: [] } });
+          pcConfig: mediaConfiguration() });
         callStatus('calling');
         updateControls();
-      } catch (_) {
+      } catch (error) {
+        releaseCall(activeSession, failureLabel({ error }));
         try { activeSession.terminate({ status_code: 480 }); } catch (_) { /* already ended */ }
-        releaseCall(activeSession, 'callFailed');
       }
     }
     function hangup(reject = false) {

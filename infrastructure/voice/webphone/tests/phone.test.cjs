@@ -5,6 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { normalizeDialString, preferPcmu, mount } = require('../phone.js');
+const OWNED_PC_CONFIG = { iceServers: [{ urls: 'stun:pbx.servernet.cloud:3478' }] };
 
 class Element extends EventEmitter {
   constructor(id) {
@@ -205,7 +206,7 @@ test('outgoing call uses audio only, one session, DTMF and mute without an SDP r
   assert.equal(h.micCalls, 1);
   assert.equal(h.uas[0].calls[0].uri, 'sip:02171057757@pbx.servernet.cloud');
   assert.deepEqual(session.options.mediaConstraints, { audio: true, video: false });
-  assert.deepEqual(session.options.pcConfig, { iceServers: [] });
+  assert.deepEqual(session.options.pcConfig, OWNED_PC_CONFIG);
   assert.equal(session.listenerCount('sdp'), 0);
   session.established = true;
   session.emit('confirmed');
@@ -235,6 +236,102 @@ test('incoming ringing never requests microphone until explicit Answer', async (
   assert.equal(h.micCalls, 1);
   assert.equal(incoming.established, true);
   assert.deepEqual(incoming.options.mediaConstraints, { audio: true, video: false });
+  assert.deepEqual(incoming.options.pcConfig, OWNED_PC_CONFIG);
+});
+
+test('API-supplied ICE URLs cannot override the single owned STUN endpoint', async (t) => {
+  const h = harness(t);
+  const validResponse = h.responseFactory;
+  h.responseFactory = () => {
+    const response = validResponse();
+    const validJson = response.json;
+    response.json = async () => {
+      const data = await validJson();
+      data.sip.iceServers = [{ urls: 'stun:unexpected.invalid:3478' }];
+      data.sip.pcConfig = { iceServers: [{ urls: 'turn:unexpected.invalid:3478' }] };
+      data.iceServers = [{ urls: 'stun:another.invalid:3478' }];
+      return data;
+    };
+    return response;
+  };
+  await h.connect();
+  assert.equal(h.micCalls, 0);
+  const outgoing = await h.call();
+  assert.deepEqual(outgoing.options.pcConfig, OWNED_PC_CONFIG);
+  await h.elements.hangup.click();
+  const incoming = h.incoming();
+  await h.elements.answer.click();
+  assert.deepEqual(incoming.options.pcConfig, OWNED_PC_CONFIG);
+});
+
+test('488, media, ICE and browser media errors show only the limited translated message', async (t) => {
+  const labels = [
+    ['fa', 'ارتباط صوتی تماس برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.'],
+    ['en', 'Audio could not connect. Check your network and try again.'],
+    ['tr', 'Ses bağlantısı kurulamadı. Ağınızı kontrol edip yeniden deneyin.']
+  ];
+  const failures = [
+    { message: { status_code: 488, reason_phrase: 'RAW_REMOTE_STATUS' } },
+    { cause: 'Busy', message: { status_code: 488, reason_phrase: 'RAW_REMOTE_BUSY_STATUS' } },
+    ...['Incompatible SDP', 'WebRTC Error', 'ICE Connection Error', 'media transport', 'RTP failure', 'codec failure']
+      .map((cause) => ({ cause: cause + ' RAW_REMOTE_CAUSE' })),
+    { error: { name: 'OperationError', message: 'RAW_BROWSER_ERROR' } },
+    { error: { name: 'NotSupportedError', message: 'RAW_BROWSER_ERROR' } }
+  ];
+  for (const [lang, expected] of labels) {
+    const h = harness(t, { lang });
+    await h.connect();
+    for (const failure of failures) {
+      const session = await h.call();
+      session.emit('failed', failure);
+      assert.equal(h.elements['call-status'].textContent, expected, lang + ': ' + JSON.stringify(failure));
+      assert.doesNotMatch(Object.values(h.elements).map((element) => element.textContent).join(' '), /RAW_|488|OperationError|NotSupportedError/);
+      assert.equal(h.elements.call.disabled, false);
+      assert.equal(h.elements.hangup.disabled, true);
+      assert.equal(h.elements['remote-audio'].srcObject, null);
+    }
+    assert.equal(h.trackStops, failures.length);
+    h.close();
+  }
+});
+
+test('busy, rejection, unanswered and unknown failures retain limited user-facing labels', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  for (const [cause, expected] of [
+    ['Busy', 'The destination is busy.'], ['Rejected', 'Call rejected.'],
+    ['No Answer', 'No answer.'], ['Request Timeout', 'No answer.'],
+    ['RAW_UNKNOWN_REMOTE_CAUSE', 'The call could not connect. Check the number and line status.']
+  ]) {
+    const session = await h.call();
+    session.emit('failed', { cause, message: { reason_phrase: 'RAW_REMOTE_DETAIL' } });
+    assert.equal(h.elements['call-status'].textContent, expected);
+    assert.doesNotMatch(h.elements['call-status'].textContent, /RAW_/);
+  }
+});
+
+test('direct outgoing browser media exception uses the limited media error and closes audio', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  h.uas[0].call = () => { throw Object.assign(new Error('RAW_OUTGOING_MEDIA_ERROR'), { name: 'OperationError' }); };
+  await h.call();
+  assert.equal(h.elements['call-status'].textContent, 'Audio could not connect. Check your network and try again.');
+  assert.equal(h.trackStops, 1);
+  assert.equal(h.elements.call.disabled, false);
+  assert.doesNotMatch(h.elements['call-status'].textContent, /RAW_/);
+});
+
+test('direct incoming answer exception keeps its media error despite synchronous termination', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  const incoming = h.incoming();
+  incoming.answer = () => { throw Object.assign(new Error('RAW_INCOMING_MEDIA_ERROR'), { name: 'NotSupportedError' }); };
+  await h.elements.answer.click();
+  assert.equal(h.elements['call-status'].textContent, 'Audio could not connect. Check your network and try again.');
+  assert.ok(incoming.terminated);
+  assert.equal(h.trackStops, 1);
+  assert.equal(h.elements.call.disabled, false);
+  assert.doesNotMatch(h.elements['call-status'].textContent, /RAW_/);
 });
 
 test('rejecting an incoming call requests no microphone', async (t) => {

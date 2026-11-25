@@ -22,7 +22,9 @@ Disconnect, transport failure and page lifecycle events stop the UA and tracks.
 Microphone acquisition requires Call or Answer. The client supports one call,
 incoming answer/reject, hangup, mute and DTMF. Codec preference uses the standard
 browser API when available; SDP is not rewritten. Current server negotiation is
-PCMU. No STUN/TURN dependency is added.
+PCMU. Both call directions use only the owned UDP 3478 STUN endpoint at
+`stun:pbx.servernet.cloud:3478`; the owned server and network are separately
+installed and verified by the operator. No third-party ICE service is used.
 
 The PHP fixture runs actual API SQL against an in-memory synthetic database,
 using fake native authentication/token classes. It tests tenant/user boundaries,
@@ -68,3 +70,11 @@ This adjusts only the SIP Via header; it keeps the public WSS URL and browser TL
 The fake socket starts with WSS and the Connect test asserts WS is passed to the
 UA. The runtime manifest changes only for this reviewed `phone.js` update. No TLS
 backend, credential handling or PHP source change is included.
+
+Owned STUN integration: outgoing calls and incoming answers receive a fresh peer
+configuration with exactly the fixed owned endpoint. API data cannot override
+the ICE servers. The client keeps normal ICE/DTLS/SDP and does not weaken the
+FreeSWITCH candidate ACL. SIP 488 and media/ICE failures map to a limited translated
+audio/network message without raw SIP, SDP or credential diagnostics. The updated
+Node suite passed 22 tests locally, including both call directions, injected ICE
+URL rejection, translated errors and cleanup after browser media exceptions.

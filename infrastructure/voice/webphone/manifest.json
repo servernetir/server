@@ -28,8 +28,8 @@
     },
     {
       "path": "phone.js",
-      "sha256": "58c1d9a3cf80690865e175a87b44ab1dd43a9fc3332941075a7d3a578fcb0e39",
-      "bytes": 25678,
+      "sha256": "391bd09c7df96044d7085e9ba80178249f3332a5b87f5050da6637959c623af7",
+      "bytes": 26912,
       "mode": "0644"
     },
     {
@@ -50,5 +50,6 @@
       "bytes": 1250,
       "mode": "0644"
     }
-  ]
+  ],
+  "stun": "stun:pbx.servernet.cloud:3478"
 }

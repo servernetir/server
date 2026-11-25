@@ -36,7 +36,21 @@ acceptance remain separate owner actions.
 - An active user-extension link, a strong extension password and directory XML.
 - Browser audio codec negotiated with the FreeSWITCH profile; current deployment
   supports PCMU. ICE/media reachability and an answered real call need separate
-  validation. No STUN/TURN service or third-party media dependency is configured.
+  validation. Both call directions use the single owned STUN endpoint
+  `stun:pbx.servernet.cloud:3478` over UDP 3478. The operator must install and verify
+  that listener and its network reachability before deploying this client update.
+  No third-party STUN or TURN fallback is configured.
+
+The STUN address is a fixed client constant alongside the fixed WSS address;
+API responses, query parameters and page data cannot select another ICE server.
+Each outgoing call and incoming answer receives a fresh peer-connection config.
+STUN lets a browser discover a public address mapping when its host candidates
+are private; it does not relay media. This change keeps normal ICE/DTLS/SDP and
+the existing FreeSWITCH candidate ACL policy.
+
+SIP 488 and media/ICE negotiation failures show a limited translated audio/network
+message. Busy, rejected and unanswered calls retain their own messages. No SIP
+body, SDP, token, credential or raw remote error is rendered or logged.
 
 Review and copy **only** `bootstrap.php`, `api.php`, `index.php`, `phone.js`,
 `phone.css`, `vendor/jssip-3.10.0.min.js` and `vendor/LICENSE.JsSIP` into a new
