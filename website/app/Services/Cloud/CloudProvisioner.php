@@ -331,6 +331,14 @@ class CloudProvisioner
             }
         }
 
+        // A customer can cancel while this worker is waiting for a supplier.
+        // Publish the pending create before the request, under the same lock
+        // used for cancellation. An empty inventory during this window is
+        // not proof that the resource will never appear.
+        if (! $this->beginCreate($service, $instance)) {
+            return false;
+        }
+
         // ── لایهٔ ۲: نامِ قطعی ──
         $result = $driver->createServer([
             'managed_application' => ManagedN8nCatalog::handles($service) ? 'n8n' : null,
@@ -416,6 +424,16 @@ class CloudProvisioner
             return false;
         }
 
+        // Save the returned identity before any optional delivery work. If
+        // cancellation won the race, keep the identity in the normal release
+        // queue without restoring the service or notifying the customer.
+        if (! $this->recordCreateReceipt($service, $instance, $result)) {
+            return false;
+        }
+        if ($service->fresh()?->isDead()) {
+            return $this->finalize($service, $instance, $plan, null);
+        }
+
         // ── رمزِ root ──
         // زیرساختِ ۱ رمز را در پاسخِ ساخت می‌دهد؛ زیرساختِ ۲ نمی‌دهد، پس همان‌جا
         // یکی ست می‌کنیم. بی‌این، مشتری سرور دارد ولی راهی به داخلش ندارد.
@@ -433,20 +451,10 @@ class CloudProvisioner
             $password = $pw['root_password'] ?? null;
         }
 
-        $instance->fill([
-            'provider_ref' => $result['ref'] ?? null,
-            'ipv4' => $result['ipv4'] ?? null,
-            'ipv6' => $result['ipv6'] ?? null,
-            'status' => $result['status'] ?? 'building',
-            'last_error' => null,
-            'synced_at' => now(),
-        ]);
-
-        if (filled($password)) {
+        if (filled($password) && ! $service->fresh()?->isDead()) {
             $instance->setPassword($password);
+            $instance->save();
         }
-
-        $instance->save();
 
         if ($instance->provider === 'vpstc' && in_array($result['status'] ?? '', ['running', 'off'], true)
             && is_string($result['username'] ?? null) && trim($result['username']) !== '') {
@@ -462,6 +470,10 @@ class CloudProvisioner
             }
         }
 
+        if ($service->fresh()?->isDead()) {
+            return $this->finalize($service, $instance, $plan, null);
+        }
+
         // ── IP اضافه ──
         // بعد از ساختِ سرور، چون به شناسه‌اش بسته می‌شود. شکستش تحویل را
         // شکست‌خورده **نمی‌کند** (سرور کار می‌کند و مشتری منتظرش است)، ولی مدیر
@@ -469,9 +481,83 @@ class CloudProvisioner
         // تحویل نمی‌شود.
         $this->attachExtraIps($service, $instance, $driver, $wanted);
 
-        $this->finalize($service, $instance, $plan, $password);
+        return $this->finalize($service, $instance, $plan, $password);
+    }
 
-        return true;
+    private function beginCreate(Service $service, CloudInstance $instance): bool
+    {
+        return DB::transaction(function () use ($service, $instance): bool {
+            $current = Service::whereKey($service->id)->lockForUpdate()->first();
+            $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+            if (! $current || $current->isDead() || $current->provision_status !== 'running'
+                || ! $captured || (int) $captured->service_id !== (int) $current->id
+                || $captured->provider !== $instance->provider || filled($captured->provider_ref)) {
+                return false;
+            }
+            $meta = (array) $captured->meta;
+            $meta['create_pending_until'] = now()->addMinutes(15)->toIso8601String();
+            $captured->update(['meta' => $meta]);
+            $instance->setRawAttributes($captured->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    private function recordCreateReceipt(Service $service, CloudInstance $instance, array $result): bool
+    {
+        return DB::transaction(function () use ($service, $instance, $result): bool {
+            $current = Service::whereKey($service->id)->lockForUpdate()->first();
+            $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+            $ref = (string) ($result['ref'] ?? '');
+            if (! $current || ! $captured || (int) $captured->service_id !== (int) $current->id
+                || $captured->provider !== $instance->provider
+                || (filled($captured->provider_ref) && (string) $captured->provider_ref !== $ref)) {
+                return false;
+            }
+            // A confirmed deletion of the very same identity must not be
+            // overwritten by the earlier create response arriving late.
+            if ($current->isDead() && filled($captured->provider_ref) && $captured->status === 'deleted') {
+                return false;
+            }
+            $meta = (array) $captured->meta;
+            if ($ref !== '') { unset($meta['create_pending_until']); }
+            $captured->update([
+                'provider_ref' => $result['ref'] ?? null,
+                'ipv4' => $result['ipv4'] ?? null,
+                'ipv6' => $result['ipv6'] ?? null,
+                'status' => $result['status'] ?? 'building',
+                'last_error' => null,
+                'synced_at' => now(),
+                'meta' => $meta,
+            ]);
+            $instance->setRawAttributes($captured->getAttributes(), true);
+            $service->setRawAttributes($current->getAttributes(), true);
+            if ($current->isDead()) {
+                $current->update(['provision_status' => Service::PROVISION_RELEASING]);
+                $service->setRawAttributes($current->getAttributes(), true);
+
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    public function awaitingCreateReceipt(Service $service): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+        return $instance && $this->createReceiptPending($instance);
+    }
+
+    private function createReceiptPending(CloudInstance $instance): bool
+    {
+        if (filled($instance->provider_ref)) { return false; }
+        try {
+            $until = data_get($instance->meta, 'create_pending_until');
+            return is_string($until) && Carbon::parse($until)->isFuture();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -564,13 +650,19 @@ class CloudProvisioner
      * یک کار بکنند. دو نسخهٔ موازیِ این منطق، همان‌جایی است که تفاوت‌های ریز
      * (مثلاً یادنکردنِ panel_url در یک شاخه) بی‌صدا می‌نشینند.
      */
-    private function finalize(Service $service, CloudInstance $instance, CloudPlan $plan, ?string $password): void
+    private function finalize(Service $service, CloudInstance $instance, CloudPlan $plan, ?string $password): bool
     {
-        DB::transaction(function () use ($service, $instance, $plan, $password) {
+        $delivered = DB::transaction(function () use ($service, $instance, $plan, $password): bool {
             $current = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
             if (in_array($current->status, Service::DEAD_STATUSES, true)) {
-                $service->refresh();
-                return;
+                $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+                if ($captured && (int) $captured->service_id === (int) $current->id
+                    && $captured->provider === $instance->provider
+                    && $captured->provider_ref === $instance->provider_ref && $captured->status !== 'deleted') {
+                    $current->update(['provision_status' => Service::PROVISION_RELEASING]);
+                }
+                $service->setRawAttributes($current->getAttributes(), true);
+                return false;
             }
             if ($instance->provider === 'arvan' && $instance->isWindows()) {
                 // Only the credential supplied by this create call is eligible.
@@ -634,9 +726,12 @@ class CloudProvisioner
                 'status' => 'active',
                 'activated_at' => $service->activated_at ?? now(),
             ])->save();
+            return true;
         });
 
-        $this->notifyIfReady($service, $instance);
+        if ($delivered) { $this->notifyIfReady($service, $instance); }
+
+        return $delivered;
     }
 
     /**
@@ -1339,7 +1434,7 @@ class CloudProvisioner
             'synced_at' => now(),
         ])->save();
 
-        $this->finalize($service, $instance, $plan, $password);
+        if (! $this->finalize($service, $instance, $plan, $password)) { return false; }
 
         Log::info('cloud.provision.adopted', ['service' => $service->id, 'ref' => $ref]);
 
@@ -1866,11 +1961,13 @@ class CloudProvisioner
      */
     private function needsReview(Service $service, string $reason): void
     {
-        $service->forceFill([
+        $updated = Service::whereKey($service->id)->whereNotIn('status', Service::DEAD_STATUSES)->update([
             'provision_status' => 'manual',
             'status' => 'awaiting_provision',
             'provision_error' => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
-        ])->save();
+        ]);
+        if (! $updated) { return; }
+        $service->refresh();
 
         /*
         | 🔴 تنها جایی که مدیر دنبالِ **علت** می‌گردد، تا امروز خالی بود.
@@ -2104,11 +2201,13 @@ class CloudProvisioner
      */
     private function retryLater(Service $service, string $reason): void
     {
-        $service->forceFill([
+        $updated = Service::whereKey($service->id)->whereNotIn('status', Service::DEAD_STATUSES)->update([
             'provision_status' => 'pending',
             'provision_error' => mb_substr($reason, 0, 290),
             'status' => 'awaiting_provision',
-        ])->save();
+        ]);
+        if (! $updated) { return; }
+        $service->refresh();
 
         $key = 'provision:stuck:'.$service->id;
 
@@ -2405,6 +2504,9 @@ class CloudProvisioner
         }
 
         if (blank($instance->provider_ref)) {
+            if ($this->awaitingCreateReceipt($service)) {
+                return false;
+            }
             /*
             |------------------------------------------------------------------
             | 🔴 «شناسه ندارم» دلیلِ کافی برای تلاشِ بی‌پایان نیست — **بپرس**
@@ -2453,13 +2555,19 @@ class CloudProvisioner
             }
 
             if ($found === null) {
-                // زیرساخت چنین ماشینی نمی‌شناسد ⇒ هرگز ساخته نشد
-                $instance->update([
-                    'status' => 'deleted',
-                    'last_error' => null,
-                ]);
-
-                return true;
+                // Recheck after the network read: a late create response may
+                // have supplied a resource identity while the lookup ran.
+                return DB::transaction(function () use ($service, $instance): bool {
+                    $current = Service::whereKey($service->id)->lockForUpdate()->first();
+                    $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+                    if (! $current || ! $captured || (int) $captured->service_id !== (int) $current->id
+                        || $captured->provider !== $instance->provider || filled($captured->provider_ref)
+                        || $this->createReceiptPending($captured)) {
+                        return false;
+                    }
+                    $captured->update(['status' => 'deleted', 'last_error' => null]);
+                    return true;
+                });
             }
 
             $instance->update(['provider_ref' => $found]);

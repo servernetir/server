@@ -14,6 +14,7 @@ use App\Models\Setting;
 use App\Services\Finance\ArvanTrafficMeter;
 use App\Services\Finance\ArvanTrafficExposure;
 use App\Services\Finance\ArvanTrafficCreditGuard;
+use App\Services\Finance\ArvanTrafficHealth;
 use App\Services\Finance\ArvanTrafficSource;
 use App\Services\Finance\Wallet;
 use Illuminate\Console\Scheduling\Schedule;
@@ -328,6 +329,152 @@ class ArvanTrafficMeterTest extends TestCase
         }
         $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
         $this->assertSame(0, Invoice::count());
+    }
+
+    /** One issued historical cycle with inconsistent invoice-level discount; the new cycle is independently valid. */
+    private function splitCycleSnapshot(): array
+    {
+        $this->travelTo(Carbon::parse('2026-11-25T12:00:00Z'));
+        $snapshot = $this->snapshot();
+        $old = &$snapshot['reports'][0];
+        $old['cycle']['invoiceId'] = 'synthetic-finalized-invoice';
+        $old['rows'][] = ['scope' => 'instance', 'productName' => 'iaas', 'totalPrice' => '100',
+            'totalDiscount' => '20', 'totalUsedGift' => '0', 'netPrice' => '80',
+            'items' => [['itemId' => 'synthetic-disk', 'metric' => 'cc_disk_eco', 'price' => '100', 'discount' => '20', 'usedGift' => '0']]];
+        $old['total_items'] = 2;
+        // The parents sum a 20-IRR discount; supplier's finalized top-level summary says 16.
+        $old['cycle']['totalItemsPrice'] = '70100';
+        $old['cycle']['totalItemsDiscount'] = '16';
+        $old['cycle']['totalPrice'] = '70084';
+        unset($old);
+
+        $new = $this->snapshot()['reports'][0];
+        $new['cycle']['id'] = '22345678-1234-1234-1234-123456789abc';
+        $new['cycle']['startedAt'] = '2026-11-22T00:00:00Z';
+        $new['cycle']['expiredAt'] = '2026-12-22T00:00:00Z';
+        $new['rows'][0]['items'][0]['itemId'] = 'synthetic-new-internet';
+        $new['rows'][0]['items'][0]['usageFrom'] = '2026-11-22T00:00:00Z';
+        $new['rows'][0]['items'][0]['usageTo'] = '2026-11-25T11:00:00Z';
+        $snapshot['reports'][] = $new;
+        $snapshot['current_cycle'] = $new['cycle']['id'];
+        $snapshot['observed_at'] = '2026-11-25T12:00:00Z';
+        return $snapshot;
+    }
+
+    public function test_finalized_historical_mismatch_is_held_and_retried_without_blocking_or_duplicating_current_settlement(): void
+    {
+        [, , $state] = $this->fixture();
+        $key = array_key_first($state['checkpoints']);
+        $prior = $state['checkpoints'][$key];
+        $state['cycles'][self::CYCLE]['pending'] = true;
+        $state['pending_components'][$key] = ['cycle' => self::CYCLE,
+            'customer_id' => $prior['customer_id'], 'service_id' => $prior['service_id'], 'resource' => $prior['resource']];
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        $snapshot = $this->splitCycleSnapshot();
+        $meter = app(ArvanTrafficMeter::class);
+        $preview = $meter->run($snapshot);
+        $this->assertSame(8085, $preview['total_irt']);
+        $this->assertSame(1, $preview['quarantined_cycle_count']);
+        $this->assertSame($state, $meter->state());
+        $this->assertSame(0, Invoice::count());
+
+        $first = $meter->run($snapshot, true);
+        $this->assertSame(8085, $first['total_irt']);
+        $this->assertSame([['reason' => 'historical_supplier_cycle_totals_differ']], $first['held']);
+        $after = $meter->state();
+        $this->assertSame($prior, $after['checkpoints'][$key]);
+        $this->assertSame($state['pending_components'][$key], $after['pending_components'][$key]);
+        $this->assertTrue($after['cycles'][self::CYCLE]['pending']);
+        $this->assertSame('historical_supplier_cycle_totals_differ', $after['cycles'][self::CYCLE]['quarantine_reason']);
+        $health = ArvanTrafficHealth::evaluate($after, now()->timestamp);
+        $this->assertContains('supplier_cycles_need_reconciliation', $health['issue_codes']);
+        $this->assertSame('fail', $health['level']);
+        $this->assertSame(0, $meter->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, Invoice::count());
+
+        // Only corrected supplier truth may release the historical hold. The old
+        // paid checkpoint is still the baseline, not the quarantined amount.
+        $snapshot['reports'][0]['cycle']['totalItemsDiscount'] = '20';
+        $snapshot['reports'][0]['cycle']['totalPrice'] = '70080';
+        $resolved = $meter->run($snapshot, true);
+        $this->assertSame(6930, $resolved['total_irt']);
+        $this->assertSame(0, $resolved['quarantined_cycle_count']);
+        $this->assertArrayNotHasKey('quarantine_reason', $meter->state()['cycles'][self::CYCLE]);
+        $this->assertArrayNotHasKey($key, $meter->state()['pending_components']);
+        $this->assertSame(0, $meter->run($snapshot, true)['total_irt']);
+        $this->assertSame(2, Invoice::count());
+        $this->assertSame(2, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_quarantine_cannot_excuse_a_current_or_unfinalized_unknown_changed_or_overlapping_cycle(): void
+    {
+        [, , $state] = $this->fixture();
+        $meter = app(ArvanTrafficMeter::class);
+        foreach (['current', 'missing_invoice', 'unknown', 'changed_window', 'overlap', 'foreign_account', 'duplicate_cycle'] as $case) {
+            $snapshot = $this->splitCycleSnapshot();
+            switch ($case) {
+                case 'current': $snapshot['reports'][1]['cycle']['totalPrice'] = '999999'; break;
+                case 'missing_invoice': unset($snapshot['reports'][0]['cycle']['invoiceId']); break;
+                case 'unknown': $snapshot['reports'][0]['cycle']['id'] = 'unknown-historical-cycle'; break;
+                case 'changed_window': $snapshot['reports'][0]['cycle']['startedAt'] = '2026-10-22T00:00:00Z'; break;
+                case 'overlap': $snapshot['reports'][1]['cycle']['startedAt'] = '2026-11-21T00:00:00Z'; break;
+                case 'foreign_account': $snapshot['reports'][0]['cycle']['accountId'] = 'foreign-fixture-account'; break;
+                case 'duplicate_cycle': $snapshot['reports'][] = $snapshot['reports'][0]; break;
+            }
+            try {
+                $meter->run($snapshot, true);
+                $this->fail('Invalid supplier snapshot accepted: '.$case);
+            } catch (RuntimeException) {
+                $this->assertSame($state, $meter->state(), $case);
+                $this->assertSame(0, Invoice::count(), $case);
+            }
+        }
+        // Public/other finance callers retain strict all-cycle validation.
+        $this->expectExceptionMessage('Supplier cycle totals differ');
+        app(ArvanTrafficSource::class)->validate($this->splitCycleSnapshot());
+    }
+
+    public function test_registered_preview_retains_complete_quarantined_supplier_report_without_financial_writes(): void
+    {
+        [, , $state] = $this->fixture();
+        $snapshot = $this->splitCycleSnapshot();
+        Setting::putSecret('arvan_api_token', 'synthetic-read-only-token');
+        $responses = ['https://napi.arvancloud.ir/resid/v1/current-billing-cycle' => Http::response(['data' => $snapshot['reports'][1]['cycle']])];
+        foreach ($snapshot['reports'] as $r) {
+            $url = 'https://napi.arvancloud.ir/resid/v1/billing-cycles/'.$r['cycle']['id'];
+            $responses[$url] = Http::response(['data' => $r['cycle']]);
+            $responses[$url.'/usage-items*'] = Http::response(['data' => $r['rows'],
+                'meta' => ['pagination' => ['totalItems' => $r['total_items'], 'totalPages' => 1, 'current' => 1]]]);
+        }
+        Http::fake($responses);
+        $storage = storage_path('framework/testing/arvan-meter-quarantine-'.bin2hex(random_bytes(6)));
+        mkdir($storage.'/app', 0700, true);
+        mkdir($storage.'/logs', 0700, true);
+        $originalStorage = storage_path();
+        $this->app->useStoragePath($storage);
+        \App\Support\ErrorTracker::useDirectory($storage);
+        try {
+            $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+            $dir = $storage.'/app/private/arvan-traffic-meter';
+            $result = json_decode(file_get_contents($dir.'/last-result.json'), true, 512, JSON_THROW_ON_ERROR);
+            $saved = json_decode(file_get_contents($dir.'/'.$result['source_file']), true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame('preview', $result['result']['mode']);
+            $this->assertSame(1, $result['result']['quarantined_cycle_count']);
+            $this->assertCount(2, $saved['reports']);
+            $expected = json_decode(json_encode($snapshot['reports'][0], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame($expected, collect($saved['reports'])->first(fn ($r) => $r['cycle']['id'] === self::CYCLE));
+            $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+            $this->assertSame(0, Invoice::count());
+            $this->assertSame(0, Payment::count());
+            $this->assertSame(0, CreditEntry::count());
+            Http::assertSentCount(7);
+            Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+        } finally {
+            \App\Support\ErrorTracker::useDirectory(null);
+            $this->app->useStoragePath($originalStorage);
+            \Illuminate\Support\Facades\File::deleteDirectory($storage);
+        }
     }
 
     public function test_actual_registered_command_and_single_existing_schedule_remain_integrated(): void

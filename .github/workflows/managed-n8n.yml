@@ -2,7 +2,7 @@ name: Managed n8n delivery
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/app/**/ManagedN8n*', 'website/app/**/DeliverManagedN8n*', 'website/app/Services/Cloud/VpsTcRenewal.php', 'website/app/Http/Controllers/Account/CloudStoreController.php', 'website/resources/n8n/**', 'website/resources/views/**/n8n*', 'website/tests/Feature/ManagedN8nTest.php', 'website/tests/Feature/VpsTcRenewalTest.php', 'scripts/n8n-release/**', '.github/workflows/managed-n8n.yml']
+    paths: ['website/app/**/ManagedN8n*', 'website/app/**/DeliverManagedN8n*', 'website/app/Services/Cloud/VpsTcRenewal.php', 'website/app/Services/Cloud/VpsTcCatalog.php', 'website/app/Services/Cloud/CloudProvisioner.php', 'website/app/Services/Provisioning/ProvisioningService.php', 'website/app/Http/Controllers/Account/CloudStoreController.php', 'website/resources/n8n/**', 'website/resources/views/**/n8n*', 'website/tests/Feature/ManagedN8nTest.php', 'website/tests/Feature/VpsTcRenewalTest.php', 'website/tests/Feature/VpsTcCatalogTest.php', 'website/tests/Feature/CloudProvisionTest.php', 'scripts/n8n-release/**', '.github/workflows/managed-n8n.yml']
 permissions:
   contents: read
 jobs:
@@ -59,7 +59,7 @@ jobs:
         working-directory: website
         env:
           N8N_BROWSER_FIXTURES: /tmp/servernet-n8n-fixtures
-        run: php vendor/bin/phpunit -c .n8n-ci.xml --filter='ManagedN8nTest|VpsTcRenewalTest|VpsTcLifecycleTest|CloudProxmoxTest|CloudProvisionTest|CloudDeliveryReadinessTest|ServiceRenewalsTest'
+        run: php vendor/bin/phpunit -c .n8n-ci.xml --filter='ManagedN8nTest|VpsTcCatalogTest|VpsTcRenewalTest|VpsTcLifecycleTest|CloudProxmoxTest|CloudProvisionTest|CloudDeliveryReadinessTest|ServiceRenewalsTest'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'

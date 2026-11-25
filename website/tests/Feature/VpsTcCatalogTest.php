@@ -7,6 +7,7 @@ use App\Services\Cloud\VpsTcApi;
 use App\Services\Cloud\VpsTcCatalog;
 use App\Services\Cloud\VpsTcPricing;
 use App\Services\Cloud\VpsTcMoneyContract;
+use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -642,6 +643,27 @@ class VpsTcCatalogTest extends TestCase
         $this->calculation = [];
         $this->assertNull($this->catalog->quote('12'));
         Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/quote'));
+    }
+
+    public function test_changed_reviewed_terms_stay_closed_and_report_one_actionable_incident(): void
+    {
+        $this->converted();
+        $this->product['description'] .= '<p>Changed bandwidth terms</p>';
+
+        foreach (range(1, 2) as $attempt) {
+            $result = $this->catalog->fetch();
+            $this->assertFalse($result['ok']);
+            $this->assertSame([], $result['plans']);
+            $this->assertSame('supplier_terms_changed', $result['reason']);
+        }
+
+        $incidents = collect(ErrorTracker::recent(50))->filter(fn ($row) =>
+            ($row['ctx']['reason'] ?? null) === 'supplier_terms_changed');
+        $this->assertCount(1, $incidents);
+        $this->assertSame('12', $incidents->first()['ctx']['product_refs']);
+        $this->assertSame(1, $incidents->first()['ctx']['affected_count']);
+        $this->assertStringNotContainsString('Changed bandwidth terms', json_encode($incidents));
+        Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/api/quote'));
     }
 
     public function test_description_unit_tax_anchor_or_default_review_change_closes_normalized_offer(): void
