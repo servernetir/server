@@ -72,6 +72,19 @@ class SitemapIndexTest extends TestCase
         $this->get('/sitemaps/nope.xml')->assertNotFound();
     }
 
+    public function test_parts_gate_budget_matches_approved_canonical_sitemap_pages(): void
+    {
+        $paths = array_map(fn ($loc) => parse_url($loc, PHP_URL_PATH), $this->locs($this->get('/sitemap.xml')->assertOk()->getContent()));
+        $parts = array_values(array_filter($paths, fn ($path) => $path === '/parts' || str_starts_with($path, '/parts/')));
+        $this->assertContains('/parts', $parts);
+        $this->assertContains('/parts/planner', $parts);
+        foreach (array_keys((array) config('hardware_topics', [])) as $topic) {
+            $this->assertContains('/parts/catalog/'.$topic, $parts);
+        }
+        $this->assertNotContains('/parts/compare', $parts);
+        $this->assertCount(\App\Console\Commands\ReleaseGate::partsPageBudget(), $parts);
+    }
+
     public function test_noindex_order_handoffs_are_excluded_from_all_sitemaps(): void
     {
         Http::preventStrayRequests();

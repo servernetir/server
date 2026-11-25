@@ -63,6 +63,16 @@ class ReleaseGate extends Command
         'X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy',
     ];
 
+    /** The approved public catalogue includes editorial topics and its planner. */
+    public static function partsPageBudget(): int
+    {
+        return 2 + count((array) config('hardware_topics', []))
+            + count(\App\Models\ServerPart::CATEGORIES)
+            + (\Illuminate\Support\Facades\Schema::hasTable('server_parts')
+                ? \App\Models\ServerPart::active()->count()
+                : 0);
+    }
+
     public function handle(): int
     {
         // The full gate renders the entire growing catalog in one CLI process.
@@ -177,10 +187,7 @@ class ReleaseGate extends Command
         foreach ((array) config('seo.page_budget', []) as $prefix => $cap) {
             if ($prefix === '/parts' && $cap === 'catalog') {
                 // The approved active catalog is allowed to grow; any extra page still fails.
-                $cap = 1 + count(\App\Models\ServerPart::CATEGORIES)
-                    + (\Illuminate\Support\Facades\Schema::hasTable('server_parts')
-                        ? \App\Models\ServerPart::active()->count()
-                        : 0);
+                $cap = self::partsPageBudget();
             }
 
             $n = count(array_filter(
