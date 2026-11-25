@@ -2,8 +2,9 @@
 
 Base: `19481868e6c505d341622f25a211b0925c757a24` on fresh `develop`.
 Scope: `infrastructure/voice/webphone`, its isolated CI workflow and this map.
-Status here is source prepared for review; installation, registration and an
-answered call require independent evidence and are not implied by this document.
+Runtime installation, registration and answered echo transport metadata were
+verified on 25 November. Owner listening confirmation and PSTN acceptance remain
+pending. The production details are recorded in the package README.
 
 The package supplies a native-authenticated FusionPBX 5.6 browser phone at
 `/app/servernet_voice/index.php`, with Persian, English and Turkish labels. It
@@ -78,3 +79,12 @@ FreeSWITCH candidate ACL. SIP 488 and media/ICE failures map to a limited transl
 audio/network message without raw SIP, SDP or credential diagnostics. The updated
 Node suite passed 22 tests locally, including both call directions, injected ICE
 URL rejection, translated errors and cleanup after browser media exceptions.
+
+Production follow-through installed the owned STUN-only coturn 4.19.2 service and
+the hashed client. FreeSWITCH 1.11.4 required a tenant-scoped native
+`include_external_ip=true` setting before answering the proxied WebSocket leg.
+An answered echo showed public ICE, DTLS READY and bidirectional SRTP counters,
+then normal clearing; no payload was captured. This verifies transport metadata,
+with hearing confirmation and PSTN acceptance still pending. See
+[the deployment note](../../infrastructure/voice/webphone/README.md#production-deployment--25-november-2026)
+for the compatible service flags, build hashes and native media variable.

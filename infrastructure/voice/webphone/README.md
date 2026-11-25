@@ -100,6 +100,39 @@ bodies afterward:
 An explicit owner Connect can then verify registration without requesting a
 microphone. An answered audio call remains a separate owner action.
 
+## Production deployment — 25 November 2026
+
+The owned STUN service uses coturn 4.19.2 in a dedicated hardened, unprivileged
+`servernet-voice-stun` unit. Its configuration binds the voice VM on UDP 3478 with
+`stun-only`, `no-auth`, `no-tcp`, `no-tls`, `cli=false`,
+`software-attribute=false` and `log-file=stdout`. Legacy `no-dtls` and
+`no-stun-backward-compatibility` flags are omitted for 4.19.2 compatibility;
+RFC 5780 was off in the observed startup. Only public UDP 3478 is mapped, preserving
+the source address and applying per-source and aggregate rate limits. External
+STUN Binding succeeded; TURN Allocate was ignored. Public TCP, STUN-TLS and relay
+ports are not exposed.
+
+The installed binary SHA256 is
+`e5542eeac00e4e2d8bf333ec83e5b8bd090f46ec2e14a9dbcb9e9220a071b01e`;
+the source archive SHA256 is
+`a1c895fc6fbf1a50c533437f8745de1ec145125233036a7e4391edbdc7d87022`.
+The deployed browser client matches `phone.js` SHA256
+`391bd09c7df96044d7085e9ba80178249f3332a5b87f5050da6637959c623af7`.
+
+FreeSWITCH 1.11.4 also needed its native `include_external_ip=true` channel variable
+before answering the loopback-proxied WebSocket leg, despite `ext-sip-ip` already
+containing the public address. A tenant-scoped native dialplan
+`servernet-browser-media` runs at order 5 with `continue=true`, conditioned on
+`${domain_name}` matching `^pbx[.]servernet[.]cloud$`. It sets
+`include_external_ip=true` inline and exports
+`nolocal:include_external_ip=true` inline before media negotiation. Candidate ACL,
+SIP profile and Nginx settings were not weakened or changed for this media fix.
+
+An answered 7.8-second echo call advertised public ICE, reached DTLS READY and
+showed bidirectional SRTP packet counters before NORMAL_CLEARING. No audio payload
+or recording was captured. Owner confirmation of hearing the echo and PSTN call
+acceptance remain pending; transport metadata alone does not establish either.
+
 ## Vendored dependency
 
 JsSIP **3.10.0**, official browser distribution:
