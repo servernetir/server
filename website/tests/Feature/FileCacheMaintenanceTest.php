@@ -67,8 +67,12 @@ class FileCacheMaintenanceTest extends TestCase
             $this->mock(AdminNotifier::class, fn ($mock) => $mock->shouldNotReceive('baleEvent'));
             $this->artisan('cache:prune-expired-file', ['--dry-run' => true])->assertExitCode(0);
             $this->assertFileExists($expired);
+            $this->assertNull(app(\App\Services\MaintenanceReceipt::class)->read('file_cache_prune'));
             $this->artisan('cache:prune-expired-file')->assertExitCode(0);
             $this->assertFileDoesNotExist($expired);
+            $receipt = app(\App\Services\MaintenanceReceipt::class)->read('file_cache_prune');
+            $this->assertSame('success', $receipt['status']);
+            $this->assertSame(1, $receipt['metrics']['expired']);
             foreach ([$live, $recent, $forever, $unknown, $wrong, $busy] as $path) {
                 $this->assertFileExists($path);
             }

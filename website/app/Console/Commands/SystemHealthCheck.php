@@ -23,9 +23,8 @@ use Illuminate\Support\Facades\File;
  *
  * ═══ ضدِ اسپم ═══
  *
- * فقط روی **تغییرِ وضعیت** خبر می‌دهد، نه هر ۱۵ دقیقه. وگرنه مدیر روزی ۹۶
- * پیام می‌گرفت و از روزِ دوم همه را نادیده می‌گرفت — که بدتر از نداشتنِ هشدار
- * است، چون توهمِ پایش می‌سازد.
+ * روی تغییرِ وضعیت یا یادآوریِ محدود خبر می‌دهد، نه هر ۱۵ دقیقه. هشدارِ
+ * موقت نباید اسپم کند؛ هشدارِ پایدار یا معوق هم نباید برای همیشه فراموش شود.
  */
 class SystemHealthCheck extends Command
 {
@@ -37,7 +36,10 @@ class SystemHealthCheck extends Command
     private const STATE = 'health-state';
 
     /** تغییرِ گذرای هشدارهای زرد نباید هر ربع ساعت یک خلاصهٔ تازه بسازد. */
-    private const WARN_REPEAT_SECONDS = 6 * 3600;
+    private const WARN_QUIET_SECONDS = 6 * 3600;
+    private const FAIL_REMINDER_SECONDS = 6 * 3600;
+    private const WARN_REMINDER_SECONDS = 24 * 3600;
+    private const FAIL_IMPACT_QUIET_SECONDS = 3600;
 
     public function handle(SystemHealth $health, AdminNotifier $notifier): int
     {
@@ -46,8 +48,6 @@ class SystemHealthCheck extends Command
         $salesOwnsGpu = ! $this->option('notify') && $this->salesMonitorOwnsGpu();
         $allBad = array_values(array_filter($checks, fn ($c) => ! $c['ok']));
         $bad = array_values(array_filter($allBad, fn ($c) => ! $salesOwnsGpu || ($c['key'] ?? '') !== 'gpu_sales'));
-        $worst = SystemHealth::worst($checks);
-
         foreach ($checks as $c) {
             $this->line(match ($c['level']) {
                 'fail' => '<fg=red>✖</> ',
@@ -61,6 +61,23 @@ class SystemHealthCheck extends Command
         $previous = (array) ($state['bad'] ?? []);
         // Ownership transfer is not a system recovery notification.
         if ($salesOwnsGpu) { unset($previous['gpu_sales']); }
+        $now = now()->timestamp;
+        // Track observations and notification attempts separately. A debounced
+        // warning has been observed, but has not yet been reported to the owner.
+        $attempted = array_intersect_key($state['attempted_at'] ?? [], $current, $previous);
+        $signatures = [];
+        foreach ($bad as $check) {
+            $signature = $this->validImpactSignature($check['impact_signature'] ?? null);
+            if ($signature !== null) { $signatures[(string) $check['key']] = $signature; }
+        }
+        $attemptedImpact = array_intersect_key($state['attempted_impact'] ?? [], $attempted, $signatures);
+        // Older receipts already reported these incidents, but had no explicit
+        // impact digest. Learn the current digest without a deployment alert.
+        $attemptedImpact += array_intersect_key($signatures, $attempted);
+        $seenSince = [];
+        foreach ($current as $key => $level) {
+            $seenSince[$key] = isset($previous[$key]) ? ($state['observed_since'][$key] ?? $now) : $now;
+        }
         $toAnnounce = [];
         // Alert ownership does not change the overall health result.
         $announceRecovery = $current === [] && $previous !== [] && $allBad === [];
@@ -72,19 +89,39 @@ class SystemHealthCheck extends Command
             // نصبِ سالم بی‌دلیل پیام نمی‌دهد؛ اولین خرابیِ واقعی چرا.
             $toAnnounce = $bad;
         } elseif (! $announceRecovery) {
-            $candidates = array_values(array_filter($bad, function ($check) use ($previous) {
+            $due = [];
+            $unannouncedWarnings = [];
+            foreach ($bad as $check) {
                 $key = (string) $check['key'];
-
-                return ! isset($previous[$key])
-                    || $this->severity((string) $check['level']) > $this->severity((string) $previous[$key]);
-            }));
-
-            // خرابیِ قرمزِ تازه فوراً می‌رود. تغییرِ زردِ گذرا فقط اگر از آخرین
-            // خلاصه شش ساعت گذشته باشد؛ بهبودِ جزئی اصلاً پیام جدا نمی‌سازد.
-            $hasFreshFailure = collect($candidates)->contains(fn ($c) => $c['level'] === 'fail');
-            if ($hasFreshFailure || ($candidates !== [] && $this->warningWindowPassed($state))) {
-                $toAnnounce = $candidates;
+                $level = (string) $check['level'];
+                $lastAttempt = $attempted[$key] ?? null;
+                $impactChanged = isset($signatures[$key], $attemptedImpact[$key])
+                    && ! hash_equals($attemptedImpact[$key], $signatures[$key]);
+                if ($level === 'fail') {
+                    if (($previous[$key] ?? null) !== 'fail' || $lastAttempt === null
+                        || $now - $lastAttempt >= self::FAIL_REMINDER_SECONDS
+                        || ($impactChanged && $now - $lastAttempt >= self::FAIL_IMPACT_QUIET_SECONDS)) {
+                        $due[$key] = $check;
+                    }
+                } elseif ($lastAttempt === null) {
+                    $unannouncedWarnings[$key] = $check;
+                    // Bounded deferral: unrelated ongoing alerts must not keep
+                    // resetting the global quiet window for a persistent warn.
+                    if ($this->warningWindowPassed($state, $now)
+                        || $now - $seenSince[$key] >= self::WARN_QUIET_SECONDS) {
+                        $due[$key] = $check;
+                    }
+                } elseif ($now - $lastAttempt >= self::WARN_REMINDER_SECONDS
+                    || ($impactChanged && $now - $lastAttempt >= self::WARN_QUIET_SECONDS)) {
+                    $due[$key] = $check;
+                }
             }
+            // If a red alert is already due, include pending warnings in the
+            // same summary without creating an extra message.
+            if (collect($due)->contains(fn ($c) => $c['level'] === 'fail')) {
+                $due += $unannouncedWarnings;
+            }
+            $toAnnounce = array_values($due);
         }
 
         $announced = false;
@@ -94,9 +131,15 @@ class SystemHealthCheck extends Command
         } elseif ($toAnnounce !== []) {
             $this->announce($notifier, SystemHealth::worst($toAnnounce), $toAnnounce);
             $announced = true;
+            foreach ($toAnnounce as $check) {
+                $key = (string) $check['key'];
+                $attempted[$key] = $now;
+                if (isset($signatures[$key])) { $attemptedImpact[$key] = $signatures[$key]; }
+            }
         }
 
-        $this->remember($current, $announced ? now()->toIso8601String() : ($state['last_announced_at'] ?? null));
+        $this->remember($current, $seenSince, $attempted, $attemptedImpact,
+            $announced ? now()->toIso8601String() : ($state['last_announced_at'] ?? null));
 
         // ⚠️ کدِ خروجِ غیرِ صفر عمداً **نه**: `schedule:run` آن را شکستِ فرمان
         // می‌شمارد و در لاگِ کرون سروصدا می‌کند، در حالی که این فرمان کارش را
@@ -147,13 +190,13 @@ class SystemHealthCheck extends Command
                 url('/admin/errors'),
                 $worst === 'fail' ? '🔴' : '⚠️',
             );
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // نگهبان نباید خودش منبعِ خطا شود
-            $this->warn('اعلان نرفت: '.mb_substr($e->getMessage(), 0, 120));
+            $this->warn('اعلان سلامت با خطا روبرو شد.');
         }
     }
 
-    /** @return array{bad:array<string,string>,last_announced_at:?string}|null */
+    /** @return array{bad:array<string,string>,observed_since:array<string,int>,attempted_at:array<string,int>,attempted_impact:array<string,string>,last_announced_at:?string}|null */
     private function lastState(array $current): ?array
     {
         $path = storage_path('app/'.self::STATE);
@@ -162,61 +205,92 @@ class SystemHealthCheck extends Command
             return null;
         }
 
-        $raw = trim((string) File::get($path));
+        try { $raw = trim((string) File::get($path)); }
+        catch (\Throwable) { return null; }
         $json = json_decode($raw, true);
+        $now = now()->timestamp;
 
         if (is_array($json) && is_array($json['bad'] ?? null)) {
+            $bad = array_filter($json['bad'], fn ($level) => in_array($level, ['warn', 'fail'], true));
+            $lastAnnouncedAt = is_string($json['last_announced_at'] ?? null) ? $json['last_announced_at'] : null;
+            $seen = [];
+            $attempted = [];
+            $impact = [];
+            foreach ($bad as $key => $level) {
+                if (($json['version'] ?? null) === 3) {
+                    $seen[$key] = $this->validTimestamp($json['observed_since'][$key] ?? null, $now) ?? $now;
+                    $at = $this->validTimestamp($json['attempted_at'][$key] ?? null, $now);
+                    if ($at !== null) {
+                        $attempted[$key] = $at;
+                        $digest = $this->validImpactSignature($json['attempted_impact'][$key] ?? null);
+                        if ($digest !== null) { $impact[$key] = $digest; }
+                    }
+                } else {
+                    // v2 did not distinguish observed from attempted. Carry
+                    // forward its last summary conservatively; unresolved
+                    // incidents will receive their regular bounded reminder.
+                    $seen[$key] = $attempted[$key] = $this->parsedTimestamp($lastAnnouncedAt, $now) ?? $now;
+                }
+            }
             return [
-                'bad' => array_map('strval', $json['bad']),
-                'last_announced_at' => filled($json['last_announced_at'] ?? null)
-                    ? (string) $json['last_announced_at'] : null,
+                'bad' => $bad,
+                'observed_since' => $seen,
+                'attempted_at' => $attempted,
+                'attempted_impact' => $impact,
+                'last_announced_at' => $lastAnnouncedAt,
             ];
         }
 
         // مهاجرتِ بی‌صدا از فرمتِ قدیمی `fail|db,errors,...`: همان وضعیت قبلاً
         // اعلام شده، پس deploy نباید خودش یک موجِ تازهٔ بله بسازد.
-        [, $keys] = array_pad(explode('|', $raw, 2), 2, '');
+        if (! preg_match('/^(?:ok|warn|fail)\|([a-zA-Z0-9_,.-]*)$/D', $raw, $matches)) { return null; }
         $bad = [];
-        foreach (array_filter(explode(',', $keys)) as $key) {
+        foreach (array_filter(explode(',', $matches[1])) as $key) {
             $bad[$key] = $current[$key] ?? 'fail';
         }
+        $at = array_fill_keys(array_keys($bad), $now);
 
-        return ['bad' => $bad, 'last_announced_at' => now()->toIso8601String()];
+        return ['bad' => $bad, 'observed_since' => $at, 'attempted_at' => $at,
+            'attempted_impact' => [], 'last_announced_at' => now()->toIso8601String()];
     }
 
     /** @param array<string,string> $bad */
-    private function remember(array $bad, ?string $lastAnnouncedAt): void
+    private function remember(array $bad, array $seenSince, array $attempted, array $attemptedImpact, ?string $lastAnnouncedAt): void
     {
         try {
-            File::put(storage_path('app/'.self::STATE), json_encode([
-                'version' => 2,
+            File::replace(storage_path('app/'.self::STATE), json_encode([
+                'version' => 3,
                 'bad' => $bad,
+                'observed_since' => $seenSince,
+                'attempted_at' => $attempted,
+                'attempted_impact' => $attemptedImpact,
                 'last_announced_at' => $lastAnnouncedAt,
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
         } catch (\Throwable) {
             // بی‌حافظه یعنی هشدارِ تکراری — آزاردهنده، ولی بی‌خطر
         }
     }
 
     /** @param array{last_announced_at:?string} $state */
-    private function warningWindowPassed(array $state): bool
+    private function warningWindowPassed(array $state, int $now): bool
     {
-        try {
-            $at = filled($state['last_announced_at'] ?? null)
-                ? Carbon::parse((string) $state['last_announced_at']) : null;
-
-            return $at === null || $at->lte(now()->subSeconds(self::WARN_REPEAT_SECONDS));
-        } catch (\Throwable) {
-            return true;
-        }
+        $at = $this->parsedTimestamp($state['last_announced_at'] ?? null, $now);
+        return $at === null || $now - $at >= self::WARN_QUIET_SECONDS;
     }
 
-    private function severity(string $level): int
+    private function validTimestamp(mixed $at, int $now): ?int
     {
-        return match ($level) {
-            'fail' => 2,
-            'warn' => 1,
-            default => 0,
-        };
+        return is_int($at) && $at > 0 && $at <= $now ? $at : null;
+    }
+
+    private function validImpactSignature(mixed $signature): ?string
+    {
+        return is_string($signature) && preg_match('/^[a-f0-9]{64}$/D', $signature) ? $signature : null;
+    }
+
+    private function parsedTimestamp(?string $at, int $now): ?int
+    {
+        try { return $at === null || trim($at) === '' ? null : $this->validTimestamp(Carbon::parse($at)->timestamp, $now); }
+        catch (\Throwable) { return null; }
     }
 }

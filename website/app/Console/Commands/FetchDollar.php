@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Http\Middleware\PageCache;
 use App\Services\Cloud\CloudCatalogSync;
 use App\Services\ExchangeRate;
+use App\Services\MaintenanceReceipt;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
@@ -34,6 +35,8 @@ class FetchDollar extends Command
 
         // Supplier reads can take minutes. Keep the accepted FX/catalog pair
         // visible until both new rate rows and the guarded price batch are ready.
+        $monitor = app(MaintenanceReceipt::class);
+        $run = $monitor->start('fx_refresh');
         $count = null;
         try {
             $rates = app(\App\Services\Cloud\CatalogRefreshRequests::class)->exclusive(
@@ -49,10 +52,15 @@ class FetchDollar extends Command
             $rates = null;
         }
         if ($rates === null || $count === null) {
+            $monitor->finish('fx_refresh', $run, false);
             ErrorTracker::note('pricing', 'دریافت نرخ و آماده‌سازی قیمت محصولات کامل نشد؛ جفت نرخ و قیمت قبلی حفظ شد.');
             $this->error('نرخ و قیمت تازه منتشر نشد — نسخهٔ پذیرفته‌شدهٔ قبلی حفظ شد.');
             return self::FAILURE;
         }
+
+        // The FX + guarded cloud-price generation is independently accepted;
+        // the registrar child reports its own completion or failure.
+        $monitor->finish('fx_refresh', $run, true, ['currencies' => count($rates), 'plans' => (int) $count]);
 
         $labels = [];
         foreach (array_keys(ExchangeRate::SOURCE_ITEMS) as $currency) {
