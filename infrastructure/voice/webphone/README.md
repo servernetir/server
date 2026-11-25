@@ -44,6 +44,39 @@ schema. The entry point is `/app/servernet_voice/index.php`.
 Rollback removes this dedicated application directory after disconnecting its
 browser sessions; it changes no PBX user, extension, gateway or dialplan data.
 
+### FusionPBX 5.6 Nginx document root
+
+Some 5.6 vhosts serve static files from `/var/www/fusionpbx/public`, while native
+application PHP lives under `/var/www/fusionpbx/app`. In that layout the new app's
+HTML can execute correctly while its CSS/JS return404 or a login-page fallback.
+Review [the narrow server-block mount](deployment/nginx-servernet-voice.conf)
+against the actual vhost. It sets a root only for `/app/servernet_voice/` and keeps
+the existing generic PHP regex active. The existing PHP-FPM handler must resolve
+these app scripts to `/var/www/fusionpbx`, not the public directory.
+
+**Do not add `^~` to this app prefix or serve its PHP files as static content.**
+The snippet is not a PHP handler and must not be installed without verifying the
+existing PHP regex. Keep tests, manifests and deployment helpers outside the
+served app; copy only the seven runtime/license files. Preserve the existing
+server root, other apps and PHP handler.
+
+The optional friendly alias redirects `/phone` to `/phone/`, then internally maps
+the index, assets and API to this app. Rewriting bare `/phone` directly to the
+index would make relative assets resolve from the site root. Alternatively use
+a 302 redirect directly to `/app/servernet_voice/index.php` and omit the friendly
+prefix. Run `nginx -t` before a controlled reload and validate actual response
+bodies afterward:
+
+- HTML renders through PHP; PHP source is never returned.
+- CSS/JS/vendor responses have the expected MIME type and exact body SHA256 from
+  `runtime.sha256`, at both canonical and friendly paths if the alias is enabled.
+- Missing app assets return 404. A 200 login page is not a successful asset response.
+- API requests return their intended JSON authorization/method status, not a
+  front-controller login HTML fallback. GET never delivers a SIP password.
+
+An explicit owner Connect can then verify registration without requesting a
+microphone. An answered audio call remains a separate owner action.
+
 ## Vendored dependency
 
 JsSIP **3.10.0**, official browser distribution:

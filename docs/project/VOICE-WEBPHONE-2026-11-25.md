@@ -50,3 +50,10 @@ Rollback disconnects browser sessions and removes this dedicated app directory.
 It changes no provisioned PBX records. The previous cloud-phone marketing and
 Android preview publication remains documented in
 [the earlier voice web report](CLOUD-PHONE-VOICE-WEB-2026-11-02.md).
+
+Deployment integration note: a 5.6 vhost can serve static files from `public/` while
+application PHP executes outside it. A dedicated Nginx prefix example now mounts
+only this app, preserves generic PHP regex execution and documents the optional
+trailing-slash `/phone/` alias. Asset acceptance requires body SHA256 and MIME
+checks: HTTP200 can otherwise be a login-page fallback. This source/docs addition
+does not change any of the seven frozen runtime/license files or their manifest.
