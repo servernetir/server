@@ -2,12 +2,18 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+# The manifest describes a historical, exact release, not mutable develop.
+# Keep testing the original payload hashes and rollback guards after later
+# unrelated changes to shared routes/controllers. Current application tests
+# in CI still run against the proposed checkout.
+RELEASE_SOURCE = 'ed74f4a492d9bca3f918a46e7e06e9b91e130629'
 spec = importlib.util.spec_from_file_location("equipment_release", HERE / "release.py")
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
@@ -26,6 +32,9 @@ class EquipmentReleaseTest(unittest.TestCase):
         self.patch.start()
         self.addCleanup(self.patch.stop)
         self.original = json.loads((HERE / "release-manifest.json").read_text())["files"]
+        self.payloads = {source: subprocess.check_output(
+            ['git', '-C', str(ROOT), 'show', RELEASE_SOURCE + ':' + source])
+            for source in {row['source'] for row in self.original}}
         self.rows = []
         for i, row in enumerate(self.original):
             p = self.home / row["destination"]
@@ -38,12 +47,12 @@ class EquipmentReleaseTest(unittest.TestCase):
                 before = None
             fixture = {k:v for k,v in row.items() if k not in ('source_sha','edits')}
             self.rows.append(dict(fixture, before=[before],after=row.get('source_sha',row['after'])))
-        self.payload = lambda _, source: (ROOT / source).read_bytes()
+        self.payload = lambda _, source: self.payloads[source]
 
     def test_manifest_checks_every_real_source_and_dual_asset_root(self):
         self.assertEqual(39, len(self.original))
         for row in self.original:
-            self.assertEqual(row.get('source_sha',row['after']), hashlib.sha256((ROOT / row["source"]).read_bytes()).hexdigest())
+            self.assertEqual(row.get('source_sha',row['after']), hashlib.sha256(self.payloads[row["source"]]).hexdigest())
             release.target(row)
         for asset in ("css/datacenter-equipment.css", "js/datacenter-planner.js"):
             self.assertEqual(2, sum(r["source"].endswith(asset) for r in self.original))
@@ -52,7 +61,7 @@ class EquipmentReleaseTest(unittest.TestCase):
         for row in self.original:
             if 'edits' not in row:
                 continue
-            source=(ROOT/row['source']).read_bytes()
+            source=self.payloads[row['source']]
             original=source
             for edit in reversed(row['edits']):
                 anchor,insertion=edit['anchor'].encode(),edit['insert'].encode()
