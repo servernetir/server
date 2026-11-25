@@ -655,8 +655,8 @@ class SiteController extends Controller
         try {
             $blogPosts = \App\Models\Post::query()
                 ->where('type', 'blog')->where('status', 'published')
-                ->with('translations')
-                ->orderByDesc('published_at')->orderByDesc('id')->get();
+                ->with('translations:id,post_id,locale,updated_at')
+                ->orderByDesc('published_at')->orderByDesc('id')->lazy(100);
             foreach ($blogPosts as $p) {
                 $published = $p->published_at ?? $p->created_at;
                 foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
@@ -684,7 +684,7 @@ class SiteController extends Controller
             $docs = \App\Models\Post::query()
                 ->where('type', 'kb')->where('status', 'published')
                 ->whereIn('category', array_keys((array) config('docs.sections', [])))
-                ->with('translations')->get();
+                ->with('translations:id,post_id,locale,updated_at')->orderBy('id')->lazy(100);
             foreach ($docs as $doc) {
                 $published = $doc->published_at ?? $doc->created_at;
                 foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {

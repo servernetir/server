@@ -7,6 +7,7 @@ use App\Services\Cloud\CloudCatalogSync;
 use App\Services\ExchangeRate;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Process;
 
 /** Refresh the procurement currencies together, then apply them to the catalog. */
 class FetchDollar extends Command
@@ -65,12 +66,20 @@ class FetchDollar extends Command
         $this->info("قیمتِ {$count} پلن بازمحاسبه شد.");
         $failed = false;
 
-        // Refresh every sellable registrar extension after the same Navasan batch,
-        // even when a cloud supplier is temporarily unavailable.
+        // Refresh the registrar catalogue after the published Navasan batch.
+        // Keep this large second workload in a fresh CLI process: retaining the
+        // cloud preparation's PHP heap alongside both registrar catalogues can
+        // exhaust the shared host's normal 128 MiB worker limit. The bounded
+        // override applies only to this catalogue process, never to web workers.
         try {
-            if ($this->call('domains:price-book', ['--strict' => true]) !== self::SUCCESS) {
+            $result = Process::path(base_path())->timeout(900)->run([
+                PHP_BINARY, '-d', 'memory_limit=256M', base_path('artisan'),
+                'domains:price-book', '--strict',
+            ]);
+            if (! $result->successful()) {
                 throw new \RuntimeException('Domain price refresh was incomplete.');
             }
+            $this->output->write($result->output());
         } catch (\Throwable $e) {
             report($e);
             ErrorTracker::note('pricing', 'نرخ نوسان دریافت شد، اما همگام‌سازی قیمت دامنه‌ها کامل نشد.');

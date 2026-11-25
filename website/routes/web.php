@@ -125,6 +125,12 @@ $site = function (): void {
     Route::get('/services', fn () => redirect()->to(lroute('home'), 301))->name('services.legacy');
     Route::get('/marketing', fn () => redirect()->to(lroute('home'), 301))->name('marketing.legacy');
     Route::get('/servernet', fn () => redirect()->to(lroute('home'), 301))->name('servernet.legacy');
+    // Exact retired hubs seen in the 404 tracker. Category archives use the
+    // blog's query filters now; never pass an unknown category as a post slug.
+    Route::get('/category', fn () => redirect()->to(lroute('blog.index'), 301))->name('category.legacy');
+    Route::get('/tools', fn () => redirect()->to(lroute('webtools.index'), 301))->name('tools.legacy');
+    // The current cloud catalogue contains the country/location chooser.
+    Route::get('/vps/compare-locations', fn () => redirect()->to(lroute('cloud.index').'#locations', 301))->name('vps.compare-locations.legacy');
     Route::get('/contact', [SiteController::class, 'contact'])->name('contact');
     Route::get('/knowledge', [SiteController::class, 'knowledge'])->name('knowledge');
 
@@ -1043,8 +1049,11 @@ Route::get('/hardware-sitemap.xml', [ServerShopController::class, 'sitemap']);
 // Legacy WordPress/SEO-plugin sitemap entry points still receive crawler hits.
 // One permanent hop preserves discovery without filling the 404 tracker with
 // aliases for the same canonical sitemap.
+Route::redirect('/sitemap_index.xml', '/sitemap-index.xml', 301);
 foreach (['/page-sitemap.xml', '/pages-sitemap.xml', '/post_tag-sitemap.xml',
-    '/product-sitemap.xml', '/sitemap-1.xml', '/sitemap_agentic_discovery.xml'] as $legacySitemap) {
+    '/product-sitemap.xml', '/sitemap-1.xml', '/sitemap_agentic_discovery.xml',
+    '/post-sitemap.xml', '/sitemap_blogs_1.xml', '/blog-categories-sitemap.xml',
+    '/author-sitemap.xml', '/store-products-sitemap.xml', '/sitemap.rss'] as $legacySitemap) {
     Route::redirect($legacySitemap, '/sitemap.xml', 301);
 }
 

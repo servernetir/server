@@ -260,7 +260,7 @@ class HomeDomainBoxTest extends TestCase
         // The accepted schedule refreshes FX first, then publishes domain prices
         // with that same snapshot. It deliberately has no duplicate standalone job.
         $this->assertTrue($commands->contains(fn ($c) => str_contains($c, 'fx:dollar')));
-        $this->assertStringContainsString("'domains:price-book', ['--strict' => true]",
+        $this->assertStringContainsString("'domains:price-book', '--strict'",
             file_get_contents(app_path('Console/Commands/FetchDollar.php')));
     }
 

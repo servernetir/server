@@ -50,6 +50,29 @@ class PageCacheTest extends TestCase
         $second->assertSee('ServerNet', false);
     }
 
+    public function test_public_html_is_compressed_and_oversized_html_is_not_cached(): void
+    {
+        $body = '<html>'.str_repeat('ServerNet public content ', 1000).'</html>';
+        \Illuminate\Support\Facades\Route::middleware('web')
+            ->get('/cache-compression-check', fn () => response($body, 200, ['Content-Type' => 'text/html']))
+            ->name('cache-compression-check');
+
+        $this->get('/cache-compression-check')->assertHeader('X-Cache', 'MISS');
+        $cache = \Illuminate\Support\Facades\Cache::store();
+        $request = request();
+        $key = 'page:g'.$cache->get('page:gen', 0).':'.sha1($request->getHost().'|'.$request->getBaseUrl().'|'.$request->path());
+        $stored = $cache->get($key);
+        $this->assertArrayHasKey('html_gzip', $stored);
+        $this->assertLessThan(strlen($body), strlen($stored['html_gzip']));
+        $this->assertSame($body, $this->get('/cache-compression-check')->assertHeader('X-Cache', 'HIT')->getContent());
+
+        $cache->forget($key);
+        config(['pagecache.max_entry_bytes' => 1024]);
+        $this->get('/cache-compression-check')->assertHeader('X-Cache', 'MISS');
+        $this->get('/cache-compression-check')->assertHeader('X-Cache', 'MISS');
+        $this->assertNull($cache->get($key));
+    }
+
     /**
      * 🔴 مهم‌ترین ادعای این پرونده: HIT توکنِ نشستِ **همین** بازدیدکننده را
      * حمل می‌کند، نه توکنِ ذخیره‌شده‌ی نفرِ اول را.

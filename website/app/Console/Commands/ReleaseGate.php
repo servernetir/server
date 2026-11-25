@@ -65,6 +65,30 @@ class ReleaseGate extends Command
 
     public function handle(): int
     {
+        // The full gate renders the entire growing catalog in one CLI process.
+        // Keep its memory allowance bounded and local to this command; never
+        // change the PHP-FPM or scheduler-wide setting. Respect a larger budget
+        // deliberately supplied by the operator for an isolated invocation.
+        $originalLimit = (string) ini_get('memory_limit');
+        $originalBytes = ini_parse_quantity($originalLimit);
+        $raised = $originalBytes >= 0 && $originalBytes < 384 * 1024 * 1024
+            && ini_set('memory_limit', '384M') !== false;
+
+        try {
+            return $this->audit();
+        } finally {
+            $this->line(sprintf('site:gate peak memory: %.1f MiB; limit: %s',
+                memory_get_peak_usage(true) / (1024 * 1024), ini_get('memory_limit')));
+            // Artisan may be called in-process (e.g. tests). Restore the old
+            // allowance only when PHP can safely accept it at this point.
+            if ($raised && memory_get_usage(true) < $originalBytes) {
+                ini_set('memory_limit', $originalLimit);
+            }
+        }
+    }
+
+    private function audit(): int
+    {
         config(['pagecache.enabled' => true]);
 
         $kernel = app(Kernel::class);
@@ -123,6 +147,7 @@ class ReleaseGate extends Command
 
             $inSitemap[$p] = true;
         }
+        unset($sm, $m);
 
         $pages = array_keys($inSitemap);
         $limit = (int) $this->option('limit');
