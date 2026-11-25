@@ -25,6 +25,11 @@ acceptance remain separate owner actions.
 - Existing FusionPBX 5.6/PHP8.4 installation, native authentication and PostgreSQL.
 - TLS for `https://pbx.servernet.cloud`; reverse proxy
   `wss://pbx.servernet.cloud/sip/` to the intended FreeSWITCH SIP WebSocket profile.
+  In the current proxy contract, Nginx terminates browser TLS and forwards to
+  FreeSWITCH using plain WS on loopback port 5066. The client sets the supported
+  `socket.via_transport = 'WS'` before constructing its UA so the SIP Via header
+  matches that backend hop. The browser URL remains WSS with verified HTTPS/TLS.
+  Review this setting if the backend changes to native WSS.
 - The authenticated domain name becomes the SIP realm; it cannot be supplied in
   an API request. Fixed public origin/WSS constants must be deliberately reviewed
   before using this package on another host.
@@ -92,6 +97,12 @@ no corresponding browser artifact at that official download URL. This package
 pins the actual published browser artifact and includes its license and SRI hash.
 `bash vendor/fetch-verify.sh` reproduces the download and verifies the pinned
 digest before replacing it. `cd vendor && sha256sum -c SHA256SUMS` works offline.
+
+The public [WebSocketInterface setter](https://jssip.net/documentation/3.5.x/api/websocket/)
+controls the outgoing SIP Via transport independently of the browser WebSocket
+URL. JsSIP also documents the TLS-terminating proxy use case in its
+[earlier `hack_via_ws` description](https://jssip.net/documentation/1.0.x/api/ua_configuration_parameters/#hack_via_ws).
+This package uses the supported socket setter, not that obsolete UA option.
 
 ## Isolated verification
 

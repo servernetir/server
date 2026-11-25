@@ -55,8 +55,16 @@ Deployment integration note: a 5.6 vhost can serve static files from `public/` w
 application PHP executes outside it. A dedicated Nginx prefix example now mounts
 only this app, preserves generic PHP regex execution and documents the optional
 trailing-slash `/phone/` alias. Asset acceptance requires body SHA256 and MIME
-checks: HTTP200 can otherwise be a login-page fallback. This source/docs addition
-does not change any of the seven frozen runtime/license files or their manifest.
+checks: HTTP200 can otherwise be a login-page fallback. The mount snippet keeps
+the existing PHP-FPM handler and adds no credential or database operations.
 The friendly API and index require exact rewrite locations because the generic
 PHP regex takes precedence over a plain alias prefix. Those exact locations
 restart selection at the canonical app PHP paths without suppressing PHP-FPM.
+
+Proxy transport integration: the browser connects to verified WSS at the public
+Nginx endpoint, while Nginx forwards to FreeSWITCH over loopback WS. The client
+therefore sets the supported `socket.via_transport = 'WS'` before UA construction.
+This adjusts only the SIP Via header; it keeps the public WSS URL and browser TLS.
+The fake socket starts with WSS and the Connect test asserts WS is passed to the
+UA. The runtime manifest changes only for this reviewed `phone.js` update. No TLS
+backend, credential handling or PHP source change is included.

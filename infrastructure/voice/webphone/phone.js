@@ -322,6 +322,8 @@
         domain = sip.domain;
         if (win.JsSIP.debug && typeof win.JsSIP.debug.disable === 'function') win.JsSIP.debug.disable();
         socket = new win.JsSIP.WebSocketInterface(WSS_URL);
+        // Browser WSS keeps TLS; Nginx forwards to FreeSWITCH over loopback WS.
+        socket.via_transport = 'WS';
         configuration = {
           sockets: [socket], uri: sip.uri, authorization_user: sip.authorization_user,
           password: sip.password, display_name: String(sip.display_name || responseData.extension || '').slice(0, 128),

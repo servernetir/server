@@ -92,7 +92,7 @@ function harness(t, options = {}) {
       return h.streamFactory();
     } } },
     JsSIP: { UA, WebSocketInterface: class {
-      constructor(url) { assert.equal(url, 'wss://pbx.servernet.cloud/sip/'); }
+      constructor(url) { this.via_transport = 'WSS'; assert.equal(url, 'wss://pbx.servernet.cloud/sip/'); }
       disconnect() { h.socketStops += 1; }
     }, debug: { disable() { h.debugDisabled = true; } } }
   });
@@ -172,6 +172,7 @@ test('mount is idle; only Connect fetches credentials and rotates native CSRF', 
   assert.equal(h.root.dataset.tokenName, 'token2');
   assert.equal(h.root.dataset.tokenHash, 'hash2');
   assert.equal(h.debugDisabled, true);
+  assert.equal(h.uas[0].configuration.sockets[0].via_transport, 'WS');
   assert.equal(h.micCalls, 0);
   assert.equal(h.elements.call.disabled, false);
   assert.equal(h.uas[0].configuration.password, 'fake-password-used-only-in-this-test');
