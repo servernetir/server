@@ -56,3 +56,74 @@
 @media(max-width:1000px){.sn-console .pnl-layout{--pnl-gap:20px}.sn-console .pnl-side{top:0}.sn-console .pnl-side>.pnl-card{max-height:none;overflow:visible;background:transparent;border:0;border-radius:0;padding:4px 2px;backdrop-filter:none}.cw-profile-grid{grid-template-columns:1fr}.cw-hero{padding:26px;min-height:180px}.cw-orbit{flex-basis:110px}}
 @media(max-width:620px){.cw-hero{gap:16px;padding:24px}.cw-orbit{display:none}.cw-launch-grid{grid-template-columns:1fr}.cw-launch--n8n{grid-column:auto}.cw-launch{padding:22px}.cw-profile-grid .pnl-sec-b,.cw-profile-grid .pnl-sec-h{padding:20px}.cw-tabs{align-self:stretch}.cw-tabs a{flex:1;padding-inline:10px;font-size:.85rem}}
 @media(prefers-reduced-motion:reduce){.cw-orbit::after,.sn-console .pnl-main>.cw-hero,.sn-console .pnl-main>.n8n-store{animation:none}.cw-launch{transition:none}.cw-launch:hover{transform:none}}
+
+/* Account navigation scrollbar: fixed size, subtle thumb hover. */
+.sn-console .pnl-side,
+.sn-console .pnl-side > .pnl-card {
+  --nav-scroll-thumb: #64748b;
+  --nav-scroll-active: #718198;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nav-scroll-thumb) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .sn-console .pnl-side,
+  .sn-console .pnl-side > .pnl-card {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .sn-console .pnl-side::-webkit-scrollbar,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar,
+  .sn-console .pnl-side::-webkit-scrollbar:hover,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar:hover {
+    width: 8px;
+    height: 8px;
+  }
+  .sn-console .pnl-side::-webkit-scrollbar-track,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 20px;
+  }
+  .sn-console .pnl-side::-webkit-scrollbar-thumb,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-thumb,
+  .sn-console .pnl-side::-webkit-scrollbar-thumb:hover,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-thumb:hover,
+  .sn-console .pnl-side::-webkit-scrollbar-thumb:active,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-thumb:active {
+    background-color: var(--nav-scroll-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    min-height: 44px;
+  }
+  .sn-console .pnl-side::-webkit-scrollbar-thumb:hover,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-thumb:hover,
+  .sn-console .pnl-side::-webkit-scrollbar-thumb:active,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-thumb:active {
+    background-color: var(--nav-scroll-active);
+  }
+  .sn-console .pnl-side::-webkit-scrollbar-button,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  .sn-console .pnl-side::-webkit-scrollbar-corner,
+  .sn-console .pnl-side > .pnl-card::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+@supports not selector(::-webkit-scrollbar) {
+  .sn-console .pnl-side:hover,
+  .sn-console .pnl-side > .pnl-card:hover {
+    scrollbar-color: var(--nav-scroll-active) transparent;
+  }
+}
+@media (forced-colors: active) {
+  .sn-console .pnl-side,
+  .sn-console .pnl-side > .pnl-card {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+    --nav-scroll-thumb: ButtonText;
+    --nav-scroll-active: Highlight;
+  }
+}
