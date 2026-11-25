@@ -21,7 +21,8 @@ class DocsRepository
                 $sections = config('docs.sections', []);
                 $posts = Post::query()
                     ->where('type', 'kb')->where('status', 'published')
-                    ->with('translations')->orderBy('id')->get();
+                    ->with('translations:id,post_id,locale,title')->orderBy('id')
+                    ->get(['id', 'slug', 'category']);
 
                 $tree = [];
                 foreach ($sections as $key => $meta) {

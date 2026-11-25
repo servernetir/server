@@ -72,7 +72,8 @@ class PageCache
             return $this->tag($next($request), 'BYPASS');
         }
 
-        $hasCopy = is_array($hit) && isset($hit['html'], $hit['token']);
+        $hit = $this->decodeCopy($hit);
+        $hasCopy = $hit !== null;
 
         if ($hasCopy && (int) ($hit['fresh_until'] ?? 0) >= time()) {
             return $this->tag($this->serve($hit, $request), 'HIT');
@@ -99,8 +100,13 @@ class PageCache
         // publish that response into the shared application cache.
         if ($this->storable($response) && $this->publicSession($request)) {
             try {
-                $store->put($key, [
-                    'html'        => $response->getContent(),
+                $html = $response->getContent();
+                $payload = $this->encodeHtml($html);
+                if ($payload === null) {
+                    return $this->tag($response, 'MISS');
+                }
+
+                $stored = $store->put($key, $payload + [
                     'token'       => $request->hasSession() ? (string) $request->session()->token() : '',
                     'type'        => (string) $response->headers->get('Content-Type', 'text/html; charset=UTF-8'),
                     // هدرهای امنیتیِ هر-صفحه هم ذخیره می‌شوند (شورا/امنیت): CSPِ sandbox یا
@@ -111,14 +117,51 @@ class PageCache
                     ]),
                     'fresh_until' => time() + (int) config('pagecache.ttl', 60),
                 ], (int) config('pagecache.hard_ttl', 86400));
+                return $this->tag($response, 'MISS', $stored);
             } catch (\Throwable) {
                 // ذخیره‌نشدن یعنی MISSِ بعدی — نه خطا برای کاربر
             }
-
-            return $this->tag($response, 'MISS', true);
         }
 
         return $this->tag($response, 'MISS');
+    }
+
+    /** Store only bounded public HTML, compressing the body at rest when possible. */
+    private function encodeHtml(mixed $html): ?array
+    {
+        if (! is_string($html) || strlen($html) > $this->maxEntryBytes()) {
+            return null;
+        }
+
+        $compressed = function_exists('gzencode') ? gzencode($html, 1) : false;
+        return is_string($compressed) && strlen($compressed) < strlen($html)
+            ? ['html_gzip' => $compressed]
+            : ['html' => $html];
+    }
+
+    /** Existing plain entries remain readable during a rolling deployment. */
+    private function decodeCopy(mixed $hit): ?array
+    {
+        if (! is_array($hit) || ! is_string($hit['token'] ?? null)) {
+            return null;
+        }
+
+        if (is_string($hit['html'] ?? null)) {
+            return strlen($hit['html']) <= $this->maxEntryBytes() ? $hit : null;
+        }
+
+        $compressed = $hit['html_gzip'] ?? null;
+        if (! is_string($compressed) || strlen($compressed) > $this->maxEntryBytes() || ! function_exists('gzdecode')) {
+            return null;
+        }
+
+        $html = @gzdecode($compressed, $this->maxEntryBytes());
+        return is_string($html) ? ['html' => $html] + $hit : null;
+    }
+
+    private function maxEntryBytes(): int
+    {
+        return max(1024, (int) config('pagecache.max_entry_bytes', 4 * 1024 * 1024));
     }
 
     /**

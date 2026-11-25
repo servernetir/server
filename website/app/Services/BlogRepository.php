@@ -23,9 +23,11 @@ class BlogRepository
             return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () use ($locale) {
                 return Post::query()
                     ->where('type', $this->type)->where('status', 'published')
-                    ->with(['translations', 'author:id,name'])
+                    // Listing cards need only translated metadata. Loading every
+                    // article body here exhausts the CLI budget as the blog grows.
+                    ->with(['translations:id,post_id,locale,title,excerpt,tags,updated_at', 'author:id,name'])
                     ->orderByDesc('published_at')->orderByDesc('id')
-                    ->get()
+                    ->lazy(100)
                     /*
                     | روی en/tr فقط پستِ واقعاً ترجمه‌شده فهرست می‌شود. بی‌این،
                     | fallbackِ fa در tr() عنوانِ فارسی را به فهرستِ بلاگ، بلوکِ

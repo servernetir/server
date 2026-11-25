@@ -39,6 +39,10 @@ return [
     */
     'hard_ttl' => (int) env('PAGE_CACHE_HARD_TTL', 86400),
 
+    // Bound both stored and decoded HTML. Normal pages use compressed entries;
+    // oversized responses bypass storage without affecting their response.
+    'max_entry_bytes' => 4 * 1024 * 1024,
+
     /*
     |----------------------------------------------------------------------
     | حالت (ممیزی ۶): denylist — «هر بخشِ تازه به‌صورت پیش‌فرض کش می‌شود»

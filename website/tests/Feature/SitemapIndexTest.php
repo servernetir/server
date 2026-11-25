@@ -8,6 +8,8 @@ use App\Models\PostTranslation;
 use App\Models\Product;
 use App\Services\DocsRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -166,6 +168,48 @@ class SitemapIndexTest extends TestCase
         $sitemap = $this->locs($this->get('/sitemaps/docs.xml')->assertOk()->getContent());
         $this->assertContains(url('/tr/docs/kb-localized'), $sitemap);
         $this->get('/tr/docs/kb-localized')->assertOk()->assertSee('<link rel="canonical" href="'.url('/tr/docs/kb-localized').'">', false);
+        Http::assertNothingSent();
+    }
+
+    public function test_discovery_lists_do_not_load_article_bodies_but_detail_still_does(): void
+    {
+        Http::preventStrayRequests();
+        $body = '<p>'.str_repeat('fixture article body ', 2500).'</p>';
+        foreach (['blog', 'kb'] as $type) {
+            $post = Post::create([
+                'slug' => 'metadata-'.$type, 'type' => $type, 'category' => 'hosting',
+                'status' => 'published', 'published_at' => '2026-08-02 08:00:00',
+            ]);
+            PostTranslation::create([
+                'post_id' => $post->id, 'locale' => 'fa', 'title' => 'Metadata title '.$type,
+                'excerpt' => 'Fixture excerpt', 'content' => $body, 'tags' => ['fixture'],
+            ]);
+        }
+
+        Cache::flush();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        try {
+            $locs = $this->locs($this->get('/sitemap.xml')->assertOk()->getContent());
+            $tree = app(DocsRepository::class)->tree();
+            $queries = DB::getQueryLog();
+        } finally {
+            DB::disableQueryLog();
+        }
+
+        $this->assertContains(url('/blog/metadata-blog'), $locs);
+        $this->assertContains(url('/docs/metadata-kb'), $locs);
+        $this->assertContains(['slug' => 'metadata-kb', 'title' => 'Metadata title kb'], $tree['hosting']['items']);
+        $translationQueries = array_values(array_filter($queries, static fn (array $query) =>
+            (bool) preg_match('/\bfrom\s+["`]?post_translations["`]?\b/i', $query['query'])));
+        $this->assertGreaterThanOrEqual(2, count($translationQueries));
+        foreach ($translationQueries as $query) {
+            $this->assertDoesNotMatchRegularExpression('/\bselect\s+\*|\bcontent\b/i', $query['query'],
+                'List and sitemap reads must not select article bodies.');
+        }
+
+        $this->assertSame($body, app(DocsRepository::class)->find('metadata-kb')['content']);
+        $this->assertSame($body, app(\App\Services\BlogRepository::class)->find('metadata-blog')['content']);
         Http::assertNothingSent();
     }
 

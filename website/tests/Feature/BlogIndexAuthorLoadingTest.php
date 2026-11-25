@@ -61,6 +61,11 @@ class BlogIndexAuthorLoadingTest extends TestCase
         $this->assertCount(1, $this->authorQueries($coldQueries),
             $locale.' cold index: '.count($cold).' preserved rows; '.count($coldQueries).' total SQL queries.');
         $this->assertCount(3, $coldQueries, 'A cold index needs only posts, translations and authors.');
+        $translationQueries = array_values(array_filter($coldQueries, static fn (array $query) =>
+            (bool) preg_match('/\bfrom\s+["`]?post_translations["`]?\b/i', $query['query'])));
+        $this->assertCount(1, $translationQueries);
+        $this->assertDoesNotMatchRegularExpression('/\bselect\s+\*|\bcontent\b/i', $translationQueries[0]['query'],
+            'The metadata index must not read article bodies.');
     }
 
     #[DataProvider('locales')]
