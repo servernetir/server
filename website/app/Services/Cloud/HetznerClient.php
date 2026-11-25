@@ -758,8 +758,13 @@ class HetznerClient implements CloudProvider
             return array_replace($result, ['message' => $r['message']]);
         }
 
+        $validRef = static fn ($value): bool => (is_int($value) || is_string($value))
+            && preg_match('/\A[1-9][0-9]*\z/D', (string) $value) === 1;
         $server = $r['body']['server'] ?? null;
-        if (! is_array($server) || (string) ($server['id'] ?? '') !== $ref
+        if (! is_array($server) || ! $validRef($server['id'] ?? null)
+            || (string) $server['id'] !== $ref
+            || ! is_string($server['name'] ?? null) || $server['name'] === ''
+            || ! is_string($server['status'] ?? null) || $server['status'] === ''
             || ! is_array($server['public_net'] ?? null)) {
             return array_replace($result, ['message' => 'Invalid server allocation response.']);
         }
@@ -769,7 +774,8 @@ class HetznerClient implements CloudProvider
             }
             $address = $server['public_net'][$family];
             if ($address !== null && (! is_array($address)
-                || ! preg_match('/\A[1-9][0-9]*\z/D', (string) ($address['id'] ?? '')))) {
+                || ! $validRef($address['id'] ?? null)
+                || ! is_string($address['ip'] ?? null) || $address['ip'] === '')) {
                 return array_replace($result, ['message' => 'Invalid Primary IP allocation response.']);
             }
         }
@@ -778,8 +784,8 @@ class HetznerClient implements CloudProvider
             'ok' => true, 'exists' => true,
             'allocation' => [
                 'server_ref' => $ref,
-                'name' => (string) ($server['name'] ?? ''),
-                'status' => (string) ($server['status'] ?? ''),
+                'name' => $server['name'],
+                'status' => $server['status'],
                 'primary_ipv4_ref' => isset($server['public_net']['ipv4']['id'])
                     ? (string) $server['public_net']['ipv4']['id'] : null,
                 'primary_ipv6_ref' => isset($server['public_net']['ipv6']['id'])
@@ -809,8 +815,16 @@ class HetznerClient implements CloudProvider
             return array_replace($result, ['message' => $r['message']]);
         }
 
+        $validRef = static fn ($value): bool => (is_int($value) || is_string($value))
+            && preg_match('/\A[1-9][0-9]*\z/D', (string) $value) === 1;
         $ip = $r['body']['primary_ip'] ?? null;
-        if (! is_array($ip) || (string) ($ip['id'] ?? '') !== $ref) {
+        if (! is_array($ip) || ! $validRef($ip['id'] ?? null) || (string) $ip['id'] !== $ref
+            || ! is_string($ip['ip'] ?? null) || $ip['ip'] === ''
+            || ! in_array($ip['type'] ?? null, ['ipv4', 'ipv6'], true)
+            || ($ip['assignee_type'] ?? null) !== 'server'
+            || ! array_key_exists('assignee_id', $ip)
+            || ($ip['assignee_id'] !== null && ! $validRef($ip['assignee_id']))
+            || ! is_bool($ip['auto_delete'] ?? null)) {
             return array_replace($result, ['message' => 'Invalid Primary IP response.']);
         }
 
@@ -818,11 +832,11 @@ class HetznerClient implements CloudProvider
             'ok' => true, 'exists' => true,
             'primary_ip' => [
                 'ref' => $ref,
-                'ip' => $ip['ip'] ?? null,
-                'type' => $ip['type'] ?? null,
-                'assignee_type' => $ip['assignee_type'] ?? null,
+                'ip' => $ip['ip'],
+                'type' => $ip['type'],
+                'assignee_type' => $ip['assignee_type'],
                 'assignee_ref' => isset($ip['assignee_id']) ? (string) $ip['assignee_id'] : null,
-                'auto_delete' => is_bool($ip['auto_delete'] ?? null) ? $ip['auto_delete'] : null,
+                'auto_delete' => $ip['auto_delete'],
             ],
         ]);
     }

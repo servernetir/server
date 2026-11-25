@@ -15,7 +15,7 @@ The existing pagination helper has a safety cap and must not be used as definiti
 
 ## Validation and status
 
-The dedicated PHPUnit suite uses only synthetic IDs, documentation IP ranges, an isolated SQLite database, fake HTTP responses, and a test-only credential. It covers successful allocation reads, explicit null addresses, 404 versus authorization/server/transport errors, malformed HTTP 200 bodies, rejected references and GET-only requests.
+The dedicated PHPUnit suite uses only synthetic IDs, documentation IP ranges, an isolated SQLite database, fake HTTP responses, and a test-only credential. It covers successful allocation reads, explicit null addresses, 404 versus authorization/server/transport errors, malformed and truncated HTTP 200 bodies, incorrect field types, explicit null assignment, rejected references and GET-only requests. Required metadata is validated before reporting a successful inspection; arrays and other malformed values remain unknown without string-conversion warnings.
 
 A dedicated pull-request workflow installs the locked dependencies and runs PHP 8.4 syntax and focused PHPUnit checks in an isolated runner without production credentials. Local PHP and Composer are unavailable in the authoring workspace; test execution must be reported from the actual CI result.
 
