@@ -425,6 +425,11 @@ class ProvisioningService
             $cloud = app(CloudProvisioner::class);
 
             if (! $cloud->terminate($service, $reportFailure, $confirmOnly)) {
+                if ($cloud->awaitingCreateReceipt($service)) {
+                    return ProvisionResult::fail(
+                        'در انتظار پایان درخواست ساخت و تطبیق شناسهٔ منبع.', ['pending' => true]
+                    );
+                }
                 // Arvan accepted force deletion, but its exact resource still
                 // exists (normally SOFT_DELETED).  Keep the retry queue open
                 // without calling it a provider failure or alerting twice; a
@@ -451,7 +456,23 @@ class ProvisioningService
             | پرس‌وجویی نداشت — همان چیزی که صفِ تلاشِ دوبارهٔ `cloud:release-retry`
             | و چکِ سلامتِ `cloud_release` به آن نیاز دارند.
             */
-            $service->update(['provision_status' => 'none']);
+            $closed = DB::transaction(function () use ($service): bool {
+                $current = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+                $instance = CloudInstance::where('service_id', $current->id)->lockForUpdate()->first();
+                if ($current->isDead() && $instance && $instance->status !== 'deleted') {
+                    // A create receipt arriving while release looked up an
+                    // empty inventory must keep the release queue open.
+                    $current->update(['provision_status' => Service::PROVISION_RELEASING]);
+                    $service->setRawAttributes($current->getAttributes(), true);
+                    return false;
+                }
+                $current->update(['provision_status' => Service::PROVISION_NONE]);
+                $service->setRawAttributes($current->getAttributes(), true);
+                return true;
+            });
+            if (! $closed) {
+                return ProvisionResult::fail('منبع در انتظار تطبیق و آزادسازی است.', ['pending' => true]);
+            }
 
             return ProvisionResult::success(null, null, null);
         }
@@ -583,7 +604,11 @@ class ProvisioningService
         if ($r->ok || $r->manual) {
             // شاخهٔ غیرابریِ `releaseServer()` از قبل نوشته؛ نوشتنِ دوباره بی‌ضرر
             // است و شاخهٔ `manual` (که چیزی ننوشته) را هم می‌پوشانَد.
-            $service->forceFill(['provision_status' => Service::PROVISION_NONE])->save();
+            if (! CloudProvisioner::handles($service)) {
+                $service->forceFill(['provision_status' => Service::PROVISION_NONE])->save();
+            } elseif ($service->fresh()?->provision_status === Service::PROVISION_RELEASING) {
+                return ProvisionResult::fail('منبع در انتظار تطبیق و آزادسازی است.', ['pending' => true]);
+            }
 
             return $r;
         }

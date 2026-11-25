@@ -3,6 +3,7 @@
 namespace App\Services\Cloud;
 
 use App\Models\Setting;
+use App\Support\ErrorTracker;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 
@@ -18,6 +19,8 @@ use Brick\Math\RoundingMode;
  */
 class VpsTcCatalog
 {
+    private const TERMS_CHANGED = 'supplier_terms_changed';
+
     private ?string $lastQuoteReason = null;
     public function __construct(private VpsTcApi $api, private VpsTcPricing $pricing) {}
 
@@ -31,12 +34,16 @@ class VpsTcCatalog
         }
         $locations = $plans = $images = [];
         $failedProducts = 0;
+        $changedTerms = [];
         foreach ($manifest['products'] as $mapping) {
             $quote = $this->quote((string) ($mapping['product_id'] ?? ''));
             if ($quote === null) {
                 // Keep independently reviewed quotes. The missing exact product
                 // is quarantined by the repricer or retired by the full sync.
                 $failedProducts++;
+                if ($this->lastQuoteReason === self::TERMS_CHANGED) {
+                    $changedTerms[] = (string) $mapping['product_id'];
+                }
                 continue;
             }
             $code = CloudNaming::locationCode($quote['country'], $quote['city'], $quote['location_ref']);
@@ -56,6 +63,19 @@ class VpsTcCatalog
                     'label' => $image['label'], 'arch' => $quote['arch'],
                     'min_ram_mb' => $image['min_ram_mb'], 'min_disk_gb' => $image['min_disk_gb']];
             }
+        }
+        if ($changedTerms !== []) {
+            sort($changedTerms, SORT_STRING);
+            // Report the changed reviewed contract once per affected set, not
+            // a separate opaque pricing failure for every product every retry.
+            // No description, raw reply, account identity or credentials.
+            try {
+                if (ErrorTracker::throttlePassed('pricing-vpstc-terms-changed', 3600, hash('sha256', implode(',', $changedTerms)))) {
+                    ErrorTracker::note('pricing', 'VPS.TC reviewed product terms changed; affected offers require revalidation.',
+                        ['provider' => 'vpstc', 'reason' => self::TERMS_CHANGED,
+                            'affected_count' => count($changedTerms), 'product_refs' => implode(',', $changedTerms)], false);
+                }
+            } catch (\Throwable) { /* Diagnostics must not block verified peers. */ }
         }
         if ($plans === [] && $failedProducts > 0) {
             return array_replace($empty, ['reason' => $this->lastQuoteReason ?? 'supplier_cost_read_failed']);
@@ -193,8 +213,11 @@ class VpsTcCatalog
             if ($needsCalculation) {
                 if ($currency !== 'TRY' || ! $this->nativeUnit($monthly) || ! $this->nativeUnit($nativeMonthly)
                     || ! is_string($product['description'] ?? null) || trim($product['description']) === ''
-                    || ! is_string($mapping['terms_sha256'] ?? null)
-                    || ! hash_equals($mapping['terms_sha256'], self::termsFingerprint($product))) { return null; }
+                    || ! is_string($mapping['terms_sha256'] ?? null)) { return null; }
+                if (! hash_equals($mapping['terms_sha256'], self::termsFingerprint($product))) {
+                    $this->lastQuoteReason = self::TERMS_CHANGED;
+                    return null;
+                }
                 $hostname = 'preflight-'.$productId.'.example.invalid';
                 $calculated = $this->api->quote($productId, $method, $custom, $hostname);
                 $checked = ($calculated['ok'] ?? false)

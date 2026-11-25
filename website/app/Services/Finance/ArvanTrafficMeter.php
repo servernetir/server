@@ -111,15 +111,77 @@ final class ArvanTrafficMeter
         return $invoice || $debits->contains(fn ($entry) => $entry->source_type !== Invoice::class || ! $known->contains($entry->source_id));
     }
 
+    /**
+     * A finalized, previously known historical cycle can be withheld without
+     * treating its unverified money as payable or blocking independent current
+     * usage. All current-cycle and cross-cycle identity checks remain strict.
+     * The original complete snapshot is still retained for reconciliation.
+     *
+     * @return array<string, string> quarantined historical cycle IDs and reasons
+     */
+    public function quarantinedCycles(array $snapshot, array $state): array
+    {
+        $source = app(ArvanTrafficSource::class);
+        $current = $snapshot['current_cycle'] ?? null;
+        $this->check(is_string($current) && $current !== '' && is_string($snapshot['observed_at'] ?? null)
+            && trim($snapshot['observed_at']) !== '', 'Current cycle missing');
+        $observed = Carbon::parse($snapshot['observed_at']);
+        $currentReport = collect($snapshot['reports'])->first(fn ($report) => ($report['cycle']['id'] ?? null) === $current);
+        $this->check(is_array($currentReport), 'Current cycle missing');
+        $currentCycle = $currentReport['cycle'];
+        $this->check(is_string($currentCycle['accountId'] ?? null) && $currentCycle['accountId'] !== ''
+            && is_string($currentCycle['startedAt'] ?? null) && $currentCycle['startedAt'] !== '', 'Invalid current supplier cycle identity');
+        $currentStart = Carbon::parse($currentCycle['startedAt']);
+        $seen = [];
+        $quarantined = [];
+        foreach ($snapshot['reports'] as $report) {
+            $cycle = $report['cycle'];
+            $id = $cycle['id'] ?? null;
+            $this->check(is_string($id) && $id !== '' && !isset($seen[$id]), 'Invalid traffic bill currency, cycle or row count');
+            $seen[$id] = true;
+            $this->check(($cycle['accountId'] ?? null) === $currentCycle['accountId'], 'Supplier account changed');
+            $account = hash('sha256', $cycle['accountId']);
+            $this->check(collect($state['cycles'])->every(fn ($c) => hash_equals($c['account_hash'], $account)), 'Supplier account changed');
+            try {
+                $source->validate(['reports' => [$report], 'current_cycle' => $id]);
+            } catch (RuntimeException $error) {
+                $known = $state['cycles'][$id] ?? null;
+                // Only independently validated pagination with unchanged identity
+                // and an already issued historical invoice may be quarantined.
+                // A malformed, new, current or moving cycle still fails closed.
+                if ($id === $current || !is_array($known)
+                    || !is_string($cycle['invoiceId'] ?? null) || trim($cycle['invoiceId']) === ''
+                    || !is_string($cycle['startedAt'] ?? null) || !is_string($known['started_at'] ?? null)
+                    || !is_string($cycle['expiredAt'] ?? null) || !is_string($known['expired_at'] ?? null)
+                    || !Carbon::parse($cycle['startedAt'])->eq(Carbon::parse($known['started_at']))
+                    || !Carbon::parse($cycle['expiredAt'])->eq(Carbon::parse($known['expired_at']))
+                    || Carbon::parse($cycle['expiredAt'])->gt($observed)
+                    || Carbon::parse($cycle['expiredAt'])->gt($currentStart)) {
+                    throw $error;
+                }
+                $reason = match ($error->getMessage()) {
+                    'Supplier cycle totals differ' => 'historical_supplier_cycle_totals_differ',
+                    'Duplicate or missing supplier component' => 'historical_supplier_component_invalid',
+                    default => null,
+                };
+                if ($reason === null) { throw $error; }
+                $quarantined[$id] = $reason;
+            }
+        }
+        $this->check(is_string($current) && isset($seen[$current]), 'Current cycle missing');
+
+        return $quarantined;
+    }
+
     public function run(array $snapshot, bool $apply = false): array
     {
-        app(ArvanTrafficSource::class)->validate($snapshot);
         $sourceHash = hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR));
 
         return DB::transaction(function () use ($snapshot, $apply, $sourceHash) {
             $row = Setting::query()->whereKey(self::KEY)->lockForUpdate()->firstOrFail();
             $state = json_decode(Crypt::decryptString($row->value), true, 512, JSON_THROW_ON_ERROR);
             $this->check($state['version'] === 1 && $state['enabled'] === true, 'Traffic meter disabled');
+            $quarantined = $this->quarantinedCycles($snapshot, $state);
             $this->rates($state);
             $this->check(app(BusinessLedger::class)->ready() && app(DocumentedAccounting::class)->ready(), 'Accounting unavailable');
             $lines = [];
@@ -131,6 +193,12 @@ final class ArvanTrafficMeter
             foreach ($snapshot['reports'] as $report) {
                 $cycle = $report['cycle'];
                 $cycleId = $cycle['id'];
+                if (isset($quarantined[$cycleId])) {
+                    $state['cycles'][$cycleId]['pending'] = true;
+                    $state['cycles'][$cycleId]['quarantine_reason'] = $quarantined[$cycleId];
+                    $held[] = ['reason' => $quarantined[$cycleId]];
+                    continue; // Preserve paid checkpoints and all pending components; never settle this report.
+                }
                 $account = hash('sha256', $cycle['accountId']);
                 $this->check(collect($state['cycles'])->every(fn ($c) => hash_equals($c['account_hash'], $account)), 'Supplier account changed');
                 $state['cycles'][$cycleId] = ['expired_at' => $cycle['expiredAt'], 'started_at' => $cycle['startedAt'], 'account_hash' => $account,
@@ -256,6 +324,7 @@ final class ArvanTrafficMeter
             $deferredCycles = array_fill_keys(array_column($deferred, 'cycle'), true);
             foreach ($snapshot['reports'] as $report) {
                 $id = $report['cycle']['id'];
+                if (isset($quarantined[$id])) { continue; }
                 $state['cycles'][$id]['pending'] = isset($deferredCycles[$id])
                     || (($state['cycles'][$id]['pending'] ?? false) && isset($blockedCycles[$id]));
             }
@@ -264,6 +333,7 @@ final class ArvanTrafficMeter
             $this->check($total <= 1_000_000_000, 'Traffic batch exceeds settlement limit');
             $summary = ['mode' => $apply ? 'apply' : 'preview', 'source_hash' => $sourceHash, 'line_count' => count($lines),
                 'total_irt' => $total, 'held' => $held, 'unallocated_count' => $unallocated, 'invoices' => [],
+                'quarantined_cycle_count' => count($quarantined),
                 'minimum_settlement_irt' => self::MIN_SETTLEMENT_IRT,
                 'deferred_line_count' => count($deferred),
                 'deferred_total_irt' => array_sum(array_column($deferred, 'subtotal_irt')) + array_sum(array_column($deferred, 'tax_irt'))];

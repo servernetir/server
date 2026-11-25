@@ -60,7 +60,7 @@ final class ArvanTrafficHealth
             'enabled' => null, 'sequence' => null,
             'last_success_utc' => null, 'success_age_seconds' => null,
             'last_result_mode' => null, 'last_result_total_irt' => null,
-            'invoice_count' => null, 'held_count' => null, 'unallocated_count' => null,
+            'invoice_count' => null, 'held_count' => null, 'unallocated_count' => null, 'quarantined_cycle_count' => null,
             'margin_bp' => null, 'tax_bp' => null,
             'recorded_error_present' => false,
             'policy' => ['interval_seconds' => self::EXPECTED_INTERVAL_SECONDS, 'grace_seconds' => self::GRACE_SECONDS],
@@ -134,6 +134,9 @@ final class ArvanTrafficHealth
             }
             if (($r['held_count'] ?? 0) > 0) { $issues['held_costs_need_review'] = 'warn'; }
             if (($r['unallocated_count'] ?? 0) > 0) { $issues['unallocated_costs_need_review'] = 'warn'; }
+            // Old receipts predate cycle quarantine; do not reinterpret them as zero coverage.
+            $r['quarantined_cycle_count'] = self::nonnegativeInt($result['quarantined_cycle_count'] ?? null);
+            if (($r['quarantined_cycle_count'] ?? 0) > 0) { $issues['supplier_cycles_need_reconciliation'] = 'fail'; }
         }
         return self::finish($r, $issues);
     }
@@ -159,6 +162,7 @@ final class ArvanTrafficHealth
             'unallocated_count_unknown' => 'شمار هزینه‌های بدون تخصیص نامشخص است.',
             'held_costs_need_review' => 'هزینهٔ نگه‌داشته‌شده برای بررسی وجود دارد.',
             'unallocated_costs_need_review' => 'هزینهٔ بدون تخصیص برای بررسی وجود دارد.',
+            'supplier_cycles_need_reconciliation' => 'چرخهٔ تاریخی ناسازگار برای بررسی نگه داشته شده؛ هیچ هزینه‌ای از آن محاسبه نشده است. شمار هزینه‌های دیگر فقط از گزارش‌های معتبر است.',
         ];
         $parts = [];
         $success = self::timestamp($r['last_success_utc'] ?? null);
@@ -172,6 +176,7 @@ final class ArvanTrafficHealth
         }
         $parts[] = 'نگه‌داشته‌شده: '.(self::nonnegativeInt($r['held_count'] ?? null) ?? 'نامشخص')
             .'؛ بدون تخصیص: '.(self::nonnegativeInt($r['unallocated_count'] ?? null) ?? 'نامشخص').'.';
+        if (($r['quarantined_cycle_count'] ?? 0) > 0) { $parts[] = 'چرخهٔ تاریخی قرنطینه‌شده: '.$r['quarantined_cycle_count'].'.'; }
         foreach (($r['issue_codes'] ?? []) as $code) {
             if (is_string($code) && isset($messages[$code])) { $parts[] = $messages[$code]; }
         }

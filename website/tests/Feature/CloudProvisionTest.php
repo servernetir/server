@@ -129,6 +129,111 @@ class CloudProvisionTest extends TestCase
         $this->assertSame('de-falkenstein', $inst->location_code);
     }
 
+    public function test_customer_cancellation_during_create_keeps_late_receipt_in_release_queue(): void
+    {
+        config(['billing.internal_service_ids' => []]);
+        $service = $this->service($this->plan());
+        $this->image();
+        $created = 0;
+        $deleted = 0;
+
+        Http::fake(function ($request) use ($service, &$created, &$deleted) {
+            if ($request->method() === 'POST' && str_ends_with($request->url(), '/servers')) {
+                $created++;
+                // The actual cancellation route wins before the supplier
+                // reply arrives, as in a slow asynchronous create request.
+                $this->actingAs($service->customer, 'customer')
+                    ->post("/account/services/{$service->id}/cancel")
+                    ->assertSessionHasNoErrors();
+                $this->assertSame('cancelled', $service->fresh()->status);
+                $this->assertSame(Service::PROVISION_RELEASING, $service->fresh()->provision_status);
+                $this->assertNull($service->fresh()->cloudInstance->provider_ref);
+                return Http::response([
+                    'server' => ['id' => 999, 'name' => 'sn-svc-'.$service->id, 'status' => 'running',
+                        'public_net' => ['ipv4' => ['ip' => '203.0.113.7']]],
+                    'root_password' => 'synthetic-create-secret',
+                ], 201);
+            }
+            if ($request->method() === 'DELETE' && str_ends_with($request->url(), '/servers/999')) {
+                $deleted++;
+            }
+            return Http::response([], 200);
+        });
+
+        $this->assertFalse(app(ProvisioningService::class)->provision($service));
+        $fresh = $service->fresh();
+        $instance = $fresh->cloudInstance;
+        $this->assertSame('cancelled', $fresh->status);
+        $this->assertSame(Service::PROVISION_RELEASING, $fresh->provision_status);
+        $this->assertNull($fresh->provisioned_at);
+        $this->assertSame('999', $instance->provider_ref);
+        $this->assertSame('running', $instance->status);
+        $this->assertNull($instance->ready_notified_at);
+        $this->assertNull($instance->root_password_enc);
+        $this->assertSame(1, $created);
+        $this->assertSame(0, $deleted);
+
+        $this->artisan('provision:run')->assertOk();
+        $this->artisan('cloud:release-retry')->assertOk();
+        $this->assertSame(1, $created);
+        $this->assertSame(1, $deleted);
+        $this->assertSame('cancelled', $service->fresh()->status);
+        $this->assertSame(Service::PROVISION_NONE, $service->fresh()->provision_status);
+        $this->assertSame('deleted', $service->fresh()->cloudInstance->status);
+    }
+
+    public function test_late_transient_failure_does_not_reopen_cancelled_order(): void
+    {
+        config(['billing.internal_service_ids' => []]);
+        $service = $this->service($this->plan());
+        $this->image();
+        Http::fake();
+
+        $driver = Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->andReturnTrue();
+        $driver->shouldReceive('capabilities')->andReturn([]);
+        $driver->shouldReceive('createServer')->once()->andReturnUsing(function () use ($service) {
+            $this->actingAs($service->customer, 'customer')
+                ->post("/account/services/{$service->id}/cancel")
+                ->assertSessionHasNoErrors();
+            return ['ok' => false, 'message' => 'temporary network failure', 'transient' => true];
+        });
+        $manager = Mockery::mock(CloudManager::class);
+        $manager->shouldReceive('forPlan')->andReturn($driver);
+
+        $this->assertFalse((new CloudProvisioner($manager, app(CloudAddons::class)))->provision($service));
+        $this->assertSame('cancelled', $service->fresh()->status);
+        $this->assertSame(Service::PROVISION_RELEASING, $service->fresh()->provision_status);
+        $this->assertTrue(app(CloudProvisioner::class)->awaitingCreateReceipt($service->fresh()));
+        $this->assertNull($service->fresh()->cloudInstance->provider_ref);
+    }
+
+    public function test_late_create_snapshot_does_not_overwrite_already_confirmed_deletion(): void
+    {
+        config(['billing.internal_service_ids' => []]);
+        $service = $this->service($this->plan());
+        $this->image();
+
+        Http::fake(function ($request) use ($service) {
+            if ($request->method() === 'POST' && str_ends_with($request->url(), '/servers')) {
+                // Independently observed deletion of the very same identity
+                // completed before the delayed create response was persisted.
+                $service->fresh()->update(['status' => 'cancelled', 'cancelled_at' => now(),
+                    'provision_status' => Service::PROVISION_NONE]);
+                $service->fresh()->cloudInstance->update(['provider_ref' => '999', 'status' => 'deleted']);
+                return Http::response(['server' => ['id' => 999, 'status' => 'running'],
+                    'root_password' => 'synthetic-create-secret'], 201);
+            }
+            return Http::response([], 200);
+        });
+
+        $this->assertFalse(app(ProvisioningService::class)->provision($service));
+        $this->assertSame('cancelled', $service->fresh()->status);
+        $this->assertSame(Service::PROVISION_NONE, $service->fresh()->provision_status);
+        $this->assertSame('deleted', $service->fresh()->cloudInstance->status);
+        $this->assertNull($service->fresh()->cloudInstance->root_password_enc);
+    }
+
     /** مشخصاتِ لحظهٔ خرید در نمونه ثبت شود — پلن ممکن است بعداً عوض شود */
     public function test_specs_are_snapshotted_on_the_instance(): void
     {

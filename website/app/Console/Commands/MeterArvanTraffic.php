@@ -40,8 +40,14 @@ final class MeterArvanTraffic extends Command
             if ($this->option('initialize') && (! $this->option('apply') || $state)) {
                 throw new \RuntimeException('Initialization requires --apply and an absent meter');
             }
-            $snapshot = $source->validate($source->fetch($state['cycles'] ?? []));
-            // Save successful complete source BEFORE any money moves; private and outside webroot.
+            $snapshot = $source->fetch($state['cycles'] ?? []);
+            if ($this->option('initialize')) {
+                $source->validate($snapshot);
+            } else {
+                $meter->quarantinedCycles($snapshot, $state);
+            }
+            // Save the complete source, including any quarantined historical report,
+            // BEFORE money moves; private and outside webroot. run() revalidates under lock.
             $path = $dir.'/'.now()->format('Ymd_His').'-'.bin2hex(random_bytes(4)).'.json';
             File::put($path, json_encode($snapshot, JSON_THROW_ON_ERROR));
             chmod($path, 0600);
