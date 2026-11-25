@@ -65,6 +65,29 @@ class CloudSalesWatchTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_partial_quarantine_is_visible_without_reopening_or_reporting_manually_disabled_offers(): void
+    {
+        $peer = $this->plan('hetzner');
+        $partial = $peer->replicate();
+        $partial->fill(['provider_ref' => 'partial-test', 'slug' => 'partial-test', 'is_active' => false])->save();
+        $manual = $peer->replicate();
+        $manual->fill(['provider_ref' => 'manual-test', 'slug' => 'manual-test', 'admin_disabled' => true])->save();
+        $whole = $this->plan('aeza');
+        $pricing = app(CloudPricingSnapshot::class);
+        $pricing->publish($pricing->rates(), [], [], [$partial->id, $manual->id, $whole->id]);
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->once()->andReturnTrue();
+        $driver->shouldNotReceive('fetchCatalog');
+        $this->mock(CloudManager::class)->shouldReceive('driver')->once()->with('hetzner')->andReturn($driver);
+
+        $result = app(\App\Services\Cloud\CatalogueQuarantineHealth::class)->snapshot();
+        $this->assertSame(['hetzner' => ['quarantined' => 1, 'sellable' => 1]], $result);
+        $this->assertFalse($partial->fresh()->is_active);
+        $this->assertTrue($manual->fresh()->admin_disabled);
+        $this->assertSame([$peer->id], CloudPlan::sellable()->pluck('id')->all());
+        Http::assertNothingSent();
+    }
+
     public function test_watch_coalesces_failure_causes_and_confirms_recovery_without_repeating_peers(): void
     {
         $sent = [];

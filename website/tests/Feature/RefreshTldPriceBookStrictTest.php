@@ -16,6 +16,9 @@ class RefreshTldPriceBookStrictTest extends TestCase
             ->andReturn(['count' => 1024, 'total' => 1025, 'excluded' => 1]);
 
         $this->artisan('domains:price-book --strict')->assertSuccessful();
+        $receipt = app(\App\Services\MaintenanceReceipt::class)->read('domain_catalogue');
+        $this->assertSame('success', $receipt['status']);
+        $this->assertSame(1024, $receipt['metrics']['count']);
     }
 
     public function test_missing_prices_fail_in_strict_mode(): void
@@ -24,6 +27,7 @@ class RefreshTldPriceBookStrictTest extends TestCase
             ->andThrow(new \RuntimeException('Openprovider catalogue pagination is incomplete.'));
 
         $this->artisan('domains:price-book --strict')->assertFailed();
+        $this->assertSame('failed', app(\App\Services\MaintenanceReceipt::class)->read('domain_catalogue')['status']);
     }
 
     public function test_exception_fails_in_strict_mode(): void

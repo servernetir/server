@@ -80,6 +80,9 @@ class FetchDollarTest extends TestCase
             PHP_BINARY, '-d', 'memory_limit=256M', base_path('artisan'), 'domains:price-book', '--strict',
         ] && $process->path === base_path() && $process->timeout === 900);
         Process::assertRanTimes(fn ($process) => true, 1);
+        $receipt = app(\App\Services\MaintenanceReceipt::class)->read('fx_refresh');
+        $this->assertSame('success', $receipt['status']);
+        $this->assertSame(4, $receipt['metrics']['currencies']);
     }
 
     public function test_show_reads_all_four_cached_rates_without_refreshing_or_repricing(): void
@@ -97,6 +100,7 @@ class FetchDollarTest extends TestCase
             ->assertSuccessful();
         Http::assertNothingSent();
         Process::assertNothingRan();
+        $this->assertNull(app(\App\Services\MaintenanceReceipt::class)->read('fx_refresh'));
     }
 
     public function test_show_mode_handles_empty_cache(): void
@@ -159,6 +163,7 @@ class FetchDollarTest extends TestCase
         $this->assertTrue($applied);
         $this->assertSame(110000, app(ExchangeRate::class)->toToman('EUR'));
         $this->assertSame([true, 110000], $beforeRegistrar, 'The FX/catalogue pair must be published before the registrar process runs.');
+        $this->assertSame('success', app(\App\Services\MaintenanceReceipt::class)->read('fx_refresh')['status'], 'The independently accepted FX generation remains successful.');
         Http::assertSentCount(1);
         Process::assertRanTimes(fn ($process) => true, 1);
     }

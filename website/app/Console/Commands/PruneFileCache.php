@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\MaintenanceReceipt;
 use App\Services\Notify\AdminNotifier;
 use App\Support\ErrorTracker;
 use FilesystemIterator;
@@ -39,6 +40,8 @@ class PruneFileCache extends Command
             return self::FAILURE;
         }
 
+        $monitor = app(MaintenanceReceipt::class);
+        $run = null;
         try {
             if (! flock($lock, LOCK_EX | LOCK_NB)) {
                 $this->info('File cache maintenance is already running.');
@@ -47,6 +50,7 @@ class PruneFileCache extends Command
             }
 
             $dryRun = (bool) $this->option('dry-run');
+            if (! $dryRun) $run = $monitor->start('file_cache_prune');
             $previous = json_decode(stream_get_contents($lock) ?: '{}', true);
             $cutoff = time() - max(60, (int) config('cache.file_prune.grace_seconds', 300));
             $stats = ['bytes' => 0, 'removed_bytes' => 0, 'expired' => 0, 'skipped' => 0];
@@ -88,7 +92,6 @@ class PruneFileCache extends Command
             $used = $diskTotal > 0 && $diskFree !== false ? (int) ceil(100 * (1 - $diskFree / $diskTotal)) : null;
             $sizeLimit = max(1, (int) config('cache.file_prune.alert_size_mb', 4096)) * 1048576;
             $growthLimit = max(1, (int) config('cache.file_prune.alert_growth_mb', 1024)) * 1048576;
-            $diskLimit = (int) config('cache.file_prune.alert_disk_percent', 90);
 
             $snapshot = json_encode(['at' => time(), 'bytes' => $remaining], JSON_THROW_ON_ERROR);
             rewind($lock);
@@ -96,7 +99,12 @@ class PruneFileCache extends Command
                 throw new \RuntimeException('Cannot record cache maintenance snapshot.');
             }
 
-            if ($stats['bytes'] >= $sizeLimit || max($growth, $stats['removed_bytes']) >= $growthLimit || ($used !== null && $used >= $diskLimit)) {
+            $monitor->finish('file_cache_prune', $run, true, ['remaining_bytes' => $remaining,
+                'removed_bytes' => $stats['removed_bytes'], 'expired' => $stats['expired']]);
+
+            // Disk-only incidents belong to the native system-health probe;
+            // this command still owns cache-specific abnormal growth alerts.
+            if ($stats['bytes'] >= $sizeLimit || max($growth, $stats['removed_bytes']) >= $growthLimit) {
                 $rows = [
                     'حجم پیش از پاک‌سازی' => $this->mib($stats['bytes']),
                     'حجم پاک‌شده' => $this->mib($stats['removed_bytes']),
@@ -105,7 +113,7 @@ class PruneFileCache extends Command
                     'اشغال دیسک پیش از پاک‌سازی' => $used === null ? 'نامعلوم' : $used.'%',
                     'فایل‌های منقضی حذف‌شده' => $stats['expired'],
                 ];
-                ErrorTracker::noteOnce('cache', 'افزایش غیرعادی حجم کش فایل یا اشغال دیسک', 21600);
+                ErrorTracker::noteOnce('cache', 'افزایش غیرعادی حجم کش فایل', 21600);
                 if (ErrorTracker::throttlePassed('file-cache-disk-alert', 21600)) {
                     app(AdminNotifier::class)->baleEvent('⚠️ افزایش حجم Cache سرورنت', $rows, url('/admin/errors'));
                 }
@@ -113,6 +121,7 @@ class PruneFileCache extends Command
 
             return self::SUCCESS;
         } catch (Throwable $e) {
+            $monitor->finish('file_cache_prune', $run, false);
             ErrorTracker::noteOnce('cache', $e, 3600);
             $this->error('File cache maintenance failed.');
 

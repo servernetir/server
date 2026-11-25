@@ -9,6 +9,8 @@ abstract class TestCase extends BaseTestCase
 {
     private static bool $trackerCleanupRegistered = false;
 
+    private ?string $maintenanceReceiptDirectory = null;
+
     /**
      * 🔴 گلوگاه‌های **فایلی** بین تست‌ها پاک می‌شوند.
      *
@@ -26,6 +28,12 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Like the error tracker, operational run receipts are private local
+        // files rather than a testing array cache. Give every test its own
+        // directory, even if it changes the Laravel storage path afterwards.
+        $this->maintenanceReceiptDirectory = sys_get_temp_dir().'/servernet-receipts-'.bin2hex(random_bytes(12));
+        config(['operations_health.receipt_path' => $this->maintenanceReceiptDirectory]);
 
         $dir = $this->isolatedTrackerDirectory();
 
@@ -48,6 +56,15 @@ abstract class TestCase extends BaseTestCase
         | این‌جا یک‌جا انجام می‌شود تا تستِ بعدی هم که یادش می‌رود، امن باشد.
         */
         ErrorTracker::clear();
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->maintenanceReceiptDirectory !== null && is_dir($this->maintenanceReceiptDirectory)) {
+            (new \Illuminate\Filesystem\Filesystem)->deleteDirectory($this->maintenanceReceiptDirectory);
+        }
+        $this->maintenanceReceiptDirectory = null;
+        parent::tearDown();
     }
 
     /**

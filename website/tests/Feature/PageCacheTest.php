@@ -73,6 +73,44 @@ class PageCacheTest extends TestCase
         $this->assertNull($cache->get($key));
     }
 
+    public function test_disk_pressure_stops_new_file_cache_writes_but_preserves_hits_and_recovers(): void
+    {
+        $dir = storage_path('framework/testing/pagecache-pressure-'.bin2hex(random_bytes(6)));
+        mkdir($dir, 0700, true);
+        config(['cache.default' => 'file', 'cache.stores.file.path' => $dir]);
+        $level = 'ok';
+        $pressure = \Mockery::mock(\App\Services\DiskPressure::class);
+        $pressure->shouldReceive('inspect')->with($dir)->andReturnUsing(function () use (&$level) {
+            return ['level' => $level, 'free_bytes' => 100, 'total_bytes' => 1000, 'used_pct' => 90];
+        });
+        $this->app->instance(\App\Services\DiskPressure::class, $pressure);
+        $rendered = 0;
+        foreach (['one', 'two'] as $page) {
+            \Illuminate\Support\Facades\Route::middleware('web')->get('/disk-pressure-'.$page,
+                function () use (&$rendered) { ++$rendered; return response('<html>public</html>', 200, ['Content-Type' => 'text/html']); })
+                ->name('disk-pressure-'.$page);
+        }
+
+        try {
+            $this->get('/disk-pressure-one')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $level = 'critical';
+            $this->get('/disk-pressure-one')->assertOk()->assertHeader('X-Cache', 'HIT');
+            $this->get('/disk-pressure-two')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $this->get('/disk-pressure-two')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $level = 'unknown';
+            $this->get('/disk-pressure-two')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $this->assertSame(4, $rendered);
+
+            $level = 'warn';
+            $this->get('/disk-pressure-two')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $this->get('/disk-pressure-two')->assertOk()->assertHeader('X-Cache', 'HIT');
+            $this->assertSame(5, $rendered);
+        } finally {
+            config(['cache.default' => 'array']);
+            \Illuminate\Support\Facades\File::deleteDirectory($dir);
+        }
+    }
+
     /**
      * 🔴 مهم‌ترین ادعای این پرونده: HIT توکنِ نشستِ **همین** بازدیدکننده را
      * حمل می‌کند، نه توکنِ ذخیره‌شده‌ی نفرِ اول را.

@@ -54,6 +54,16 @@ class SystemHealthTest extends TestCase
     private function greenTheChecksThisFileIsNotAbout(): void
     {
         \App\Models\Setting::put('domain_margin_pct', '25');
+        // The tests exercise unrelated incidents on a known-good maintenance
+        // baseline; production still treats missing receipts as unverified.
+        config(['services.exchange.enabled' => false]);
+        $this->mock(\App\Services\DiskPressure::class, fn ($mock) => $mock->shouldReceive('inspect')->andReturn([
+            'level' => 'ok', 'total_bytes' => 100 * 1073741824, 'free_bytes' => 20 * 1073741824, 'used_pct' => 80.0,
+        ]));
+        $receipts = app(\App\Services\MaintenanceReceipt::class);
+        foreach (['site_gate', 'file_cache_prune'] as $job) {
+            $receipts->finish($job, $receipts->start($job), true, ['peak_memory_bytes' => 1, 'memory_limit_bytes' => 100]);
+        }
         foreach (['services:renew-due', 'services:lifecycle', 'cloud:meter'] as $job) {
             \App\Services\Billing\BillingRunMonitor::record($job, 0);
         }
@@ -311,7 +321,7 @@ class SystemHealthTest extends TestCase
 
         $this->assertSame(0, $sent);
         $state = json_decode((string) File::get(storage_path('app/health-state')), true);
-        $this->assertSame(2, $state['version']);
+        $this->assertSame(3, $state['version']);
         $this->assertSame('fail', $state['bad']['cron']);
     }
 

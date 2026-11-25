@@ -47,7 +47,7 @@ use Illuminate\Http\Request;
  */
 class ReleaseGate extends Command
 {
-    protected $signature = 'site:gate {--limit=0 : سقفِ صفحه‌های رندرشدهٔ sitemap، ۰ یعنی همه}';
+    protected $signature = 'site:gate {--limit=0 : سقفِ صفحه‌های رندرشدهٔ sitemap، ۰ یعنی همه} {--scheduled : ثبت نتیجهٔ اجرای کامل زمان‌بندی‌شده}';
 
     protected $description = 'دروازهٔ انتشار: sitemap، کش، اسکیما، ۴۱۰ها، هدرهای امنیتی — هر بند مسدودکننده';
 
@@ -75,6 +75,13 @@ class ReleaseGate extends Command
 
     public function handle(): int
     {
+        $scheduled = (bool) $this->option('scheduled');
+        if ($scheduled && (int) $this->option('limit') !== 0) {
+            $this->error('Only a full, scheduled gate may publish a maintenance receipt.');
+            return self::FAILURE;
+        }
+        $monitor = app(\App\Services\MaintenanceReceipt::class);
+        $run = $scheduled ? $monitor->start('site_gate') : null;
         // The full gate renders the entire growing catalog in one CLI process.
         // Keep its memory allowance bounded and local to this command; never
         // change the PHP-FPM or scheduler-wide setting. Respect a larger budget
@@ -84,9 +91,16 @@ class ReleaseGate extends Command
         $raised = $originalBytes >= 0 && $originalBytes < 384 * 1024 * 1024
             && ini_set('memory_limit', '384M') !== false;
 
+        $originalCache = config('pagecache.enabled', true);
+        $status = self::FAILURE;
         try {
-            return $this->audit();
+            // Audit fresh HTML without filling the disk with every public URL.
+            // The small explicit cache contract check below enables it briefly.
+            config(['pagecache.enabled' => false]);
+            return $status = $this->audit();
         } finally {
+            config(['pagecache.enabled' => $originalCache]);
+            $monitor->finish('site_gate', $run, $status === self::SUCCESS);
             $this->line(sprintf('site:gate peak memory: %.1f MiB; limit: %s',
                 memory_get_peak_usage(true) / (1024 * 1024), ini_get('memory_limit')));
             // Artisan may be called in-process (e.g. tests). Restore the old
@@ -99,8 +113,6 @@ class ReleaseGate extends Command
 
     private function audit(): int
     {
-        config(['pagecache.enabled' => true]);
-
         $kernel = app(Kernel::class);
         $fails = [];
 
@@ -343,19 +355,24 @@ class ReleaseGate extends Command
         }
 
         // ── RG-CACHE-01: بارِ دوم HIT ───────────────────────────────────
-        foreach (self::CACHE_SAMPLES as $path) {
-            $first = $get($path);
+        config(['pagecache.enabled' => true]);
+        try {
+            foreach (self::CACHE_SAMPLES as $path) {
+                $first = $get($path);
 
-            if ($first->getStatusCode() !== 200) {
-                continue;   // بخشِ ناموجود روی این نصب، شکستِ کش نیست
+                if ($first->getStatusCode() !== 200) {
+                    continue;   // بخشِ ناموجود روی این نصب، شکستِ کش نیست
+                }
+
+                $second = $get($path);
+                $state = (string) $second->headers->get('X-Cache', 'none');
+
+                if ($state !== 'HIT') {
+                    $fails[] = "RG-CACHE-01    {$path} ← بارِ دوم {$state}";
+                }
             }
-
-            $second = $get($path);
-            $state = (string) $second->headers->get('X-Cache', 'none');
-
-            if ($state !== 'HIT') {
-                $fails[] = "RG-CACHE-01    {$path} ← بارِ دوم {$state}";
-            }
+        } finally {
+            config(['pagecache.enabled' => false]);
         }
 
         // ── RG-SCHEMA-05: صفحاتِ پرچم‌دارِ سفارش ───────────────────────

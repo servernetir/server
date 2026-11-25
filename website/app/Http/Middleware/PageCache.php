@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\DiskPressure;
 use Closure;
+use Illuminate\Cache\FileStore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -100,6 +102,14 @@ class PageCache
         // publish that response into the shared application cache.
         if ($this->storable($response) && $this->publicSession($request)) {
             try {
+                // HTML caching is optional. Under critical filesystem pressure,
+                // keep existing readable entries but do not add new file-cache
+                // writes that could deprive the application/database of space.
+                $backend = $store->getStore();
+                if ($backend instanceof FileStore
+                    && ! in_array(app(DiskPressure::class)->inspect($backend->getDirectory())['level'], ['ok', 'warn'], true)) {
+                    return $this->tag($response, 'MISS');
+                }
                 $html = $response->getContent();
                 $payload = $this->encodeHtml($html);
                 if ($payload === null) {

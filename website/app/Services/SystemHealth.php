@@ -68,6 +68,11 @@ class SystemHealth
         $probes = [
             ['cron', 'زمان‌بند', 'cron'],
             ['db', 'دیتابیس', 'database'],
+            ['disk_pressure', 'فضای دیسک', 'diskPressure'],
+            ['file_cache_prune', 'پاک‌سازی کش فایل', 'fileCacheMaintenance'],
+            ['site_gate', 'دروازهٔ انتشار شبانه', 'siteGateMaintenance'],
+            ['fx_refresh', 'تازگی نرخ ارز', 'fxFreshness'],
+            ['domain_catalogue', 'تازگی قیمت دامنه', 'domainCatalogueFreshness'],
             ['domains', 'صفِ دامنه', 'stuckDomains'],
             ['domains_expiry', 'انقضای دامنه', 'expiringDomains'],
             ['domain_margin', 'حاشیهٔ سودِ دامنه', 'domainMargin'],
@@ -83,6 +88,7 @@ class SystemHealth
             ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
             ['infrastructure_audit', 'پایش منابع زیرساخت', 'infrastructureAudit'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
+            ['catalogue_quarantine', 'پلن‌های قرنطینه‌شده', 'catalogueQuarantine'],
             ['gpu_sales', 'فروش GPU', 'gpuSales'],
             ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
@@ -103,6 +109,154 @@ class SystemHealth
         }
 
         return $checks;
+    }
+
+    private function diskPressure(): array
+    {
+        $pressure = app(DiskPressure::class)->inspect();
+        if ($pressure['level'] === 'unknown') {
+            return $this->row('disk_pressure', false, 'fail', 'فضای دیسک', 'فضای واقعی فایل‌سیستم کش قابل اندازه‌گیری نیست.');
+        }
+
+        $detail = number_format($pressure['used_pct'], 1).'% استفاده؛ '.number_format($pressure['free_bytes'] / 1073741824, 1).' GiB فضای آزاد.';
+        $level = match ($pressure['level']) {
+            'critical' => 'fail',
+            'warn' => 'warn',
+            default => 'ok',
+        };
+
+        return $this->row('disk_pressure', $level === 'ok', $level, 'فضای دیسک', $detail);
+    }
+
+    private function fileCacheMaintenance(): array
+    {
+        return $this->maintenanceJob('file_cache_prune', 'پاک‌سازی کش فایل');
+    }
+
+    private function siteGateMaintenance(): array
+    {
+        return $this->maintenanceJob('site_gate', 'دروازهٔ انتشار شبانه');
+    }
+
+    private function fxFreshness(): array
+    {
+        $title = 'تازگی نرخ ارز';
+        if (! config('services.exchange.enabled', true)) return $this->row('fx_refresh', true, 'ok', $title, 'به‌روزرسانی خودکار نرخ ارز غیرفعال است.');
+
+        $receipt = $this->maintenanceJob('fx_refresh', $title);
+        $now = now()->timestamp;
+        $warn = (int) config('operations_health.jobs.fx_refresh.warn_age', 480) * 60;
+        $fail = (int) config('operations_health.jobs.fx_refresh.fail_age', 720) * 60;
+        $missing = [];
+        $stale = [];
+        $critical = [];
+        foreach (array_keys(ExchangeRate::SOURCE_ITEMS) as $currency) {
+            // The reader validates provenance and reads only cached/durable rates.
+            $row = app(ExchangeRate::class)->current($currency);
+            try {
+                $at = isset($row['at']) ? Carbon::parse($row['at'])->timestamp : null;
+            } catch (\Throwable) {
+                $at = null;
+            }
+            if ($at === null || $at > $now + 300) {
+                $missing[] = $currency;
+                if ($currency !== 'TRY') $critical[] = $currency;
+            } elseif ($now - $at > $fail) {
+                $critical[] = $currency;
+                $stale[] = $currency;
+            } elseif ($now - $at > $warn) {
+                $stale[] = $currency;
+            }
+        }
+        if ($missing !== [] || $stale !== []) {
+            $detail = $receipt['detail'];
+            if ($missing !== []) $detail .= ' نرخ معتبر موجود نیست: '.implode('، ', $missing).'.';
+            if ($stale !== []) $detail .= ' نرخ کهنه: '.implode('، ', $stale).'.';
+            $level = $receipt['level'] === 'fail' || $critical !== [] ? 'fail' : 'warn';
+
+            return $this->row('fx_refresh', false, $level, $title, $detail);
+        }
+
+        return $receipt;
+    }
+
+    private function domainCatalogueFreshness(): array
+    {
+        $title = 'تازگی قیمت دامنه';
+        if (! config('services.exchange.enabled', true)) return $this->row('domain_catalogue', true, 'ok', $title, 'همگام‌سازی زمان‌بندی‌شده نرخ و دامنه غیرفعال است.');
+
+        $receipt = $this->maintenanceJob('domain_catalogue', $title);
+        $state = app(MaintenanceReceipt::class)->read('domain_catalogue');
+        if ($state !== null && $state['status'] === 'success') {
+            $multi = app(\App\Services\Domain\DomainProcurement::class)->enabled();
+            $path = $multi ? \App\Services\Domain\DomainSupplierCatalogue::PATH : \App\Services\Domain\TldPriceBook::SNAPSHOT_PATH;
+            // Avoid decoding/repricing a large catalogue in the watchdog.
+            if (! \Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+                return $this->row('domain_catalogue', false, 'fail', $title, 'رسید قبلی موجود است اما فایل قیمت منتشرشده پیدا نشد.');
+            }
+            $excluded = (int) ($state['metrics']['excluded_accounts'] ?? 0);
+            $count = (int) ($state['metrics']['count'] ?? 0);
+            if ($excluded > 0 || $count === 0) {
+                return $this->row('domain_catalogue', false, $count === 0 || $receipt['level'] === 'fail' ? 'fail' : 'warn', $title,
+                    $receipt['detail'].' شمار پسوندهای قابل فروش: '.fa_num($count).'؛ حساب‌های تأمین‌کننده حذف‌شده از همگام‌سازی: '.fa_num($excluded).'.');
+            }
+        }
+
+        return $receipt;
+    }
+
+    private function maintenanceJob(string $job, string $title): array
+    {
+        $state = app(MaintenanceReceipt::class)->read($job);
+        // A new deployment has no historical evidence. Warn explicitly until
+        // a real run records its result; never forge a first success.
+        if ($state === null) return $this->row($job, false, 'warn', $title, 'هنوز نتیجهٔ معتبر این کار پس از فعال‌سازی پایش ثبت نشده است.');
+
+        $now = now()->timestamp;
+        $started = $state['started_at'];
+        $success = $state['last_success_at'];
+        if ($started > $now + 300 || ($success !== null && $success > $now + 300)
+            || ($state['finished_at'] !== null && $state['finished_at'] > $now + 300)) {
+            return $this->row($job, false, 'fail', $title, 'زمان رسید اجرای کار معتبر نیست؛ ساعت سامانه را بررسی کنید.');
+        }
+        $age = $success === null ? null : max(0, (int) floor(($now - $success) / 60));
+        $detail = $age === null ? 'هیچ اجرای موفقی ثبت نشده.' : 'آخرین موفقیت '.fa_num($age).' دقیقه پیش.';
+        $warnAge = (int) config('operations_health.jobs.'.$job.'.warn_age', 480);
+        $failAge = (int) config('operations_health.jobs.'.$job.'.fail_age', 720);
+        $runLimit = (int) config('operations_health.jobs.'.$job.'.run_limit', 60);
+        $level = $age === null || $age > $warnAge ? 'warn' : 'ok';
+        if ($age !== null && $age > $failAge) $level = 'fail';
+        if ($state['status'] === 'running') {
+            $running = max(0, (int) floor(($now - $started) / 60));
+            $detail .= ' آخرین اجرا پس از '.fa_num($running).' دقیقه هنوز پایان نیافته.';
+            if ($running > $runLimit || ($age === null && $running > $warnAge)) $level = 'fail';
+        } elseif ($state['status'] === 'failed') {
+            $detail .= ' آخرین اجرا ناموفق بود.';
+            if ($level !== 'fail') $level = $job === 'site_gate' || $age === null ? 'fail' : 'warn';
+        }
+        $peak = (int) ($state['metrics']['peak_memory_bytes'] ?? 0);
+        $limit = (int) ($state['metrics']['memory_limit_bytes'] ?? 0);
+        if ($limit > 0 && $peak >= 0.85 * $limit) {
+            $detail .= ' اوج حافظه: '.number_format(100 * $peak / $limit, 1).'% سقف پردازش.';
+            if ($level === 'ok') $level = 'warn';
+        }
+
+        return $this->row($job, $level === 'ok', $level, $title, $detail);
+    }
+
+    private function catalogueQuarantine(): array
+    {
+        $title = 'پلن‌های قرنطینه‌شده';
+        $result = app(\App\Services\Cloud\CatalogueQuarantineHealth::class)->snapshot();
+        if ($result === []) return $this->row('catalogue_quarantine', true, 'ok', $title, 'قرنطینهٔ جزئی در کاتالوگ فعال ثبت نشده است.');
+
+        $groups = [];
+        foreach ($result as $provider => $counts) {
+            $groups[] = $provider.': '.fa_num($counts['quarantined']).' قرنطینه، '.fa_num($counts['sellable']).' قابل فروش';
+        }
+
+        return $this->row('catalogue_quarantine', false, 'warn', $title, implode('؛ ', $groups).'.')
+            + ['impact_signature' => hash('sha256', json_encode($result, JSON_THROW_ON_ERROR))];
     }
 
     private function gpuSales(): array
@@ -501,7 +655,7 @@ class SystemHealth
             return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر', 'ستونش هنوز ساخته نشده.');
         }
 
-        $rows = Service::awaitingManualAction()->limit(40)->get();
+        $rows = Service::awaitingManualAction()->orderBy('id')->limit(40)->get();
 
         if ($rows->isEmpty()) {
             return $this->row('manual_lifecycle', true, 'ok', 'کارِ دستیِ چرخهٔ عمر',
@@ -539,7 +693,7 @@ class SystemHealth
         return $this->row('manual_lifecycle', false, $worst, 'کارِ دستیِ چرخهٔ عمر',
             fa_num((string) $rows->count()).' سرویسِ دستی منتظرِ کارِ شما نزدِ تأمین‌کننده است ('
             .implode('، ', $parts).'). '.implode('، ', $names),
-            [['label' => 'مشتریان', 'url' => url('/admin/customers')]]);
+            [['label' => 'مشتریان', 'url' => url('/admin/customers')]]) + $this->serviceImpact($rows);
     }
 
     private function stuckServices(): array
@@ -873,7 +1027,7 @@ class SystemHealth
             fa_num($issues->count()).' سرویس نیازمند بررسی حذف، تمدید یا اختلاف سررسید تأمین‌کننده است: '
             .$issues->take(self::NAME_LIMIT)->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
             .'. تاریخ و تعهد مالی مشتری خودکار کوتاه نمی‌شود؛ این مورد به معنی تأیید هزینهٔ جاری نیست.',
-            $this->serviceLinks($issues->take(self::NAME_LIMIT)));
+            $this->serviceLinks($issues->take(self::NAME_LIMIT))) + $this->serviceImpact($issues);
     }
 
     /** Read-only reconciliation: protected or legacy rows must not disappear from monitoring. */
@@ -913,7 +1067,7 @@ class SystemHealth
             fa_num($count).' سرویس بسته شده ولی ماشین آن حذف‌شده ثبت نشده و در صف آزادسازی هم نیست: '
             .$rows->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
             .'. وضعیت واقعی زیرساخت و محافظت داخلی را بررسی کنید؛ این هشدار هیچ ماشینی را خودکار حذف نمی‌کند.',
-            $this->serviceLinks($rows));
+            $this->serviceLinks($rows)) + $this->serviceImpact($unresolved);
     }
 
     private function infrastructureAudit(): array
@@ -995,7 +1149,7 @@ class SystemHealth
                 fa_num($allRows->count()).' حذف نزدِ زیرساخت پذیرفته شده و تأیید نهایی آن در جریان است (سرویسِ '
                 .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
                 .'). پایان مهلت تأیید هر زیرساخت، این وضعیت را به خطای واقعی ارتقا می‌دهد.',
-                $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+                $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email'))) + $this->serviceImpact($allRows);
         }
 
         return $this->row('cloud_release', false, 'fail', 'آزادسازیِ سرور',
@@ -1003,7 +1157,15 @@ class SystemHealth
             .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
             .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
             .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.',
-            $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+            $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email'))) + $this->serviceImpact($allRows);
+    }
+
+    /** Stable, private incident identity: never hash changing ages or names. */
+    private function serviceImpact(Collection $rows): array
+    {
+        $ids = $rows->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+        return ['impact_signature' => hash('sha256', json_encode($ids, JSON_THROW_ON_ERROR))];
     }
 
     /**

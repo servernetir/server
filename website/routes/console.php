@@ -754,7 +754,7 @@ Schedule::command('dns:reconcile')
     ->hourlyAt(17)
     ->withoutOverlapping(30);
 // [managed-dns:end]
-Schedule::command('site:gate')
+Schedule::command('site:gate --scheduled')
     ->dailyAt('03:00')
     ->withoutOverlapping(60);
 
