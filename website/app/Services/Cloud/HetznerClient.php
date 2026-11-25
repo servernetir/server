@@ -739,6 +739,94 @@ class HetznerClient implements CloudProvider
         return $r['ok'] ? ((array) ($r['body']['servers'][0] ?? [])) ?: null : null;
     }
 
+    /** Read-only server and Primary IP allocation inspection. */
+    public function inspectServerAllocation(string $ref): array
+    {
+        $result = ['ok' => false, 'message' => '', 'http_status' => 0,
+            'exists' => null, 'allocation' => null];
+
+        if (! preg_match('/\A[1-9][0-9]*\z/D', $ref)) {
+            return array_replace($result, ['message' => 'Invalid server reference.']);
+        }
+
+        $r = $this->req('GET', '/servers/'.rawurlencode($ref));
+        $result['http_status'] = $r['status'];
+        if ($r['status'] === 404) {
+            return array_replace($result, ['ok' => true, 'exists' => false]);
+        }
+        if (! $r['ok']) {
+            return array_replace($result, ['message' => $r['message']]);
+        }
+
+        $server = $r['body']['server'] ?? null;
+        if (! is_array($server) || (string) ($server['id'] ?? '') !== $ref
+            || ! is_array($server['public_net'] ?? null)) {
+            return array_replace($result, ['message' => 'Invalid server allocation response.']);
+        }
+        foreach (['ipv4', 'ipv6'] as $family) {
+            if (! array_key_exists($family, $server['public_net'])) {
+                return array_replace($result, ['message' => 'Incomplete server allocation response.']);
+            }
+            $address = $server['public_net'][$family];
+            if ($address !== null && (! is_array($address)
+                || ! preg_match('/\A[1-9][0-9]*\z/D', (string) ($address['id'] ?? '')))) {
+                return array_replace($result, ['message' => 'Invalid Primary IP allocation response.']);
+            }
+        }
+
+        return array_replace($result, [
+            'ok' => true, 'exists' => true,
+            'allocation' => [
+                'server_ref' => $ref,
+                'name' => (string) ($server['name'] ?? ''),
+                'status' => (string) ($server['status'] ?? ''),
+                'primary_ipv4_ref' => isset($server['public_net']['ipv4']['id'])
+                    ? (string) $server['public_net']['ipv4']['id'] : null,
+                'primary_ipv6_ref' => isset($server['public_net']['ipv6']['id'])
+                    ? (string) $server['public_net']['ipv6']['id'] : null,
+                'ipv4' => data_get($server, 'public_net.ipv4.ip'),
+                'ipv6' => data_get($server, 'public_net.ipv6.ip'),
+            ],
+        ]);
+    }
+
+    /** Read-only Primary IP existence and assignment inspection. */
+    public function inspectPrimaryIp(string $ref): array
+    {
+        $result = ['ok' => false, 'message' => '', 'http_status' => 0,
+            'exists' => null, 'primary_ip' => null];
+
+        if (! preg_match('/\A[1-9][0-9]*\z/D', $ref)) {
+            return array_replace($result, ['message' => 'Invalid Primary IP reference.']);
+        }
+
+        $r = $this->req('GET', '/primary_ips/'.rawurlencode($ref));
+        $result['http_status'] = $r['status'];
+        if ($r['status'] === 404) {
+            return array_replace($result, ['ok' => true, 'exists' => false]);
+        }
+        if (! $r['ok']) {
+            return array_replace($result, ['message' => $r['message']]);
+        }
+
+        $ip = $r['body']['primary_ip'] ?? null;
+        if (! is_array($ip) || (string) ($ip['id'] ?? '') !== $ref) {
+            return array_replace($result, ['message' => 'Invalid Primary IP response.']);
+        }
+
+        return array_replace($result, [
+            'ok' => true, 'exists' => true,
+            'primary_ip' => [
+                'ref' => $ref,
+                'ip' => $ip['ip'] ?? null,
+                'type' => $ip['type'] ?? null,
+                'assignee_type' => $ip['assignee_type'] ?? null,
+                'assignee_ref' => isset($ip['assignee_id']) ? (string) $ip['assignee_id'] : null,
+                'auto_delete' => is_bool($ip['auto_delete'] ?? null) ? $ip['auto_delete'] : null,
+            ],
+        ]);
+    }
+
     public function serverStatus(string $ref): array
     {
         $r = $this->req('GET', '/servers/'.rawurlencode($ref));

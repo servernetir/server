@@ -1,0 +1,39 @@
+name: Hetzner allocation inspection
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/HetznerClient.php'
+      - 'website/tests/Feature/HetznerAllocationInspectionTest.php'
+      - '.github/workflows/hetzner-allocation-inspection.yml'
+permissions:
+  contents: read
+jobs:
+  inspection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without application secrets
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Check syntax and read-only provider contracts
+        run: |
+          php -l app/Services/Cloud/HetznerClient.php
+          php -l tests/Feature/HetznerAllocationInspectionTest.php
+          vendor/bin/phpunit tests/Feature/HetznerAllocationInspectionTest.php --fail-on-warning
