@@ -61,7 +61,11 @@ served app; copy only the seven runtime/license files. Preserve the existing
 server root, other apps and PHP handler.
 
 The optional friendly alias redirects `/phone` to `/phone/`, then internally maps
-the index, assets and API to this app. Rewriting bare `/phone` directly to the
+the index, assets and API to this app. Keep the exact `/phone/api.php` and
+`/phone/index.php` rewrite locations: Nginx selects its generic PHP regex before
+a plain `/phone/` prefix, so the prefix rewrite alone cannot route these PHP
+requests. Exact locations win and then restart normal app/PHP location selection.
+Do not replace this with `^~`, which can bypass PHP execution. Rewriting bare `/phone` directly to the
 index would make relative assets resolve from the site root. Alternatively use
 a 302 redirect directly to `/app/servernet_voice/index.php` and omit the friendly
 prefix. Run `nginx -t` before a controlled reload and validate actual response

@@ -57,3 +57,6 @@ only this app, preserves generic PHP regex execution and documents the optional
 trailing-slash `/phone/` alias. Asset acceptance requires body SHA256 and MIME
 checks: HTTP200 can otherwise be a login-page fallback. This source/docs addition
 does not change any of the seven frozen runtime/license files or their manifest.
+The friendly API and index require exact rewrite locations because the generic
+PHP regex takes precedence over a plain alias prefix. Those exact locations
+restart selection at the canonical app PHP paths without suppressing PHP-FPM.
