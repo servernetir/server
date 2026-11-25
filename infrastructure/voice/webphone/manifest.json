@@ -1,0 +1,54 @@
+{
+  "package": "servernet-voice-webphone",
+  "version": "0.1.0",
+  "base_sha": "19481868e6c505d341622f25a211b0925c757a24",
+  "install_path": "app/servernet_voice",
+  "fusionpbx": "5.6",
+  "php_min": "8.3",
+  "origin": "https://pbx.servernet.cloud",
+  "wss": "wss://pbx.servernet.cloud/sip/",
+  "files": [
+    {
+      "path": "bootstrap.php",
+      "sha256": "bf55c85b6ca9b0bd40179ff9a71f4b478c9dcba58344bd05faf21dd2a14772b3",
+      "bytes": 3855,
+      "mode": "0644"
+    },
+    {
+      "path": "api.php",
+      "sha256": "1d7e5a960a3f12e9209d0758c627ba164a83af8d9e4f7ae7b7c4b8ce5cdea258",
+      "bytes": 3087,
+      "mode": "0644"
+    },
+    {
+      "path": "index.php",
+      "sha256": "edb750804a95dd968c3ce6d60b97ca4a380ce535a136d7d4cf47bc3c16f82bd1",
+      "bytes": 7455,
+      "mode": "0644"
+    },
+    {
+      "path": "phone.js",
+      "sha256": "34536f7191f3dee25bd169b211346e50bc37d84fd2fa5a80500109d1cdc57361",
+      "bytes": 25560,
+      "mode": "0644"
+    },
+    {
+      "path": "phone.css",
+      "sha256": "f991f7d00d00648e75f333d12850ad1b0f8883cc791a3cb1fe3dbf9a3d8d09da",
+      "bytes": 8852,
+      "mode": "0644"
+    },
+    {
+      "path": "vendor/jssip-3.10.0.min.js",
+      "sha256": "06d3661907f43fd26ced77149bcbbd6d416a728dae46213a1c10ccee8a89698b",
+      "bytes": 279285,
+      "mode": "0644"
+    },
+    {
+      "path": "vendor/LICENSE.JsSIP",
+      "sha256": "af7493401ff457ea5da41e85bd43109a2a2b9f71cafea5a2e1a0524549febaec",
+      "bytes": 1250,
+      "mode": "0644"
+    }
+  ]
+}
