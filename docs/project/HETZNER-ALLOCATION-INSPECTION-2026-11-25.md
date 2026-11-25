@@ -11,6 +11,8 @@ Two internal read-only methods in `website/app/Services/Cloud/HetznerClient.php`
 - Numeric references are validated before any request. Responses expose only the documented inspection fields.
 - Ordinary server lifecycle, billing, inventory pagination, routes and customer-facing behavior are unchanged.
 
+Primary IP assignment inspection supports the current `server`, `load_balancer` and `unassigned` types. `unassigned` requires an explicit null ID; `load_balancer` requires a valid ID. The legacy `server` plus null ID remains readable. These rules follow Hetzner's [23 September 2026 unassigned change](https://docs.hetzner.cloud/changelog) and [5 October 2026 Load Balancer support](https://docs.hetzner.cloud/changelog#2026-10-05-load-balancers-can-use-existing-primary-ips).
+
 The existing pagination helper has a safety cap and must not be used as definitive proof that an allocation is absent. These methods use exact-ID GET requests.
 
 ## Validation and status

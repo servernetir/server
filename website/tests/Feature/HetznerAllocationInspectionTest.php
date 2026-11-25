@@ -84,18 +84,29 @@ class HetznerAllocationInspectionTest extends TestCase
             && $request->url() === 'https://api.hetzner.cloud/v1/primary_ips/123');
     }
 
-    public function test_unassigned_primary_ip_has_an_explicit_null_assignee(): void
+    public static function primaryIpAssignments(): array
+    {
+        return [
+            'current unassigned' => ['unassigned', null],
+            'legacy unassigned server' => ['server', null],
+            'assigned load balancer' => ['load_balancer', 456],
+        ];
+    }
+
+    #[DataProvider('primaryIpAssignments')]
+    public function test_primary_ip_assignment_types_are_preserved(string $type, ?int $id): void
     {
         Http::fake(['*/primary_ips/123' => Http::response(['primary_ip' => [
             'id' => '123', 'ip' => '2001:db8::/64', 'type' => 'ipv6',
-            'assignee_type' => 'server', 'assignee_id' => null, 'auto_delete' => true,
+            'assignee_type' => $type, 'assignee_id' => $id, 'auto_delete' => true,
         ]])]);
 
         $result = (new HetznerClient)->inspectPrimaryIp('123');
 
         $this->assertTrue($result['ok']);
         $this->assertTrue($result['exists']);
-        $this->assertNull($result['primary_ip']['assignee_ref']);
+        $this->assertSame($type, $result['primary_ip']['assignee_type']);
+        $this->assertSame($id === null ? null : (string) $id, $result['primary_ip']['assignee_ref']);
         $this->assertTrue($result['primary_ip']['auto_delete']);
         Http::assertSentCount(1);
         Http::assertSent(fn (Request $request) => $request->method() === 'GET');
@@ -222,6 +233,13 @@ class HetznerAllocationInspectionTest extends TestCase
         }
         $cases['wrong primary ip id'] = ['inspectPrimaryIp',
             ['primary_ip' => array_replace($primaryIp, ['id' => 999])]];
+
+        $cases['unassigned primary ip with assignee id'] = ['inspectPrimaryIp',
+            ['primary_ip' => array_replace($primaryIp, ['assignee_type' => 'unassigned'])]];
+        $cases['load balancer primary ip without assignee id'] = ['inspectPrimaryIp',
+            ['primary_ip' => array_replace($primaryIp, ['assignee_type' => 'load_balancer', 'assignee_id' => null])]];
+        $cases['unknown primary ip assignee type'] = ['inspectPrimaryIp',
+            ['primary_ip' => array_replace($primaryIp, ['assignee_type' => 'unexpected'])]];
 
         return $cases;
     }

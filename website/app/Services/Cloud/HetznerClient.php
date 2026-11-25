@@ -821,9 +821,11 @@ class HetznerClient implements CloudProvider
         if (! is_array($ip) || ! $validRef($ip['id'] ?? null) || (string) $ip['id'] !== $ref
             || ! is_string($ip['ip'] ?? null) || $ip['ip'] === ''
             || ! in_array($ip['type'] ?? null, ['ipv4', 'ipv6'], true)
-            || ($ip['assignee_type'] ?? null) !== 'server'
+            || ! in_array($ip['assignee_type'] ?? null, ['server', 'load_balancer', 'unassigned'], true)
             || ! array_key_exists('assignee_id', $ip)
             || ($ip['assignee_id'] !== null && ! $validRef($ip['assignee_id']))
+            || ($ip['assignee_type'] === 'unassigned' && $ip['assignee_id'] !== null)
+            || ($ip['assignee_type'] === 'load_balancer' && $ip['assignee_id'] === null)
             || ! is_bool($ip['auto_delete'] ?? null)) {
             return array_replace($result, ['message' => 'Invalid Primary IP response.']);
         }
