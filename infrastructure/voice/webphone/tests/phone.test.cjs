@@ -47,12 +47,14 @@ function harness(t, options = {}) {
   tone.dataset.tone = '1';
   const root = new Element('voice-app');
   root.dataset = { lang: options.lang || 'en', tokenName: 'token1', tokenHash: 'hash1' };
-  root.ownerDocument = { documentElement: { lang: root.dataset.lang } };
+  root.ownerDocument = new EventEmitter();
+  Object.assign(root.ownerDocument, { documentElement: { lang: root.dataset.lang }, visibilityState: 'visible' });
+  root.ownerDocument.addEventListener = root.ownerDocument.on.bind(root.ownerDocument);
   root.querySelector = (selector) => elements[selector.slice(1)];
   root.querySelectorAll = () => [tone];
 
   const h = { elements, root, tone, requests: [], uas: [], micCalls: 0, trackStops: 0,
-    socketStops: 0, debugDisabled: false, timeouts: new Map(), intervals: new Map() };
+    socketStops: 0, debugDisabled: false, timeouts: new Map(), intervals: new Map(), delays: new Map() };
   h.stream = () => ({ getTracks: () => [{ stop() { h.trackStops += 1; } }] });
   h.streamFactory = () => Promise.resolve(h.stream());
   h.responseFactory = () => ({ ok: true, status: 200, json: async () => ({
@@ -66,10 +68,19 @@ function harness(t, options = {}) {
       super();
       this.configuration = { ...configuration };
       this.calls = [];
+      this.connected = false;
+      this.registrations = 0;
       h.uas.push(this);
     }
     start() { this.emit('connected'); this.emit('registered'); }
-    stop() { this.stopped = true; }
+    emit(name, ...args) {
+      if (name === 'connected') this.connected = true;
+      if (name === 'disconnected') this.connected = false;
+      return super.emit(name, ...args);
+    }
+    stop() { this.stopped = true; this.connected = false; }
+    isConnected() { return this.connected; }
+    register() { this.registrations += 1; }
     set(key, value) { this.configuration[key] = value; }
     call(uri, callOptions) {
       const session = new Session('outgoing');
@@ -83,7 +94,7 @@ function harness(t, options = {}) {
   let timerId = 0;
   Object.assign(win, {
     isSecureContext: true, RTCPeerConnection: function () {}, FormData, AbortController,
-    setTimeout(callback) { h.timeouts.set(++timerId, callback); return timerId; },
+    setTimeout(callback, delay) { h.timeouts.set(++timerId, callback); h.delays.set(timerId, delay); return timerId; },
     clearTimeout(id) { h.timeouts.delete(id); },
     setInterval(callback) { h.intervals.set(++timerId, callback); return timerId; },
     clearInterval(id) { h.intervals.delete(id); },
@@ -223,7 +234,7 @@ test('outgoing call uses audio only, one session, DTMF and mute without an SDP r
   await h.elements.hangup.click();
   assert.ok(h.trackStops > 0);
   assert.equal(h.elements['remote-audio'].srcObject, null);
-  assert.equal(h.intervals.size, 0);
+  assert.equal(h.intervals.size, 1); // Connection refresh survives hanging up a call.
 });
 
 test('incoming ringing never requests microphone until explicit Answer', async (t) => {
@@ -360,16 +371,116 @@ test('Disconnect clears UA credentials and explicit reconnect uses the rotated t
   assert.equal(h.micCalls, 1);
 });
 
-test('transport failure stops UA and never automatically reconnects', async (t) => {
+test('transient transport loss preserves native recovery and resumes ringing without microphone access', async (t) => {
   const h = harness(t);
   await h.connect();
-  h.uas[0].emit('disconnected');
-  assert.equal(h.uas[0].stopped, true);
-  assert.equal(h.uas[0].configuration.password, '');
+  const ua = h.uas[0];
+  ua.emit('disconnected');
+  ua.emit('unregistered');
+  assert.equal(ua.stopped, undefined);
+  assert.notEqual(ua.configuration.password, '');
   assert.equal(h.requests.length, 1);
   assert.equal(h.uas.length, 1);
-  assert.equal(h.elements.connect.disabled, false);
+  assert.equal(h.elements.connect.disabled, true);
+  assert.equal(h.elements.disconnect.disabled, false);
   assert.equal(h.elements.call.disabled, true);
+  assert.equal(h.elements.status.textContent, 'Connection lost; reconnecting…');
+  assert.equal(h.timeouts.size, 0);
+  assert.equal(h.intervals.size, 0);
+  const unavailable = h.incoming();
+  assert.equal(unavailable.terminated.status_code, 480);
+  ua.emit('connected');
+  ua.emit('registered');
+  assert.equal(h.elements.call.disabled, false);
+  assert.equal(h.elements.status.textContent, 'Ready to call');
+  const incoming = h.incoming();
+  assert.equal(incoming.terminated, undefined);
+  assert.equal(h.elements.answer.hidden, false);
+  assert.equal(h.micCalls, 0);
+  assert.equal(h.requests.length, 1);
+});
+
+test('loss during a call closes audio and recovery never redials or reanswers', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  const session = await h.call();
+  h.uas[0].emit('disconnected');
+  assert.ok(session.terminated);
+  assert.equal(h.trackStops, 1);
+  assert.equal(h.elements['remote-audio'].srcObject, null);
+  h.uas[0].emit('connected');
+  h.uas[0].emit('registered');
+  assert.equal(h.micCalls, 1);
+  assert.equal(h.uas[0].calls.length, 1);
+});
+
+test('Disconnect cancels recovery timers and ignores late old-UA events', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  const old = h.uas[0];
+  old.emit('registrationFailed', { response: { status_code: 503 } });
+  const lateRetry = [...h.timeouts.values()][0];
+  assert.equal(typeof lateRetry, 'function');
+  await h.elements.disconnect.click();
+  assert.equal(old.stopped, true);
+  assert.equal(old.configuration.password, '');
+  assert.equal(h.timeouts.size, 0);
+  assert.equal(h.intervals.size, 0);
+  await h.connect();
+  lateRetry();
+  old.emit('registered');
+  old.emit('disconnected');
+  assert.equal(old.registrations, 0);
+  assert.equal(h.elements.call.disabled, false);
+  assert.equal(h.requests.length, 2);
+});
+
+test('temporary registration failure retries once per backoff and refreshes after recovery', async (t) => {
+  const h = harness(t);
+  await h.connect();
+  const ua = h.uas[0];
+  for (const delay of [10000, 20000, 30000, 30000]) {
+    ua.emit('registrationFailed', { response: { status_code: 503 }, cause: 'RAW_REMOTE_DETAIL' });
+    ua.emit('unregistered');
+    assert.equal(h.timeouts.size, 1);
+    const [id, retry] = [...h.timeouts.entries()][0];
+    assert.equal(h.delays.get(id), delay);
+    h.timeouts.delete(id);
+    retry();
+  }
+  assert.equal(ua.registrations, 4);
+  assert.equal(h.micCalls, 0);
+  ua.emit('registered');
+  const refresh = [...h.intervals.values()][0];
+  refresh();
+  refresh(); // A successful JsSIP refresh does not emit registered again.
+  assert.equal(ua.registrations, 6);
+  h.win.emit('online');
+  h.root.ownerDocument.emit('visibilitychange');
+  assert.equal(ua.registrations, 8);
+  assert.equal(h.requests.length, 1);
+  h.close();
+  refresh();
+  h.win.emit('online');
+  h.root.ownerDocument.emit('visibilitychange');
+  assert.equal(ua.registrations, 8);
+});
+
+test('authentication and unknown registration failures stop and clear credentials', async (t) => {
+  for (const event of [{ response: { status_code: 403 } }, { response: { status_code: 401 } },
+    { response: { status_code: 404 } }, { cause: 'RAW_UNKNOWN_CAUSE' }]) {
+    const h = harness(t);
+    await h.connect();
+    const ua = h.uas[0];
+    ua.emit('registrationFailed', event);
+    ua.emit('unregistered');
+    assert.equal(ua.stopped, true);
+    assert.equal(ua.configuration.password, '');
+    assert.equal(h.timeouts.size, 0);
+    assert.equal(h.intervals.size, 0);
+    assert.equal(h.elements.connect.disabled, false);
+    assert.doesNotMatch(h.elements.status.textContent, /RAW_/);
+  }
 });
 
 test('pagehide and BFCache restore require another explicit Connect', async (t) => {

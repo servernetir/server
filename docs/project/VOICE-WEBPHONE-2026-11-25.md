@@ -5,8 +5,9 @@ Scope: `infrastructure/voice/webphone`, its isolated CI workflow and this map.
 Runtime installation, registration, echo transport and owner confirmation of
 hearing the returned echo were verified on 25 November. An outgoing PSTN test
 reached an answered announcement; a mobile conversation remains unverified.
-The owner confirmed the inbound test reached IVR without connecting extension
-110, and local SIP delivery was not observed. Details are in the package README.
+Later screenshots distinguish IVR key 101 from provider SIP internal 110. The
+owner's key-101 test rang the colleague's mobile; browser delivery is unverified.
+The 26 November recovery fix and pending provider routing are detailed below.
 
 The package supplies a native-authenticated FusionPBX 5.6 browser phone at
 `/app/servernet_voice/index.php`, with Persian, English and Turkish labels. It
@@ -21,7 +22,9 @@ explicit Connect action. The database query rechecks current ownership and activ
 states. Credential responses are no-store; an audit records only three UUIDs.
 
 Credentials remain in tab memory, with no password storage or auto-connect.
-Disconnect, transport failure and page lifecycle events stop the UA and tracks.
+Disconnect, terminal registration failures and page lifecycle events stop the UA
+and tracks. Transient transport loss preserves native reconnection while closing
+any current call and its audio tracks.
 Microphone acquisition requires Call or Answer. The client supports one call,
 incoming answer/reject, hangup, mute and DTMF. Codec preference uses the standard
 browser API when available; SDP is not rewritten. Current server negotiation is
@@ -105,3 +108,27 @@ call flow needs review, with its exact cause still unconfirmed.
 The provider portal's hook list remained Loading with an undefined account;
 the available reports/callback API does not expose call-flow configuration.
 No account-UI evidence of an outgoing-line restriction was obtained.
+
+## Recovery follow-through — 26 November, Tehran
+
+The client previously called `UA.stop()` from both transport-disconnected and
+unregistered handlers, cancelling JsSIP's native recovery. These handlers now
+keep the existing UA in tab memory, disable calls and show reconnecting. Native
+transport recovery uses 2–30s backoff; registration uses a 600s lifetime, 120s
+refresh and visible-tab/network wake refresh. Temporary registration failures
+use a deduplicated 10/20/30s retry; auth and unknown failures remain terminal.
+Disconnect/unload still clear credentials and all timers. Calls/microphones do
+not restart automatically. PHP auth, CSRF, provider credentials, SIP profiles,
+NPM configuration, firewall and media settings are unchanged.
+
+The public TLS/WSS idle probe returned HTTP101 and stayed open for 80.1s without
+frames. A 60s proxy timeout was not reproduced. Local Node syntax and 26 fake
+browser tests passed, including recovered incoming ringing, audio cleanup, fatal
+auth, retry cancellation and stale-UA events. Live owner acceptance after reload
+remains separate. Source, production hash and subsequent acceptance are recorded
+with the installation receipt.
+
+The provider IVR screenshot shows key 101 targeting the colleague. Its successful
+mobile ring confirms a mobile delivery leg, not delivery to provider SIP 110 or
+local browser extension 1001. Provider colleague delivery settings need review;
+the earlier unsuccessful key-110 tests do not validate the configured key 101.

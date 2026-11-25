@@ -10,6 +10,7 @@
   const messages = {
     fa: {
       offline: 'قطع ارتباط', connecting: 'در حال اتصال…', registering: 'در حال ثبت داخلی…',
+      reconnecting: 'ارتباط قطع شد؛ در حال اتصال دوباره…',
       ready: 'آماده تماس', ended: 'تماس پایان یافت', calling: 'در حال شماره‌گیری…',
       ringing: 'در حال زنگ خوردن…', incoming: 'تماس ورودی', talking: 'در حال مکالمه',
       microphone: 'در انتظار دسترسی میکروفن…', microphoneDenied: 'دسترسی میکروفن داده نشد. مجوز مرورگر را بررسی کنید.',
@@ -31,6 +32,7 @@
     },
     en: {
       offline: 'Disconnected', connecting: 'Connecting…', registering: 'Registering extension…',
+      reconnecting: 'Connection lost; reconnecting…',
       ready: 'Ready to call', ended: 'Call ended', calling: 'Calling…', ringing: 'Ringing…',
       incoming: 'Incoming call', talking: 'In call', microphone: 'Waiting for microphone access…',
       microphoneDenied: 'Microphone access was not granted. Check your browser permissions.',
@@ -51,6 +53,7 @@
     },
     tr: {
       offline: 'Bağlı değil', connecting: 'Bağlanıyor…', registering: 'Dahili kaydediliyor…',
+      reconnecting: 'Bağlantı kesildi; yeniden bağlanıyor…',
       ready: 'Aramaya hazır', ended: 'Arama sona erdi', calling: 'Aranıyor…', ringing: 'Çalıyor…',
       incoming: 'Gelen arama', talking: 'Görüşmede', microphone: 'Mikrofon izni bekleniyor…',
       microphoneDenied: 'Mikrofon izni verilmedi. Tarayıcı izinlerini kontrol edin.',
@@ -122,6 +125,9 @@
     let mediaGeneration = 0;
     let controller = null;
     let connectionTimer = null;
+    let registrationTimer = null;
+    let refreshTimer = null;
+    let registrationRetries = 0;
     let durationTimer = null;
     let callStarted = null;
     let currentCallLabel = '';
@@ -195,6 +201,11 @@
       controller = null;
       win.clearTimeout(connectionTimer);
       connectionTimer = null;
+      win.clearTimeout(registrationTimer);
+      registrationTimer = null;
+      win.clearInterval(refreshTimer);
+      refreshTimer = null;
+      registrationRetries = 0;
       const oldSession = session;
       session = null;
       if (oldSession) { try { oldSession.terminate(); } catch (_) { /* already terminated */ } }
@@ -212,6 +223,35 @@
       status(label, kind);
       callStatus('disconnectedPage');
       updateControls();
+    }
+    function recovering() {
+      registered = false;
+      connecting = true;
+      win.clearInterval(refreshTimer);
+      refreshTimer = null;
+      // Keep the existing UA alive: stopping it cancels JsSIP's transport recovery.
+      // Calls and microphone access never resume automatically after a loss.
+      const oldSession = session;
+      if (oldSession) releaseCall(oldSession, 'ended');
+      else clearMedia();
+      if (oldSession) { try { oldSession.terminate(); } catch (_) { /* already ended */ } }
+      elements['remote-number'].textContent = '';
+      status('reconnecting', 'connecting');
+      callStatus('reconnecting');
+      updateControls();
+    }
+    function retryRegistration(activeUa, attempt) {
+      if (registrationTimer !== null || !activeUa.isConnected()) return;
+      const delay = Math.min(++registrationRetries * 10000, 30000);
+      registrationTimer = win.setTimeout(() => {
+        if (ua !== activeUa || attempt !== generation || !activeUa.isConnected()) return;
+        registrationTimer = null;
+        try { activeUa.register(); } catch (_) { disconnect('connectFailed', 'error'); }
+      }, delay);
+    }
+    function refreshRegistration() {
+      if (!ua || !registered || !ua.isConnected()) return;
+      try { ua.register(); } catch (_) { disconnect('connectFailed', 'error'); }
     }
     function attachRemote(connection, activeSession) {
       connection.addEventListener('track', (event) => {
@@ -339,8 +379,8 @@
         configuration = {
           sockets: [socket], uri: sip.uri, authorization_user: sip.authorization_user,
           password: sip.password, display_name: String(sip.display_name || responseData.extension || '').slice(0, 128),
-          register: true, register_expires: 120, session_timers: false,
-          connection_recovery_min_interval: 30, connection_recovery_max_interval: 30
+          register: true, register_expires: 600, session_timers: false,
+          connection_recovery_min_interval: 2, connection_recovery_max_interval: 30
         };
         const activeUa = new win.JsSIP.UA(configuration);
         ua = activeUa;
@@ -351,7 +391,10 @@
         responseData = null;
         controller = null;
         activeUa.on('connected', () => {
-          if (ua === activeUa && attempt === generation) status('registering', 'connecting');
+          if (ua !== activeUa || attempt !== generation) return;
+          win.clearTimeout(registrationTimer);
+          registrationTimer = null;
+          status('registering', 'connecting');
         });
         activeUa.on('registered', () => {
           if (ua !== activeUa || attempt !== generation) return;
@@ -359,18 +402,38 @@
           registered = true;
           win.clearTimeout(connectionTimer);
           connectionTimer = null;
+          win.clearTimeout(registrationTimer);
+          registrationTimer = null;
+          registrationRetries = 0;
+          // Refresh well before expiry, including tabs whose timers are throttled.
+          // JsSIP does not emit registered again for a successful refresh.
+          if (refreshTimer === null) refreshTimer = win.setInterval(() => {
+            if (ua === activeUa && attempt === generation) refreshRegistration();
+          }, 120000);
           status('ready', 'ready');
           if (!session) callStatus('ready');
           updateControls();
         });
-        activeUa.on('registrationFailed', () => {
-          if (ua === activeUa) disconnect('connectFailed', 'error');
+        activeUa.on('registrationFailed', (event) => {
+          if (ua !== activeUa || attempt !== generation) return;
+          const code = Number(event && event.response && event.response.status_code);
+          const cause = event && event.cause;
+          if (code === 408 || (code >= 500 && code <= 599) ||
+              (!code && (cause === 'Connection Error' || cause === 'Request Timeout'))) {
+            recovering();
+            retryRegistration(activeUa, attempt);
+          } else disconnect('connectFailed', 'error');
         });
         activeUa.on('unregistered', () => {
-          if (ua === activeUa) disconnect('disconnected', 'error');
+          if (ua !== activeUa || attempt !== generation) return;
+          recovering();
+          retryRegistration(activeUa, attempt);
         });
         activeUa.on('disconnected', () => {
-          if (ua === activeUa) disconnect('disconnected', 'error');
+          if (ua !== activeUa || attempt !== generation) return;
+          win.clearTimeout(registrationTimer);
+          registrationTimer = null;
+          recovering();
         });
         activeUa.on('newRTCSession', (event) => {
           if (ua !== activeUa || attempt !== generation || !registered) {
@@ -515,6 +578,10 @@
     });
     win.addEventListener('pagehide', () => disconnect());
     win.addEventListener('beforeunload', () => disconnect());
+    win.addEventListener('online', refreshRegistration);
+    root.ownerDocument.addEventListener('visibilitychange', () => {
+      if (root.ownerDocument.visibilityState === 'visible') refreshRegistration();
+    });
     // Returning from the browser back/forward cache must require Connect again.
     win.addEventListener('pageshow', (event) => { if (event.persisted) disconnect(); });
     status('offline');

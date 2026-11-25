@@ -14,11 +14,39 @@ same-origin framing, a fixed WSS connection policy and no runtime external asset
 Successful credential delivery is audited using only user/domain/extension UUIDs.
 
 The browser holds SIP credentials in memory until Disconnect, page unload or
-transport failure. There is no password storage, auto-connect or microphone
+a terminal registration failure. There is no password storage, initial auto-connect or microphone
 request on page load/Connect. The user must select Call or Answer before microphone
 access. One call is allowed at a time. Extra incoming calls receive Busy. Incoming
 calls require this tab to remain open and registered. Microphone and actual call
 acceptance remain separate owner actions.
+
+### Connection recovery — 26 November 2026
+
+Transient transport loss preserves the current JsSIP UA and its native 2–30s
+reconnection backoff. Both `disconnected` and `unregistered` suspend calling and
+display a translated reconnecting state without stopping the UA. Transport loss
+ends any current call and closes microphone tracks; recovery never redials,
+answers or requests the microphone. Explicit Disconnect and page lifecycle
+cleanup cancel recovery, stop the UA and clear its in-memory password.
+
+Registration requests use a 600s lifetime, refresh every 120s while registered,
+and refresh when the visible tab or network returns. Temporary 408/5xx/transport
+registration failures retry with a single 10/20/30s backoff timer. Authentication
+and unknown failures stop and clear credentials. No credential POST is repeated
+automatically; the original native permissions/CSRF checks are unchanged. The
+initial connection attempt retains its 25s deadline. A browser suspended by its
+OS can still miss incoming calls until it resumes.
+
+The 26-case Node suite verifies recovery, resumed incoming-call UI, media cleanup,
+retry deduplication, cancellation, stale-UA events and terminal auth failures.
+A public, unauthenticated TLS/WSS idle probe remained open for 80s without frames;
+it did not reproduce a 60s proxy timeout. No proxy or SIP profile change was made
+for this fix. Live acceptance requires reloading the phone and reconnecting.
+
+Provider screenshots distinguish IVR key **101** from SIP internal **110**. The
+owner's key-101 test rang the colleague's mobile, while the browser did not ring.
+Provider delivery to the colleague's SIP account still needs review; this is
+separate from recovery of the browser's registration to this PBX.
 
 ## Prerequisites and installation review
 
