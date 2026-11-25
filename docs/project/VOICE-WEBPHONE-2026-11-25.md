@@ -2,9 +2,11 @@
 
 Base: `19481868e6c505d341622f25a211b0925c757a24` on fresh `develop`.
 Scope: `infrastructure/voice/webphone`, its isolated CI workflow and this map.
-Runtime installation, registration and answered echo transport metadata were
-verified on 25 November. Owner listening confirmation and PSTN acceptance remain
-pending. The production details are recorded in the package README.
+Runtime installation, registration, echo transport and owner confirmation of
+hearing the returned echo were verified on 25 November. An outgoing PSTN test
+reached an answered announcement; a mobile conversation remains unverified.
+The owner confirmed the inbound test reached IVR without connecting extension
+110, and local SIP delivery was not observed. Details are in the package README.
 
 The package supplies a native-authenticated FusionPBX 5.6 browser phone at
 `/app/servernet_voice/index.php`, with Persian, English and Turkish labels. It
@@ -84,7 +86,22 @@ Production follow-through installed the owned STUN-only coturn 4.19.2 service an
 the hashed client. FreeSWITCH 1.11.4 required a tenant-scoped native
 `include_external_ip=true` setting before answering the proxied WebSocket leg.
 An answered echo showed public ICE, DTLS READY and bidirectional SRTP counters,
-then normal clearing; no payload was captured. This verifies transport metadata,
-with hearing confirmation and PSTN acceptance still pending. See
+then normal clearing; no payload was captured. The owner subsequently confirmed
+hearing the echo. See
 [the deployment note](../../infrastructure/voice/webphone/README.md#production-deployment--25-november-2026)
 for the compatible service flags, build hashes and native media variable.
+
+At 19:13:35 UTC an owner-authorized test to the owner's mobile (redacted) received
+183 then 200/answered at 19:13:37 and reached DTLS READY. The owner heard an
+announcement reporting the requested number disconnected, then hung up at
+19:13:40 with normal clearing. A mobile conversation and outgoing-line permission
+status remain unverified; an answered SIP leg does not establish either.
+The 19:17:17–19:17:28 inbound test reached the existing ServerNet webhook as
+`CallIncomingStarted`/`CallIncomingEnded`, with IVR entry/final handler,
+`MenuName=منوی اصلی` and `Result=false`. The owner confirmed reaching IVR without
+connecting extension 110. The gateway remained registered/UP with zero inbound
+calls; delivery to local extension 1001 was not observed. The provider's inbound
+call flow needs review, with its exact cause still unconfirmed.
+The provider portal's hook list remained Loading with an undefined account;
+the available reports/callback API does not expose call-flow configuration.
+No account-UI evidence of an outgoing-line restriction was obtained.

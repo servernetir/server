@@ -130,8 +130,28 @@ SIP profile and Nginx settings were not weakened or changed for this media fix.
 
 An answered 7.8-second echo call advertised public ICE, reached DTLS READY and
 showed bidirectional SRTP packet counters before NORMAL_CLEARING. No audio payload
-or recording was captured. Owner confirmation of hearing the echo and PSTN call
-acceptance remain pending; transport metadata alone does not establish either.
+or recording was captured. The owner subsequently confirmed hearing the returned
+echo, completing the browser echo listening check.
+
+### Trunk acceptance results — 25 November 2026, UTC
+
+- One owner-authorized PSTN test from extension 1001 to the owner's mobile
+  (number redacted) began at 19:13:35. The gateway returned 183 then 200/answered at
+  19:13:37, with DTLS READY. The owner heard the announcement
+  «شماره مورد نظر قطع میباشد» and hung up at 19:13:40; clearing was normal.
+  A mobile conversation was not verified. SIP 200 and the heard announcement do
+  not establish the account's outgoing-line permissions; those remain unverified.
+- During the inbound test at 19:17:17–19:17:28, the existing ServerNet webhook
+  received `CallIncomingStarted` and `CallIncomingEnded` for the owned DID.
+  The report indicated `CallEntryType=Ivr`, `FinalHandler=IVR`,
+  `MenuName=منوی اصلی` and `Result=false`. The owner confirmed reaching the IVR
+  and that extension 110 did not connect. The registered gateway remained UP
+  with zero inbound calls; delivery to local extension 1001 was not observed.
+  The provider's inbound call flow needs review; its exact cause is unconfirmed.
+- The provider portal's hook list remained in Loading with an undefined account,
+  preventing inspection of line permissions and call flow. The available
+  reports/callback API does not expose configuration. No account-UI evidence
+  currently establishes an outgoing-line restriction.
 
 ## Vendored dependency
 
