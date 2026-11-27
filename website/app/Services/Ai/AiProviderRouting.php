@@ -45,6 +45,36 @@ final class AiProviderRouting
         })->values();
     }
 
+    /** The public routed listing exposes only rows actually ready for sale. */
+    public function publicCatalogue(Collection $models): Collection
+    {
+        if (! $this->enabled()) {
+            return $models;
+        }
+
+        return $this->catalogue($models)
+            ->filter(fn (AiModel $model) => app(AiAvailability::class)->inspect($model)['ready'])->values();
+    }
+
+    /** A sitemap category must have the same nonempty listing as the storefront. */
+    public function sitemapCategories(): array
+    {
+        $active = AiModel::where('status', 'active')->distinct()->pluck('category')->all();
+        $categories = array_values(array_intersect(AiModel::CATEGORIES, $active));
+        if (! $this->enabled()) {
+            return $categories;
+        }
+
+        // Match the storefront query/order, one category at a time so the
+        // sitemap never retains the whole routed catalogue in PHP memory.
+        return array_values(array_filter($categories, function (string $category): bool {
+            $models = AiModel::with(['provider', 'activeUnitPrices'])
+                ->where('category', $category)->orderBy('name')->get();
+
+            return $this->publicCatalogue($models)->isNotEmpty();
+        }));
+    }
+
     /** Select before reserving money. Failed/unknown inference is never retried on another supplier. */
     public function forRequest(AiModel $requested, array $client, string $operation): AiModel
     {

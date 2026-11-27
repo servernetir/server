@@ -141,6 +141,31 @@ class AiModelSeoTest extends TestCase
         }
     }
 
+    public function test_routed_empty_category_is_not_advertised_in_either_sitemap(): void
+    {
+        Setting::put("ai_price_routing_enabled", "1");
+        $unready = AiModel::create([
+            "ai_provider_id" => $this->provider->id, "slug" => "unready-classification",
+            "upstream_model" => "example/unsupported-classifier", "name" => "Unready classifier",
+            "category" => "classification", "status" => "active",
+        ]);
+        $this->assertFalse(app(AiAvailability::class)->inspect($unready)["ready"]);
+
+        foreach (["/sitemap.xml", "/sitemaps/ai.xml"] as $sitemapPath) {
+            $xml = $this->get($sitemapPath)->assertOk()->getContent();
+            foreach (["", "/en", "/tr"] as $prefix) {
+                $this->assertStringNotContainsString($prefix."/ai/models?type=classification</loc>", $xml);
+                $this->assertStringContainsString($prefix."/ai/models?type=chat</loc>", $xml);
+            }
+        }
+        foreach (["", "/en", "/tr"] as $prefix) {
+            $this->get($prefix."/ai/models?type=classification")->assertOk()->assertSee("noindex,follow", false);
+            $html = $this->get($prefix."/ai/models?type=chat")->assertOk()->getContent();
+            $this->assertStringNotContainsString("noindex,follow", $html);
+            $this->assertStringContainsString("rel=\"canonical\" href=\"http://localhost".$prefix."/ai/models?type=chat\"", $html);
+        }
+    }
+
     public function test_catalogue_pagination_keeps_its_canonical_and_alternate_page_number(): void
     {
         for ($i = 0; $i < 25; $i++) {

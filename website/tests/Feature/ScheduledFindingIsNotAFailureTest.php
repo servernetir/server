@@ -164,4 +164,41 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
                 "{$name} گزینهٔ --scheduled را ندارد");
         }
     }
+    public function test_site_crawler_bypasses_cache_for_every_render_then_restores_it(): void
+    {
+        config(["pagecache.enabled" => true]);
+        $original = (string) ini_get("memory_limit");
+        $originalBytes = ini_parse_quantity($original);
+        $expected = $originalBytes >= 0 && $originalBytes < 384 * 1024 * 1024 ? "384M" : $original;
+        $base = rtrim((string) config("app.url"), "/");
+        $kernel = \Mockery::mock(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel->shouldReceive("handle")->twice()->andReturnUsing(function ($request) use ($base, $expected) {
+            $this->assertFalse(config("pagecache.enabled"));
+            $this->assertSame($expected, (string) ini_get("memory_limit"));
+            return $request->path() === "sitemap.xml"
+                ? response("<urlset><url><loc>".$base."/</loc></url></urlset>", 200)
+                : response("<html>Fresh page</html>", 200);
+        });
+        $this->app->instance(\Illuminate\Contracts\Http\Kernel::class, $kernel);
+
+        $this->artisan("links:site --scheduled")->assertExitCode(0);
+        $this->assertTrue(config("pagecache.enabled"));
+        if ($originalBytes < 0 || memory_get_usage(true) < $originalBytes) {
+            $this->assertSame($original, (string) ini_get("memory_limit"));
+        }
+    }
+
+    public function test_site_crawler_restores_cache_even_when_sitemap_render_fails(): void
+    {
+        config(["pagecache.enabled" => true]);
+        $kernel = \Mockery::mock(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel->shouldReceive("handle")->once()->andReturnUsing(function () {
+            $this->assertFalse(config("pagecache.enabled"));
+            return response("temporarily unavailable", 503);
+        });
+        $this->app->instance(\Illuminate\Contracts\Http\Kernel::class, $kernel);
+
+        $this->artisan("links:site --scheduled")->assertExitCode(1);
+        $this->assertTrue(config("pagecache.enabled"));
+    }
 }

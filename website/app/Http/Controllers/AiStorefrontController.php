@@ -31,9 +31,9 @@ class AiStorefrontController extends Controller
         if (in_array($category, AiModel::CATEGORIES, true)) {
             $query->where('category', $category);
         }
-        if (app(\App\Services\Ai\AiProviderRouting::class)->enabled()) {
-            $catalogue = app(\App\Services\Ai\AiProviderRouting::class)->catalogue($query->get())
-                ->filter(fn ($m) => app(AiAvailability::class)->inspect($m)['ready'])->values();
+        $routing = app(\App\Services\Ai\AiProviderRouting::class);
+        if ($routing->enabled()) {
+            $catalogue = $routing->publicCatalogue($query->get());
             $current = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
             $page = new \Illuminate\Pagination\LengthAwarePaginator($catalogue->forPage($current, 24)->values(),
                 $catalogue->count(), 24, $current, ['path' => $request->url(), 'query' => $request->query()]);

@@ -40,6 +40,32 @@ class CheckSiteLinks extends Command
 
     public function handle(): int
     {
+        // Only this CLI audit gets extra headroom. Keep PHP-FPM and the
+        // scheduler-wide limit untouched, and honor an explicit larger CLI budget.
+        $originalLimit = (string) ini_get('memory_limit');
+        $originalBytes = ini_parse_quantity($originalLimit);
+        $raised = $originalBytes >= 0 && $originalBytes < 384 * 1024 * 1024
+            && ini_set('memory_limit', '384M') !== false;
+        $originalCache = config('pagecache.enabled', true);
+
+        try {
+            // Render fresh HTML, not stale cache entries or thousands of new
+            // compressed cache writes; the link resolver shares this config.
+            config(['pagecache.enabled' => false]);
+            return $this->audit();
+        } finally {
+            config(['pagecache.enabled' => $originalCache]);
+            $this->line(sprintf('links:site peak memory: %.1f MiB; limit: %s',
+                memory_get_peak_usage(true) / (1024 * 1024), ini_get('memory_limit')));
+            // Restore a lower in-process limit only when PHP can accept it.
+            if ($raised && memory_get_usage(true) < $originalBytes) {
+                ini_set('memory_limit', $originalLimit);
+            }
+        }
+    }
+
+    private function audit(): int
+    {
         $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
         $known = CheckContentLinks::knownPaths();
 
@@ -72,6 +98,7 @@ class CheckSiteLinks extends Command
             $pages[$path] = true;
         }
 
+        unset($response, $m);
         $limit = (int) $this->option('limit');
 
         if ($limit > 0) {
@@ -98,6 +125,7 @@ class CheckSiteLinks extends Command
 
             if ($r->getStatusCode() >= 400) {
                 $broken[] = [$path, '(خودِ صفحه)', (string) $r->getStatusCode()];
+                unset($r);
 
                 continue;
             }
@@ -111,6 +139,7 @@ class CheckSiteLinks extends Command
                     $links[$p] = $path;
                 }
             }
+            unset($r, $hm);
         }
 
         $this->info('لینکِ داخلیِ یکتای خارج از نقشه: '.count($links));

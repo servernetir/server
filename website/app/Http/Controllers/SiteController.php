@@ -754,11 +754,8 @@ class SiteController extends Controller
         // ⚠️ پشتِ `hasTable` مثلِ بقیهٔ بخش‌ها: بی‌آن، نصبِ مهاجرت‌نخورده (و چند
         //    تستِ موجود) کلِ نقشهٔ سایت را ۵۰۰ می‌گرفت — نه فقط بخشِ هوش مصنوعی.
         if (\Illuminate\Support\Facades\Schema::hasTable('ai_models')) {
-            $activeAiCategories = \App\Models\AiModel::where('status', 'active')->distinct()->pluck('category')->all();
-            foreach (\App\Models\AiModel::CATEGORIES as $category) {
-                if (in_array($category, $activeAiCategories, true)) {
-                    $add('ai.models', ['type' => $category]);
-                }
+            foreach (app(\App\Services\Ai\AiProviderRouting::class)->sitemapCategories() as $category) {
+                $add('ai.models', ['type' => $category]);
             }
             foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
                 // Informational pages can be indexed while a route is preparing. Retired models cannot.
