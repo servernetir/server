@@ -88,6 +88,62 @@ class CustomerCloudApiTest extends TestCase
         return collect(ErrorTracker::recent(100))->where('area', 'cloud_power')->values()->all();
     }
 
+    public function test_status_polling_does_not_exhaust_the_power_budget(): void
+    {
+        [, $service, , $plain] = $this->fixture();
+        for ($i = 0; $i < 40; $i++) {
+            $this->getJson('/api/v1/cloud/'.$service->id.'/status', $this->headers($plain))
+                ->assertOk()->assertHeader('X-RateLimit-Limit', '120');
+        }
+        $this->power($service, $plain)->assertAccepted()->assertHeader('X-RateLimit-Limit', '20');
+        $this->assertCount(1, $this->commands);
+    }
+
+    public function test_power_limit_has_retry_metadata_and_does_not_block_reads(): void
+    {
+        [, $service, , $plain] = $this->fixture();
+        // Invalid keys exercise the real middleware without dispatching a command.
+        for ($i = 0; $i < 20; $i++) {
+            $this->power($service, $plain, 'start', '')->assertUnprocessable();
+        }
+        $limited = $this->power($service, $plain, 'stop', '')->assertStatus(429)
+            ->assertJsonPath('ok', false)->assertJsonPath('error', 'rate_limited')
+            ->assertJsonPath('rate_limit_scope', 'cloud:power')->assertJsonPath('retry_after', 60)
+            ->assertHeader('Retry-After', '60')->assertHeader('X-RateLimit-Limit', '20')
+            ->assertHeader('X-RateLimit-Remaining', '0');
+        $this->assertStringContainsString('no-store', $limited->headers->get('Cache-Control'));
+        $this->getJson('/api/v1/cloud/'.$service->id, $this->headers($plain))->assertOk();
+        $this->travel(61)->seconds();
+        $this->power($service, $plain, 'start', '')->assertUnprocessable();
+        $this->assertCount(0, $this->commands);
+        $this->assertSame(0, DB::table('customer_api_operations')->count());
+    }
+
+    public function test_power_budget_is_shared_by_customer_tokens_but_not_other_customers(): void
+    {
+        [$customer, $service, , $plain] = $this->fixture();
+        [, $secondPlain] = CustomerApiToken::issue($customer->id, 'Second synthetic key', ['cloud:power']);
+        [, $otherService, , $otherPlain] = $this->fixture();
+        for ($i = 0; $i < 20; $i++) {
+            $this->power($service, $plain, 'start', '')->assertUnprocessable();
+        }
+        $this->power($service, $secondPlain, 'start', '')->assertStatus(429);
+        $this->power($otherService, $otherPlain, 'start', '')->assertUnprocessable();
+        $this->assertCount(0, $this->commands);
+    }
+
+    public function test_full_read_budget_does_not_block_power_and_still_limits_reads(): void
+    {
+        [, $service, , $plain] = $this->fixture();
+        for ($i = 0; $i < 120; $i++) {
+            $this->getJson('/api/v1/cloud', $this->headers($plain))->assertOk();
+        }
+        $this->getJson('/api/v1/cloud/'.$service->id, $this->headers($plain))->assertStatus(429)
+            ->assertJsonPath('rate_limit_scope', 'cloud:read')->assertHeader('X-RateLimit-Limit', '120');
+        $this->power($service, $plain)->assertAccepted();
+        $this->assertCount(1, $this->commands);
+    }
+
     public function test_cloud_requires_an_explicit_scope_and_is_stateless_even_with_a_panel_login(): void
     {
         [$c, $s, $t, $plain] = $this->fixture(1000, ['*']);

@@ -59,3 +59,7 @@ Rollback: restore only manifest files after checking no newer edits. Keep additi
 - Expanded local PHP 8.4.27 suite: **112 tests / 958 assertions passed**. Dedicated cloud API checks passed on **both SQLite and MariaDB 11.4** in CI; the broader triggered workflow checks, including hourly funding/birthday and Arvan finance, passed. A legacy metering fixture was corrected to model an actually stopped provider before Start and a later verified Running response, retaining its charging assertions.
 - Remaining product-operation coverage is tracked in [issue #308](https://github.com/servernetir/server/issues/308). This release completes the requested existing-GPU Start/Stop/Status use case and establishes the shared API foundation; it does not declare unfinished purchase/renewal/DNS/SMS/phone controls available.
 - Public entry point: https://servernet.cloud/developers/platform ; account workspace: https://console.servernet.cloud/account/api . Private installation/acceptance receipts and backups are retained outside webroot. Rollback remains limited to release files and targeted compiled templates, retaining the additive schema and audit receipts.
+
+## Rate-limit correction — 27 November 2026
+
+See [separate cloud read/power budgets and retry metadata](CLOUD-API-RATE-LIMIT-2026-11-27.md). The per-minute ceilings remain 120 read requests and 20 power requests; the counters are isolated by authenticated customer and operation group.
