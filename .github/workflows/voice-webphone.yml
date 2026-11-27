@@ -1,0 +1,43 @@
+name: Voice webphone isolation
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['infrastructure/voice/webphone/**', '.github/workflows/voice-webphone.yml']
+  push:
+    branches: ['feature/voice-native-webphone-20261125']
+    paths: ['infrastructure/voice/webphone/**', '.github/workflows/voice-webphone.yml']
+permissions:
+  contents: read
+concurrency:
+  group: voice-webphone-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: infrastructure/voice/webphone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: PHP syntax and isolated authorization
+        run: |
+          php -l bootstrap.php
+          php -l api.php
+          php -l index.php
+          php -l tests/security.php
+          php tests/security.php
+      - name: JavaScript behavior and vendor integrity
+        run: |
+          node --check phone.js
+          node --test tests/phone.test.cjs
+          cd vendor
+          sha256sum --check SHA256SUMS
