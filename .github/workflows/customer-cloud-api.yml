@@ -12,6 +12,7 @@ on:
       - 'website/app/Http/Controllers/Account/**'
       - 'website/app/Models/CustomerApiToken.php'
       - 'website/app/Http/Middleware/CustomerApiResponse.php'
+      - 'website/app/Http/Middleware/CustomerCloudApiThrottle.php'
       - 'website/routes/**'
       - 'website/database/migrations/*customer_api_operations*'
       - 'website/resources/views/account/**'
