@@ -91,7 +91,7 @@ class CheckSiteLinks extends Command
                 continue;
             }
 
-            if (! $this->option('all-locales') && preg_match('~^/(en|tr)(/|$)~', $path)) {
+            if (! $this->option('all-locales') && \App\Support\InternationalMarket::localeFromPath($path) !== 'fa') {
                 continue;
             }
 

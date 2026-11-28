@@ -258,7 +258,7 @@ class ReleaseGate extends Command
                 $fails[] = "RG-CANON-17    {$path} ← canonical به {$canonical} اشاره می‌کند";
             }
 
-            $locale = preg_match('~^/(en|tr)(?:/|$)~', $path, $localeMatch) === 1 ? $localeMatch[1] : 'fa';
+            $locale = \App\Support\InternationalMarket::localeFromPath($path);
             preg_match('~<link\s+rel="alternate"\s+hreflang="'.preg_quote($locale, '~').'"\s+href="([^"]+)"~i', $html, $selfAlternateMatch);
             $selfAlternate = html_entity_decode($selfAlternateMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
@@ -280,8 +280,7 @@ class ReleaseGate extends Command
             | برای کدام کوئری است — خودِ سایت هم نتوانسته تفاوت را بیان کند.»
             */
             if (preg_match('~<title>(.*?)</title>~su', $html, $tm) === 1) {
-                $bucket = preg_match('~^/(en|tr)(/|$)~', $path, $lm) === 1 ? $lm[1] : 'fa';
-                $titles[$bucket][trim($tm[1])][] = $path;
+                $titles[$locale][trim($tm[1])][] = $path;
             }
 
             // RG-H1-15: دقیقاً یک H1 (۷ صفحهٔ چند-H1 در ممیزی ۷ — P2 ولی ارزان)

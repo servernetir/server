@@ -413,7 +413,7 @@ class SiteController extends Controller
     {
         $path = trim((string) parse_url($loc, PHP_URL_PATH), '/');
         $segments = $path === '' ? [] : explode('/', $path);
-        if (in_array($segments[0] ?? '', ['en', 'tr'], true)) {
+        if (\App\Support\InternationalMarket::localeFromPath($path) !== 'fa') {
             array_shift($segments);
         }
 
@@ -773,6 +773,8 @@ class SiteController extends Controller
         }
 
         $add('official');
+
+        $urls = array_merge($urls, \App\Support\InternationalMarket::sitemapEntries());
 
         return collect($urls)->unique('loc')->values()->all();
     }

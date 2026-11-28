@@ -216,6 +216,9 @@ class ConsoleHost
         }
 
         $path = trim($request->path(), '/');
+        if (\App\Support\InternationalMarket::isPublishedPath($path)) {
+            return true;
+        }
         $path = preg_replace('~^(?:en|tr)(?:/|$)~', '', $path) ?? $path;
 
         if ($path === '') {

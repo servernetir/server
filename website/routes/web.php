@@ -787,6 +787,8 @@ Route::middleware('locale:fa')->group($site);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);
 Route::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);
 
+require __DIR__.'/international-market.php';
+
 /*
 | بخشِ محلی ارومیه — سه‌زبانه (مرداد ۱۴۰۵، خواستِ مدیر: «هر صفحه‌ای en/tr
 | نداشت درستش کن»). closureِ جدا از $site مانده تا ترتیبِ ثبت و whereها
