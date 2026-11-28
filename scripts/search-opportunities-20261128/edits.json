@@ -1,0 +1,70 @@
+{
+  "website/routes/web.php": [
+    {
+      "old": "    '/ساخت-اپلیکیشن-موبایل-در-ارومیه' => '/urmia/app-development',\n",
+      "new": "    '/ساخت-اپلیکیشن-موبایل-در-ارومیه' => '/urmia/app-development',\n    // Recovered legacy URLs with verified equivalent public destinations.\n    '/host' => '/hosting/linux',\n    '/9-روش-برای-افزایش-سرعت-وردپرس' => '/blog/wordpress-speed-optimization',\n    '/طراحی-وب-سایت-حرفه-ای-ساخت-وب-سایت-اختص' => '/solutions/web-design',\n",
+      "count": 1
+    }
+  ],
+  "website/lang/fa/ui.php": [
+    {
+      "old": "    'tl_ideas_t' => 'پیشنهادگر نام دامنه', 'tl_ideas_d' => 'با هوش مصنوعی برای کسب‌وکارتان نام دامنه پیدا کنید و همان‌جا ثبتش کنید.',\n    'tl_ideas_h1a' => 'نام دامنه‌ی بعدی‌تان را', 'tl_ideas_h1b' => 'هوش مصنوعی پیدا می‌کند.',\n",
+      "new": "    'tl_ideas_t' => 'پیشنهاد نام دامنه و اسم سایت', 'tl_ideas_d' => 'رایگان برای کسب‌وکارتان اسم سایت و نام دامنه پیشنهاد بگیرید؛ نام‌ها را کوتاه کنید، وضعیت ثبت و قیمت روز پسوندها را استعلام بگیرید.',\n    'tl_ideas_h1a' => 'ابزار رایگان پیشنهاد نام دامنه', 'tl_ideas_h1b' => 'برای برند و سایت شما',\n",
+      "count": 1
+    },
+    {
+      "old": "    'tl_spt_t' => 'تست سرعت اینترنت', 'tl_spt_d' => 'سرعت دانلود، آپلود و پینگ اتصال شما — همین حالا و رایگان.',\n",
+      "new": "    'tl_spt_t' => 'تست سرعت اینترنت بین‌الملل', 'tl_spt_d' => 'تست رایگان سرعت دانلود و آپلود، پینگ و جیتر اتصال شما تا نقطه تست سرورنت در اروپا؛ نتایج را در ساعت‌های مختلف مقایسه کنید.',\n",
+      "count": 1
+    },
+    {
+      "old": "    'lk_ping_min' => 'کمینه', 'lk_ping_avg' => 'میانگین', 'lk_ping_max' => 'بیشینه', 'lk_ping_loss' => 'از دست‌رفتن بسته', 'lk_ping_port' => 'روی پورت', 'lk_ping_ms' => 'میلی‌ثانیه',\n",
+      "new": "    'lk_ping_min' => 'کمینه', 'lk_ping_avg' => 'میانگین', 'lk_ping_max' => 'بیشینه', 'lk_ping_loss' => 'تلاش ناموفق', 'lk_ping_port' => 'روی پورت', 'lk_ping_ms' => 'میلی‌ثانیه',\n",
+      "count": 1
+    }
+  ],
+  "website/lang/en/ui.php": [
+    {
+      "old": "    'tl_ideas_t' => 'Domain Name Ideas', 'tl_ideas_d' => 'Find a brandable domain name for your business with AI and register it right here.',\n    'tl_ideas_h1a' => 'Your next domain name,', 'tl_ideas_h1b' => 'found by AI.',\n",
+      "new": "    'tl_ideas_t' => 'Domain Name Generator & Ideas', 'tl_ideas_d' => 'Get free business domain name ideas from a short description. Shortlist brandable names, check live availability and compare registration prices before buying.',\n    'tl_ideas_h1a' => 'Free domain name generator:', 'tl_ideas_h1b' => 'find your next brand.',\n",
+      "count": 1
+    },
+    {
+      "old": "    'tl_spt_t' => 'Internet Speed Test', 'tl_spt_d' => 'Your connection\\'s download, upload and ping — right now, for free.',\n",
+      "new": "    'tl_spt_t' => 'International Internet Speed Test', 'tl_spt_d' => 'Measure download, upload, ping and jitter on your connection to the ServerNet endpoint in Europe. Run a free test and compare results over time.',\n",
+      "count": 1
+    },
+    {
+      "old": "    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Avg', 'lk_ping_max' => 'Max', 'lk_ping_loss' => 'Packet loss', 'lk_ping_port' => 'Tested on port', 'lk_ping_ms' => 'ms',\n",
+      "new": "    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Avg', 'lk_ping_max' => 'Max', 'lk_ping_loss' => 'Failed attempts', 'lk_ping_port' => 'Tested on port', 'lk_ping_ms' => 'ms',\n",
+      "count": 1
+    },
+    {
+      "old": "    'hv_meta_t' => 'Hourly VPS Hosting | Live Rates and Billing — ServerNet',\n    'hv_meta_d' => 'Buy an hourly VPS from :price per hour. Compare plans in :n available countries, starting credit, power-off billing and deletion before ordering in ServerNet Console.',\n    'hv_meta_d_nop' => 'Buy an hourly VPS. Compare available plans, starting credit, power-off billing and server deletion before ordering in ServerNet Console.',\n",
+      "new": "    'hv_meta_t' => 'Hourly VPS Hosting | Pay-as-You-Go & Cost Calculator — ServerNet',\n    'hv_meta_d' => 'Rent a VPS from :price/hour. Calculate costs for hours, days or weeks and compare plans in :n available countries. Check starting credit and when billing ends.',\n    'hv_meta_d_nop' => 'Rent a pay-as-you-go VPS. Calculate costs for hours, days or weeks, compare available plans and check starting credit and when billing ends.',\n",
+      "count": 1
+    }
+  ],
+  "website/lang/tr/ui.php": [
+    {
+      "old": "    'tl_ideas_t' => 'Alan Adı Fikirleri', 'tl_ideas_d' => 'Yapay zeka ile işiniz için marka olabilecek bir alan adı bulun ve hemen burada kaydedin.',\n    'tl_ideas_h1a' => 'Bir sonraki alan adınızı', 'tl_ideas_h1b' => 'yapay zeka bulsun.',\n",
+      "new": "    'tl_ideas_t' => 'Alan Adı Öneri ve İsim Bulma Aracı', 'tl_ideas_d' => 'İşinizi tanımlayın, ücretsiz marka ve alan adı fikirleri oluşturun. Uygunluğu canlı sorgulayın ve kayıt fiyatlarını karşılaştırın.',\n    'tl_ideas_h1a' => 'Ücretsiz alan adı öneri aracı:', 'tl_ideas_h1b' => 'markanıza isim bulun.',\n",
+      "count": 1
+    },
+    {
+      "old": "    'tl_spt_t' => 'İnternet Hız Testi', 'tl_spt_d' => 'Bağlantınızın indirme, yükleme ve ping değerleri — şimdi ve ücretsiz.',\n",
+      "new": "    'tl_spt_t' => 'Uluslararası İnternet Hız Testi', 'tl_spt_d' => 'Avrupa’daki ServerNet test noktasına indirme, yükleme, ping ve jitter değerlerini ücretsiz ölçün; sonuçları farklı saatlerde karşılaştırın.',\n",
+      "count": 1
+    },
+    {
+      "old": "    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Ort', 'lk_ping_max' => 'Maks', 'lk_ping_loss' => 'Paket kaybı', 'lk_ping_port' => 'Port', 'lk_ping_ms' => 'ms',\n",
+      "new": "    'lk_ping_min' => 'Min', 'lk_ping_avg' => 'Ort', 'lk_ping_max' => 'Maks', 'lk_ping_loss' => 'Başarısız denemeler', 'lk_ping_port' => 'Port', 'lk_ping_ms' => 'ms',\n",
+      "count": 1
+    },
+    {
+      "old": "    'gpu_meta_t' => 'Saatlik GPU Kiralama | ComfyUI ve Jupyter — ServerNet',\n    'gpu_meta_d' => ':price başlangıç ücretiyle saatlik GPU kiralayın. Uyumlu kart ve uygulamayı seçin; başlangıç bakiyesi, geçici disk ve HTTPS erişimini kontrol edin.',\n    'gpu_meta_d_nop' => 'Uyumlu uygulamalar için saatlik GPU kiralayın. Kartları, başlangıç bakiyesini, geçici diski ve HTTPS erişimini ServerNet Konsol üzerinden inceleyin.',\n    'gpu_h1' => 'Saatlik GPU Sunucular',\n",
+      "new": "    'gpu_meta_t' => 'Bulut GPU ve Ekran Kartı Kiralama | Saatlik — ServerNet',\n    'gpu_meta_d' => ':price başlangıç ücretinden saatlik bulut GPU kiralayın. AI, Jupyter, ComfyUI ve uyumlu uygulamalar için kartları karşılaştırın; erişim ve disk koşullarını görün.',\n    'gpu_meta_d_nop' => 'AI, Jupyter, ComfyUI ve uyumlu uygulamalar için saatlik bulut GPU kiralayın. Kartları, başlangıç bakiyesini, erişim ve disk koşullarını karşılaştırın.',\n    'gpu_h1' => 'Saatlik Bulut GPU ve Ekran Kartı Kiralama',\n",
+      "count": 1
+    }
+  ]
+}

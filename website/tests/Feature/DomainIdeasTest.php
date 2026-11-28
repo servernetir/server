@@ -130,11 +130,11 @@ class DomainIdeasTest extends TestCase
     public function test_the_ideas_page_renders_in_all_three_locales(): void
     {
         $this->get('/tools/domain-ideas')->assertOk()
-            ->assertSee('نام دامنه‌ی بعدی‌تان را')
+            ->assertSee('ابزار رایگان پیشنهاد نام دامنه')
             ->assertDontSee('ui.tl_ideas');
 
-        $this->get('/en/tools/domain-ideas')->assertOk()->assertSee('Your next domain name,');
-        $this->get('/tr/tools/domain-ideas')->assertOk()->assertSee('Bir sonraki alan');
+        $this->get('/en/tools/domain-ideas')->assertOk()->assertSee('Free domain name generator:');
+        $this->get('/tr/tools/domain-ideas')->assertOk()->assertSee('Ücretsiz alan adı öneri aracı:');
     }
 
     public function test_the_api_rejects_short_descriptions_with_json(): void

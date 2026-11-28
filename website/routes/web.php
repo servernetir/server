@@ -865,6 +865,10 @@ foreach ([
     '/guide/privacy.php'  => '/privacy',
     '/services'           => '/solutions',
     '/ساخت-اپلیکیشن-موبایل-در-ارومیه' => '/urmia/app-development',
+    // Recovered legacy URLs with verified equivalent public destinations.
+    '/host' => '/hosting/linux',
+    '/9-روش-برای-افزایش-سرعت-وردپرس' => '/blog/wordpress-speed-optimization',
+    '/طراحی-وب-سایت-حرفه-ای-ساخت-وب-سایت-اختص' => '/solutions/web-design',
     '/marketing'          => '/solutions',
     '/home'               => '/',
     '/cart'               => '/',
