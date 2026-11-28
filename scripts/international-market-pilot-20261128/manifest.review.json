@@ -147,6 +147,29 @@
       "review_status": "requires_three_way_review"
     }
   ],
+  "reconciliation_evidence": {
+    "state": "three_local_candidates_one_source_handoff_required",
+    "source_observation": "Approved read-only source comparison; three complete differences reconstructed and SHA-256 verified. The fourth comparison was truncated and is not usable as a complete source snapshot.",
+    "offline_candidates": {
+      "website/app/Console/Commands/ReleaseGate.php": {
+        "source_sha256": "c83a9bfc95e802d82b421aaf410818b75bf134d7a036aa2c0259a53d4c5959bf",
+        "proposed_sha256": "b40fe9c05bae05cfc8e779180af240808bc77fed7f527d2965e4012ff11a6d3a",
+        "method": "clean_three_way_merge"
+      },
+      "website/app/Http/Controllers/SiteController.php": {
+        "source_sha256": "952347f2b11c2c082c8343871de234effaccf9738125bb352f42e741818ca965",
+        "proposed_sha256": "94cb836283c5aaf1c430d4e8eecbad039d264b660c8b249ff51b5bca8e4f5b2f",
+        "method": "reviewed_scoped_sitemap_integration"
+      },
+      "website/resources/views/partials/header.blade.php": {
+        "source_sha256": "1e4e752ee8c701612c6b0b1f0c643d0fa970cd96c4a8f3e81789b10900cfdb48",
+        "proposed_sha256": "b3a56ac69cd4022859db7291c098c44583670987ebcf4d8a70490fd13637407e",
+        "method": "clean_three_way_merge"
+      }
+    },
+    "source_handoff_pending": ["website/routes/web.php"],
+    "php_and_runtime_validation_pending": true
+  },
   "activation": {
     "setting": "INTERNATIONAL_MARKET_LOCALES",
     "expected_before": "",

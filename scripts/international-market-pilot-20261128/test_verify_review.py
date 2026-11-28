@@ -38,6 +38,16 @@ class ReviewTest(unittest.TestCase):
     def test_stop_on_conflicting_changes(self):
         self.assertIsNone(review.three_way(b'live\n', b'base\n', b'pilot\n'))
 
+    def test_reconciliation_evidence_does_not_make_release_publishable(self):
+        evidence = self.manifest['reconciliation_evidence']
+        self.assertEqual(len(evidence['offline_candidates']), 3)
+        self.assertEqual(evidence['source_handoff_pending'], ['website/routes/web.php'])
+        modified = copy.deepcopy(self.manifest)
+        source = next(iter(evidence['offline_candidates']))
+        modified['reconciliation_evidence']['offline_candidates'][source]['source_sha256'] = '0' * 64
+        with self.assertRaises(AssertionError):
+            review.verify(modified)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 
@@ -79,6 +80,19 @@ def verify(manifest):
             assert row['reviewed_install_sha256'] is None
             pending.append(source)
     assert set(pending) == EXPECTED_RECONCILIATION
+    evidence = manifest['reconciliation_evidence']
+    assert evidence['state'] == 'three_local_candidates_one_source_handoff_required'
+    assert evidence['php_and_runtime_validation_pending'] is True
+    proposals = evidence['offline_candidates']
+    assert set(proposals) == EXPECTED_RECONCILIATION - {'website/routes/web.php'}
+    assert evidence['source_handoff_pending'] == ['website/routes/web.php']
+    for row in records:
+        if row['source'] in proposals:
+            proposal = proposals[row['source']]
+            assert proposal['source_sha256'] == row['observed_live_sha256']
+            assert re.fullmatch('[0-9a-f]{64}', proposal['proposed_sha256'])
+            assert proposal['proposed_sha256'] != row['candidate_sha256']
+            assert row['reviewed_install_sha256'] is None
     assert records[-1]['source'] == 'website/routes/web.php'
     assert records[0]['source'] == 'website/app/Support/InternationalMarket.php'
     urls = {f'https://servernet.cloud/{l}{p}' for l in ('ru', 'az') for p in PATHS}
@@ -143,7 +157,10 @@ def main():
     pending = verify(manifest)
     output = {'candidate_integrity': 'verified', 'runtime_files': len(manifest['files']),
               'direct_candidates': len(manifest['files']) - len(pending),
-              'reconciliation_pending': pending, 'public_urls': len(manifest['acceptance']['new_urls']),
+              'reconciliation_pending': pending,
+              'locally_reconciled': list(manifest['reconciliation_evidence']['offline_candidates']),
+              'source_handoff_pending': manifest['reconciliation_evidence']['source_handoff_pending'],
+              'public_urls': len(manifest['acceptance']['new_urls']),
               'publishable': False}
     if args.snapshot_dir:
         output['snapshot_review'] = check_snapshots(manifest, args.snapshot_dir)
