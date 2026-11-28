@@ -55,6 +55,7 @@ return [
     'order_invalid' => 'Profilinizde geçerli bir e-posta gerekir. İşletim sistemi, erişim ve kurulum ayarları otomatik seçilir.',
     'price_note' => 'Fiyatlar güncel sunucu kataloğunu izler. Uzun dönemler aylık fiyat üzerinden hesaplanır.',
     'independent' => 'Her siparişe ayrı sunucu, veri ve giriş bilgileri verilir.',
+    'starter_note' => 'Başlangıç ve hafif iş akışları için uygundur; dosya işleme, eşzamanlı çalıştırma ve yoğun otomasyon için daha fazla RAM önerilir.',
     'scope' => 'Teslimat, kurulum ve çalışan n8n erişimini kapsar. İş akışlarını oluşturmak ve yönetmek size aittir.',
     'login' => 'Giriş yap ve siparişi tamamla',
     'select' => 'Seç',
