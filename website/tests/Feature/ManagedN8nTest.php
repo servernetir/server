@@ -140,6 +140,40 @@ class ManagedN8nTest extends TestCase
         $this->assertEmpty(app(ManagedN8nCatalog::class)->plans());
     }
 
+    public function test_starter_is_opt_in_and_does_not_bypass_verified_turkish_catalogue(): void
+    {
+        Setting::put('n8n_iran_sales_enabled', '1');
+        $this->plan('proxmox');
+        $source = $this->plan('vpstc', ['vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20]);
+        $german = $this->plan('hetzner', ['vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20]);
+        $small = $this->plan('vpstc', ['vcpu' => 1, 'ram_mb' => 512, 'disk_gb' => 20]);
+        $catalog = app(ManagedN8nCatalog::class);
+        $sync = app(\App\Services\Cloud\ManagedN8nIranCatalog::class);
+        $this->assertFalse($catalog->eligible($source));
+        $this->assertSame(0, $sync->sync()['count']);
+
+        Setting::put('n8n_starter_sales_enabled', '1');
+        $this->assertTrue($catalog->eligible($source));
+        $this->assertFalse($catalog->eligible($german));
+        $this->assertFalse($catalog->eligible($small));
+        $this->assertSame(1, $sync->sync(true)['created']);
+        $mirror = CloudPlan::where('provider_ref', 'like', 'n8n-ir-%')->firstOrFail();
+        $this->assertSame(1024, (int) $mirror->ram_mb);
+        $this->assertSame($source->id, $catalog->source($mirror, newOrder: true)->id);
+        $this->assertTrue($catalog->plans()->contains('id', $source->id));
+        $this->assertTrue($catalog->plans()->contains('id', $mirror->id));
+        $this->assertSame(0, $catalog->hourly($source));
+        $this->assertGreaterThan(0, $catalog->hourly($mirror));
+        $this->assertFalse(CloudPlan::sellable()->whereKey($mirror->id)->exists());
+
+        $source->update(['admin_disabled' => true]);
+        $this->assertNull($catalog->source($mirror, newOrder: true));
+        $this->assertFalse($catalog->plans()->contains('id', $source->id));
+        $this->assertFalse($catalog->plans()->contains('id', $mirror->id));
+        $this->assertSame(0, Service::count());
+        $this->assertSame(0, Invoice::count());
+    }
+
     public function test_iran_mirrors_all_supported_turkish_sizes_with_hourly_and_preserves_ordinary_products(): void
     {
         Setting::put('n8n_iran_sales_enabled', '1');
