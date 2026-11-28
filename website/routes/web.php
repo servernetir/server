@@ -3145,6 +3145,8 @@ Route::prefix('admin')->group(function () {
         // تنظیمِ سررسیدِ سرویسِ قدیمیِ بی‌سررسید — بی‌آن، آن سرویس هرگز
         // فاکتورِ تمدید نمی‌گیرد. اعتبارسنجیِ `after:today` در کنترلر است.
         Route::post('/services/{service}/due', [\App\Http\Controllers\Admin\ServiceController::class, 'setDue']);
+        Route::post('/services/{service}/exit-entitlement', \App\Http\Controllers\Admin\ExitEntitlementController::class)
+            ->name('admin.service.exit-entitlement')->middleware(['admin', 'throttle:12,1']);
         /*
         | شبکهٔ ماهِ شمسیِ دیت‌پیکر.
         |
