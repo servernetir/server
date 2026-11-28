@@ -14,6 +14,7 @@ on:
       - 'website/app/Models/McpAdminAction.php'
       - 'website/app/Providers/McpAdminServiceProvider.php'
       - 'website/config/mcp_admin.php'
+      - 'website/lang/**/mcp_admin.php'
       - 'website/config/auth.php'
       - 'website/bootstrap/providers.php'
       - 'website/routes/mcp-admin.php'
@@ -21,6 +22,7 @@ on:
       - 'website/database/migrations/*mcp_admin*'
       - 'website/composer.*'
       - 'website/tests/Feature/AdminMcp*.php'
+      - 'scripts/releases/**/manifest.json'
       - '.github/workflows/admin-mcp.yml'
       - 'scripts/deploy-mcp-management-20261121.py'
       - 'scripts/test_mcp_management_deploy.py'
@@ -97,4 +99,6 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.mcp-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminMcpManagementTest.php tests/Feature/AdminMcpProxmoxTest.php tests/Feature/TicketTest.php tests/Feature/TicketReplyFlowTest.php tests/Feature/TicketHeldStatusTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminLoginMethodsTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning
+          php -l app/Services/Mcp/ReleaseManifestReview.php
+          php -l app/Mcp/Tools/ReleaseManifestReview.php
+          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminMcpManagementTest.php tests/Feature/AdminMcpProxmoxTest.php tests/Feature/AdminMcpReleaseManifestTest.php tests/Feature/TicketTest.php tests/Feature/TicketReplyFlowTest.php tests/Feature/TicketHeldStatusTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminLoginMethodsTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning

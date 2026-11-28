@@ -143,7 +143,7 @@ class AdminMcpOAuthTest extends TestCase
         $admin = $this->enable(); $client = $this->registerClient();
         $this->actingAs($admin, 'web');
         foreach ([['code_challenge_method' => 'plain'], ['resource' => 'https://evil.test/mcp'],
-            ['scope' => '*'], ['scope' => AdminAccess::EXECUTE], ['code_challenge' => 'short']] as $bad) {
+            ['scope' => '*'], ['scope' => AdminAccess::EXECUTE], ['scope' => AdminAccess::RELEASE_REVIEW], ['code_challenge' => 'short']] as $bad) {
             $this->getJson('/admin/mcp/oauth/authorize?'.http_build_query(array_replace($this->authorizationQuery($client), $bad)))
                 ->assertBadRequest();
         }
@@ -163,6 +163,46 @@ class AdminMcpOAuthTest extends TestCase
         }
         $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'request_ssh_command', 'arguments' => ['target' => 'x', 'command' => 'reboot']])
             ->assertJsonStructure(['error']);
+        $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'release_manifest_review', 'arguments' => [
+            'release' => 'fixture-release', 'commit' => str_repeat('a', 40), 'manifest_sha256' => str_repeat('b', 64),
+        ]])->assertJsonStructure(['error']);
+    }
+
+    public function test_release_review_requires_separate_consent_and_does_not_grant_execution(): void
+    {
+        [, , $tokens] = $this->issue(scope: AdminAccess::READ.' '.AdminAccess::RELEASE_REVIEW);
+        $tools = $this->rpc($tokens['access_token'])->assertOk()->json('result.tools');
+        $names = array_column($tools, 'name');
+        $this->assertContains('release_manifest_review', $names);
+        $this->assertNotContains('request_ssh_command', $names);
+        $this->assertNotContains('execute_ssh_command', $names);
+        $this->assertNotContains('admin_ticket_reply', $names);
+        $review = collect($tools)->firstWhere('name', 'release_manifest_review');
+        $this->assertTrue($review['annotations']['readOnlyHint']);
+        $this->assertFalse($review['inputSchema']['additionalProperties']);
+        $this->assertSame([AdminAccess::RELEASE_REVIEW], $review['securitySchemes'][0]['scopes']);
+        $this->assertSame(['release', 'commit', 'manifest_sha256'], array_keys($review['inputSchema']['properties']));
+        $commit = str_repeat('a', 40);
+        $manifest = json_encode([
+            'schema' => 'servernet-web-release/v1', 'release' => 'fixture-release',
+            'git_source_commit' => str_repeat('b', 40), 'deployment_authorized' => false,
+            'files' => [[
+                'source' => 'website/public/assets/css/mcp-review-fixture.css',
+                'destination' => 'public_html/assets/css/mcp-review-fixture.css',
+                'operation' => 'add', 'before' => null, 'after' => str_repeat('c', 64),
+            ]],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        config(['mcp_admin.release_app_root' => base_path(), 'mcp_admin.release_public_root' => public_path()]);
+        Http::fake(['https://raw.githubusercontent.com/servernetir/server/'.$commit.'/scripts/releases/fixture-release/manifest.json' => Http::response($manifest)]);
+        $response = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'release_manifest_review', 'arguments' => [
+            'release' => 'fixture-release', 'commit' => $commit, 'manifest_sha256' => hash('sha256', $manifest),
+        ]])->assertOk()->assertJsonStructure(['result' => ['content']]);
+        $this->assertStringContainsString('review_only', $response->getContent());
+        $this->assertStringContainsString('deployment_authorized', $response->getContent());
+        Http::assertSentCount(1);
+        $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'request_ssh_command', 'arguments' => ['target' => 'fixture', 'command' => 'false']])
+            ->assertJsonStructure(['error']);
+        $this->assertDatabaseCount('mcp_admin_actions', 0);
     }
 
     public function test_management_scopes_are_explicit_and_do_not_expand_infrastructure_grants(): void

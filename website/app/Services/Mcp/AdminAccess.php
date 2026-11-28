@@ -9,6 +9,7 @@ final class AdminAccess
 {
     public const READ = 'infrastructure:read';
     public const EXECUTE = 'infrastructure:execute';
+    public const RELEASE_REVIEW = 'infrastructure:release:review';
     public const MANAGEMENT_READ = 'management:read';
     public const TICKET_REPLY = 'management:tickets:reply';
 
@@ -37,6 +38,7 @@ final class AdminAccess
     public static function scopes(): array
     {
         return [self::READ => 'mcp_admin.scope_read', self::EXECUTE => 'mcp_admin.scope_execute',
+            self::RELEASE_REVIEW => 'mcp_admin.scope_release_review',
             self::MANAGEMENT_READ => 'mcp_admin.scope_management_read', self::TICKET_REPLY => 'mcp_admin.scope_ticket_reply'];
     }
 }
