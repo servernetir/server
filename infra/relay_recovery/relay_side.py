@@ -276,7 +276,10 @@ class RelaySide:
                 allowed = any(within(resolved, inc) for _, inc in self.includes) and not self._excluded(resolved)
                 links.append({"group": group, "path": str(path), "target": target, "target_in_inventory_scope": allowed})
                 if not allowed:
-                    issues.append({"group": group, "path": str(path), "code": "symlink_target_outside_scope"})
+                    # Lexical target only. Do not resolve through the host or
+                    # read its contents, and never widen the configured scope.
+                    issues.append({"group": group, "path": str(path), "resolved_target": str(resolved),
+                                   "code": "symlink_target_outside_scope"})
                 return
             if stat.S_ISDIR(info.st_mode):
                 directories[path] = {"group": group, "path": str(path), "member": "data/" + path.as_posix().lstrip("/"),
@@ -333,7 +336,8 @@ class RelaySide:
                 target = link["target"]
                 resolved = Path(os.path.normpath(str(path.parent / target))) if not target.startswith("/") else Path(os.path.normpath(target))
                 if resolved not in files and resolved not in directories:
-                    issues.append({"group": link["group"], "path": link["path"], "code": "symlink_target_not_exported"})
+                    issues.append({"group": link["group"], "path": link["path"], "resolved_target": str(resolved),
+                                   "code": "symlink_target_not_exported"})
         self.inventory_directories = sorted(directories.values(), key=lambda d: d["path"])
         return sorted(files.values(), key=lambda f: f["path"]), links, issues
 

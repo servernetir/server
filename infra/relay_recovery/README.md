@@ -44,6 +44,16 @@ the integration.
 | `windows_candidate_probe_client.py` | Explicit, default-off native candidate guest envelope; separate fixed proxy enrollment and live transport required |
 | `maintenance.py` | Bounded pruning of obsolete probe history while retaining Iran effects and their provenance |
 
+Authenticated backup inspection writes the compact `inspect-latest.json` status
+and a separate mode-0600 `inspect-details.json` remediation report in the
+private backup state directory. Match request ID, generation, configuration and
+registry hashes before using the detail report. It retains only bounded issue
+metadata and unapproved Docker diff previews; omission counts identify truncated
+previews. An external symlink's `resolved_target` is lexical metadata, not a
+filesystem traversal or permission to export that path. Review exact package
+ownership and version compatibility separately. Neither report authorizes
+inventory widening, export, restore acceptance, promotion or retirement.
+
 Importing modules performs no provider or application operation. All credentials
 and infrastructure inventories belong in private configuration outside this
 repository and outside the web root. Never commit `.env`, private keys, exported
