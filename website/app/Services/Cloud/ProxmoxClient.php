@@ -1119,9 +1119,37 @@ class ProxmoxClient implements CloudProvider
     {
         try {
             $password = $this->randomPassword();
+            ['node' => $node, 'kind' => $kind] = $this->locate($ref);
+            if ($kind !== self::KIND_QEMU) {
+                return ['ok' => false, 'message' => 'تغییر رمز برای این نوع مهمان پشتیبانی نمی‌شود.', 'root_password' => null];
+            }
+
+            $base = '/nodes/'.rawurlencode($node).'/qemu/'.rawurlencode($ref);
+            $config = $this->req('GET', $base.'/config');
+            if (! $config['ok']) {
+                return ['ok' => false, 'message' => 'نوع سیستم‌عامل سرور قابل تأیید نیست.', 'root_password' => null];
+            }
+
+            // Windows guests use the live guest-agent API, not Linux cloud-init.
+            $ostype = strtolower((string) data_get($config['body'], 'data.ostype', ''));
+            if (str_starts_with($ostype, 'win') || str_starts_with($ostype, 'w2k')) {
+                // Ensure the generated credential meets standard Windows complexity.
+                $password = 'Aa2@'.$this->randomPassword(20);
+                $r = $this->req('POST', $base.'/agent/set-user-password', [
+                    'username' => 'Administrator',
+                    'password' => $password,
+                    'crypted'  => 0,
+                ]);
+
+                return [
+                    'ok' => $r['ok'],
+                    'message' => $r['ok'] ? '' : 'تغییر رمز ویندوز انجام نشد؛ وضعیت Guest Agent باید بررسی شود.',
+                    'root_password' => $r['ok'] ? $password : null,
+                ];
+            }
 
             // رمزِ جدیدِ cloud-init؛ در بوتِ بعدی اعمال می‌شود.
-            $r = $this->req('PUT', '/nodes/'.rawurlencode($this->node()).'/qemu/'.rawurlencode($ref).'/config', [
+            $r = $this->req('PUT', $base.'/config', [
                 'ciuser'     => 'root',
                 'cipassword' => $password,
             ]);
