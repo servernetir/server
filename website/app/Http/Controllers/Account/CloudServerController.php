@@ -195,7 +195,7 @@ class CloudServerController extends Controller
             'appList' => $instance ? CloudImage::catalog('app', $instance->provider)->whereIn('key', $rebuildKeys)->values() : collect(),
             // فازِ A
             'exitCapable' => $exitCapable,
-            'exitOptions' => $exitCapable ? ExitCountries::options('fa') : [],
+            'exitOptions' => $exitCapable ? \App\Support\ExitEntitlement::options($instance, app()->getLocale()) : [],
             'exitCurrent' => $exitCapable ? ($instance->exitCountryCode() ?: ExitCountries::NONE) : null,
             // اکانت‌های تونلِ TCP
             'tunnel' => $tunnel,
@@ -331,13 +331,7 @@ class CloudServerController extends Controller
      */
     private function exitAllowed(?CloudInstance $instance): bool
     {
-        // Exit is a distinct product or an explicit add-on; preserve an existing
-        // active legacy routing assignment, but never advertise it by default.
-        return $instance !== null && $instance->provider === 'proxmox'
-            && $instance->isDelivered()
-            && (str_starts_with((string) $instance->location_code, 'exit-')
-                || data_get($instance->meta, 'exit_entitled') === true
-                || $instance->exitCountryCode() !== null);
+        return \App\Support\ExitEntitlement::allows($instance);
     }
 
     public function setExitCountry(Request $request, Service $service): RedirectResponse
@@ -367,18 +361,31 @@ class CloudServerController extends Controller
 
         $cc = strtolower(trim((string) $request->input('country')));
 
-        if (! ExitCountries::accepts($cc)) {
-            return back()->withErrors(__('ui.cx_country_na'));
-        }
-
         $disable = ExitCountries::isNone($cc);
 
-        $meta = $instance->meta ?? [];
-        $meta['exit_country'] = $disable ? ExitCountries::NONE : $cc;
-        $meta['exit_country_at'] = now()->toIso8601String();
-        $meta['exit_country_by'] = 'customer';
-        $instance->meta = $meta;
-        $instance->save();
+        // Re-read under the same locks used by the administrator toggle:
+        // a concurrent revoke must not be overwritten by a stale guest request.
+        $result = DB::transaction(function () use ($service, $cc, $disable) {
+            $fresh = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            $i = CloudInstance::where('service_id', $fresh->id)->lockForUpdate()->first();
+            if ((int) $fresh->customer_id !== (int) $service->customer_id
+                || $fresh->status !== 'active' || ! $this->exitAllowed($i)
+                || CloudInstance::where('provider', 'proxmox')->where('provider_ref', $i->provider_ref)->count() !== 1) {
+                return 'unavailable';
+            }
+            if (! \App\Support\ExitEntitlement::accepts($i, $cc)) {
+                return 'country';
+            }
+            $meta = $i->meta ?? [];
+            $meta['exit_country'] = $disable ? ExitCountries::NONE : $cc;
+            $meta['exit_country_at'] = now()->toIso8601String();
+            $meta['exit_country_by'] = 'customer';
+            $i->forceFill(['meta' => $meta])->save();
+            return 'saved';
+        });
+        if ($result !== 'saved') {
+            return back()->withErrors(__($result === 'country' ? 'ui.cx_country_na' : 'ui.cx_egress_na'));
+        }
 
         $label = $disable ? __('panel.exit_local') : mb_strtoupper($cc);
 
