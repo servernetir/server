@@ -145,6 +145,9 @@ class CloudServerController extends Controller
         if ($instance?->provider === 'vpstc') {
             $caps['console'] = app(\App\Services\Cloud\VpsTcConsoleBroker::class)->enabledFor($service);
         }
+        if ($instance?->provider === 'proxmox') {
+            $caps['console'] = app(\App\Services\Cloud\ProxmoxConsoleBroker::class)->enabledFor($service);
+        }
 
         // آروان برای ایمیج‌های ویندوز API تغییر رمز ندارد (پاسخ زندهٔ API:
         // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
@@ -760,6 +763,20 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_console_na'));
         }
 
+        if ($instance->provider === 'proxmox') {
+            $broker = app(\App\Services\Cloud\ProxmoxConsoleBroker::class);
+            if (! $broker->enabledFor($service)) {
+                return back()->withErrors(__('ui.cx_console_na'));
+            }
+            $ticket = bin2hex(random_bytes(16));
+            Cache::put($this->ticketKey($service, $ticket), [
+                'proxmox_grant' => $broker->issue($service),
+            ], now()->addSeconds(70));
+            $this->log($service, __('ui.act_cloud_console'));
+            return redirect()->to(lroute('account.cloud.console.view', [$service, 't' => $ticket]))
+                ->header('Cache-Control', 'no-store, private');
+        }
+
         if ($instance->provider === 'vpstc') {
             $broker = app(\App\Services\Cloud\VpsTcConsoleBroker::class);
             if (! $broker->enabledFor($service)) { return back()->withErrors(__('ui.cx_console_na')); }
@@ -847,6 +864,16 @@ class CloudServerController extends Controller
         $data = Cache::pull(
             $this->ticketKey($service, (string) $request->query('t', ''))
         );
+
+        if (is_array($data) && is_string($data['proxmox_grant'] ?? null)) {
+            $ready = app(\App\Services\Cloud\ProxmoxConsoleBroker::class)->prepare($service, $data['proxmox_grant']);
+            if (! $ready) {
+                return response()->json(['ok' => false, 'message' => __('panel.cloud_console_unavailable')], 503)
+                    ->header('Cache-Control', 'no-store, private');
+            }
+            return response()->json(['ok' => true] + $ready)
+                ->header('Cache-Control', 'no-store, private')->header('Referrer-Policy', 'no-referrer');
+        }
 
         if (! is_array($data) || blank($data['url'] ?? null)) {
             return response()->json(['ok' => false, 'message' => __('panel.cloud_console_expired')], 410);
