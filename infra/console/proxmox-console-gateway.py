@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 ALLOWED_VMS = {"116", "130"}
 ALLOWED_ORIGINS = {"https://console.servernet.cloud", "https://servernet.cloud"}
-PUBLIC = "pve-console-ir.servernet.cloud"
+PUBLIC = "pve-console.ir-vps.servernet.cloud"
 PVE = "https://pve.servernet.cloud:8006/api2/json/nodes/ir/qemu/"
 HEX = re.compile(r"^[a-f0-9]{64}$")
 SIG = re.compile(r"^[a-f0-9]{128}$")
