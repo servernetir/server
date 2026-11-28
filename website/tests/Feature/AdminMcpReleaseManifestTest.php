@@ -39,12 +39,12 @@ final class AdminMcpReleaseManifestTest extends TestCase
         parent::tearDown();
     }
 
-    private function url(): string
+    private function manifestFixtureUrl(): string
     {
         return 'https://raw.githubusercontent.com/servernetir/server/'.self::COMMIT.'/scripts/releases/'.self::RELEASE.'/manifest.json';
     }
 
-    private function body(array $files, array $extra = []): string
+    private function manifestBody(array $files, array $extra = []): string
     {
         return json_encode(array_merge([
             'schema' => 'servernet-web-release/v1',
@@ -55,7 +55,7 @@ final class AdminMcpReleaseManifestTest extends TestCase
         ], $extra), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n";
     }
 
-    private function view(?string $before = null, string $operation = 'replace'): array
+    private function manifestViewRow(?string $before = null, string $operation = 'replace'): array
     {
         return [
             'source' => 'website/resources/views/pages/fixture.blade.php',
@@ -66,7 +66,7 @@ final class AdminMcpReleaseManifestTest extends TestCase
         ];
     }
 
-    private function asset(): array
+    private function manifestAssetRow(): array
     {
         return [
             'source' => 'website/public/assets/css/fixture.css',
@@ -77,17 +77,17 @@ final class AdminMcpReleaseManifestTest extends TestCase
         ];
     }
 
-    private function provide(string $body, int $status = 200, array $headers = []): void
+    private function mockManifestResponse(string $body, int $status = 200, array $headers = []): void
     {
-        Http::fake([$this->url() => Http::response($body, $status, $headers)]);
+        Http::fake([$this->manifestFixtureUrl() => Http::response($body, $status, $headers)]);
     }
 
-    private function review(string $body): array
+    private function inspectManifestFixture(string $body): array
     {
         return app(ReleaseManifestReview::class)->review(self::RELEASE, self::COMMIT, hash('sha256', $body));
     }
 
-    private function assertRejected(string $body, ?string $hash = null): void
+    private function assertManifestRejected(string $body, ?string $hash = null): void
     {
         $error = null;
         try {
@@ -104,10 +104,10 @@ final class AdminMcpReleaseManifestTest extends TestCase
         $file = $this->home.'/app/resources/views/pages/fixture.blade.php';
         $original = '<h1>fixture-private-content</h1>';
         file_put_contents($file, $original);
-        $body = $this->body([$this->view(hash('sha256', $original)), $this->asset()]);
-        $this->provide($body);
+        $body = $this->manifestBody([$this->manifestViewRow(hash('sha256', $original)), $this->manifestAssetRow()]);
+        $this->mockManifestResponse($body);
 
-        $result = $this->review($body);
+        $result = $this->inspectManifestFixture($body);
         $this->assertSame('review_only', $result['status']);
         $this->assertFalse($result['deployment_authorized']);
         $this->assertSame(self::RELEASE, $result['release']);
@@ -129,7 +129,7 @@ final class AdminMcpReleaseManifestTest extends TestCase
         $this->assertFileDoesNotExist($this->home.'/public/assets/css/fixture.css');
         $this->assertDatabaseCount('mcp_admin_actions', 0);
         Http::assertSentCount(1);
-        Http::assertSent(fn ($request) => $request->method() === 'GET' && $request->url() === $this->url());
+        Http::assertSent(fn ($request) => $request->method() === 'GET' && $request->url() === $this->manifestFixtureUrl());
     }
 
     public function test_hash_drift_and_unexpected_existing_add_are_conflicts_not_overwrites(): void
@@ -138,9 +138,9 @@ final class AdminMcpReleaseManifestTest extends TestCase
         $css = $this->home.'/public/assets/css/fixture.css';
         file_put_contents($file, 'a later colleague change');
         file_put_contents($css, 'already present');
-        $body = $this->body([$this->view(hash('sha256', 'old')), $this->asset()]);
-        $this->provide($body);
-        $result = $this->review($body);
+        $body = $this->manifestBody([$this->manifestViewRow(hash('sha256', 'old')), $this->manifestAssetRow()]);
+        $this->mockManifestResponse($body);
+        $result = $this->inspectManifestFixture($body);
         $this->assertSame(['conflict', 'conflict'], array_column($result['files'], 'status'));
         $this->assertSame(2, $result['counts']['conflict']);
         $this->assertFalse($result['deployment_authorized']);
@@ -153,9 +153,9 @@ final class AdminMcpReleaseManifestTest extends TestCase
         $outside = $this->home.'/outside';
         file_put_contents($outside, 'fixture-private-content');
         symlink($outside, $this->home.'/app/resources/views/pages/fixture.blade.php');
-        $body = $this->body([$this->view(hash('sha256', 'fixture-private-content'))]);
-        $this->provide($body);
-        $result = $this->review($body);
+        $body = $this->manifestBody([$this->manifestViewRow(hash('sha256', 'fixture-private-content'))]);
+        $this->mockManifestResponse($body);
+        $result = $this->inspectManifestFixture($body);
         $this->assertSame('unsafe', $result['files'][0]['status']);
         $this->assertSame(1, $result['counts']['unsafe']);
         $this->assertFalse($result['deployment_authorized']);
@@ -164,118 +164,118 @@ final class AdminMcpReleaseManifestTest extends TestCase
 
     public function test_mismatched_pinned_hash_is_refused(): void
     {
-        $body = $this->body([$this->asset()]);
-        $this->provide($body);
-        $this->assertRejected($body, str_repeat('f', 64));
+        $body = $this->manifestBody([$this->manifestAssetRow()]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body, str_repeat('f', 64));
     }
 
     public function test_source_mapping_cannot_target_env_or_an_unrelated_public_path(): void
     {
-        $row = $this->asset();
+        $row = $this->manifestAssetRow();
         $row['destination'] = 'servernet_app/.env';
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_traversal_is_refused_even_if_destination_looks_valid(): void
     {
-        $row = $this->asset();
+        $row = $this->manifestAssetRow();
         $row['source'] = 'website/public/assets/css/../css/fixture.css';
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_duplicate_paths_are_refused(): void
     {
-        $body = $this->body([$this->asset(), $this->asset()]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$this->manifestAssetRow(), $this->manifestAssetRow()]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_casefold_duplicate_destinations_are_refused(): void
     {
-        $other = $this->asset();
+        $other = $this->manifestAssetRow();
         $other['source'] = 'website/public/assets/css/Fixture.css';
         $other['destination'] = 'public_html/assets/css/Fixture.css';
-        $body = $this->body([$this->asset(), $other]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$this->manifestAssetRow(), $other]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_missing_replace_is_a_conflict_not_a_new_install(): void
     {
-        $body = $this->body([$this->view(hash('sha256', 'old fixture'))]);
-        $this->provide($body);
-        $result = $this->review($body);
+        $body = $this->manifestBody([$this->manifestViewRow(hash('sha256', 'old fixture'))]);
+        $this->mockManifestResponse($body);
+        $result = $this->inspectManifestFixture($body);
         $this->assertSame('conflict', $result['files'][0]['status']);
         $this->assertFileDoesNotExist($this->home.'/app/resources/views/pages/fixture.blade.php');
     }
 
     public function test_noop_is_refused(): void
     {
-        $row = $this->view(hash('sha256', '<h1>New fixture</h1>'));
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $row = $this->manifestViewRow(hash('sha256', '<h1>New fixture</h1>'));
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_destructive_operation_is_refused(): void
     {
-        $row = $this->view(hash('sha256', 'old fixture'));
+        $row = $this->manifestViewRow(hash('sha256', 'old fixture'));
         $row['operation'] = 'delete';
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_privileged_runtime_file_is_outside_admission_scope(): void
     {
-        $row = $this->view(hash('sha256', 'old fixture'));
+        $row = $this->manifestViewRow(hash('sha256', 'old fixture'));
         $row['source'] = 'website/app/Services/Mcp/CommandApprovals.php';
         $row['destination'] = 'servernet_app/app/Services/Mcp/CommandApprovals.php';
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_append_cannot_hide_preexisting_hash(): void
     {
-        $row = $this->asset();
+        $row = $this->manifestAssetRow();
         $row['before'] = hash('sha256', 'old CSS');
-        $body = $this->body([$row]);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$row]);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_manifest_cannot_authorize_deployment_or_supply_commands(): void
     {
-        $body = $this->body([$this->asset()], ['deployment_authorized' => true, 'command' => 'fixture-private-content']);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$this->manifestAssetRow()], ['deployment_authorized' => true, 'command' => 'fixture-private-content']);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_duplicate_json_field_is_refused_not_silently_collapsed(): void
     {
-        $body = str_replace('"deployment_authorized":false', '"deployment_authorized":true,"deployment_authorized":false', $this->body([$this->asset()]));
-        $this->provide($body);
-        $this->assertRejected($body);
+        $body = str_replace('"deployment_authorized":false', '"deployment_authorized":true,"deployment_authorized":false', $this->manifestBody([$this->manifestAssetRow()]));
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_non_successful_response_and_redirect_are_not_used_for_admission(): void
     {
-        $body = $this->body([$this->asset()]);
-        $this->provide($body, 302, ['Location' => 'https://other.invalid/manifest']);
-        $this->assertRejected($body);
+        $body = $this->manifestBody([$this->manifestAssetRow()]);
+        $this->mockManifestResponse($body, 302, ['Location' => 'https://other.invalid/manifest']);
+        $this->assertManifestRejected($body);
         Http::assertSentCount(1);
     }
 
     public function test_oversized_manifest_is_refused(): void
     {
         $body = str_repeat('a', 32769);
-        $this->provide($body);
-        $this->assertRejected($body);
+        $this->mockManifestResponse($body);
+        $this->assertManifestRejected($body);
     }
 
     public function test_invalid_identifier_is_refused_before_any_network_request(): void
