@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Http;
 class ProxmoxConsoleBroker
 {
     private const PILOT = [44 => [7, '116'], 1044 => [550, '130']];
-    private const ORIGIN = 'https://pve-console-ir.servernet.cloud';
+    private const ORIGIN = 'https://pve-console.ir-vps.servernet.cloud';
 
     private function context(Service $service): ?array
     {
@@ -88,7 +88,7 @@ class ProxmoxConsoleBroker
                 ->withBody($body, 'application/json')->post(self::ORIGIN.'/prepare');
             $data = $r->successful() && strlen($r->body()) < 4096 ? $r->json() : null;
             if (! is_array($data) || ! is_string($data['url'] ?? null)
-                || ! preg_match('#\Awss://pve-console-ir\.servernet\.cloud/ws/[a-f0-9]{64}\z#D', $data['url'])
+                || ! preg_match('#\Awss://pve-console\.ir-vps\.servernet\.cloud/ws/[a-f0-9]{64}\z#D', $data['url'])
                 || ! is_string($data['password'] ?? null)
                 || ! preg_match('/\A[\x21-\x7e]{8}\z/D', $data['password'])) {
                 return null;
