@@ -606,7 +606,8 @@ class ProxmoxClient implements CloudProvider
 
             if (($spec['managed_application'] ?? null) === 'n8n') {
                 $config['cores'] = max(1, min(64, (int) ($spec['vcpu'] ?? 1)));
-                $config['memory'] = max(2048, min(524288, (int) ($spec['ram_mb'] ?? 2048)));
+                // The catalogue gates Starter orders; delivery must honor RAM already purchased.
+                $config['memory'] = max(1024, min(524288, (int) ($spec['ram_mb'] ?? 2048)));
                 $config['balloon'] = 0;
             }
 
