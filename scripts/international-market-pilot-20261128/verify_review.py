@@ -18,6 +18,8 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 REVIEW = HERE / 'manifest.review.json'
+OVERLAYS = HERE / 'reconciliation-overlays.json'
+PLAN = HERE / 'candidate-install-plan.json'
 EXPECTED_RECONCILIATION = {
     'website/app/Console/Commands/ReleaseGate.php',
     'website/app/Http/Controllers/SiteController.php',
@@ -54,7 +56,7 @@ def destination(source):
 
 def verify(manifest):
     assert manifest['publishable'] is False
-    assert manifest['status'] == 'review_only_pending_reconciliation'
+    assert manifest['status'] == 'review_only_pending_runtime_validation'
     base, candidate = manifest['git_base'], manifest['git_candidate']
     changes = git('diff', '--name-status', base, candidate, '--', 'website/').decode().splitlines()
     runtime = {path: op for op, path in (line.split('\t') for line in changes) if path not in NON_RUNTIME}
@@ -81,11 +83,11 @@ def verify(manifest):
             pending.append(source)
     assert set(pending) == EXPECTED_RECONCILIATION
     evidence = manifest['reconciliation_evidence']
-    assert evidence['state'] == 'three_local_candidates_one_source_handoff_required'
+    assert evidence['state'] == 'four_local_candidates_verified'
     assert evidence['php_and_runtime_validation_pending'] is True
     proposals = evidence['offline_candidates']
-    assert set(proposals) == EXPECTED_RECONCILIATION - {'website/routes/web.php'}
-    assert evidence['source_handoff_pending'] == ['website/routes/web.php']
+    assert set(proposals) == EXPECTED_RECONCILIATION
+    assert evidence['source_handoff_pending'] == []
     for row in records:
         if row['source'] in proposals:
             proposal = proposals[row['source']]
@@ -104,7 +106,50 @@ def verify(manifest):
     }
     assert b"env('INTERNATIONAL_MARKET_LOCALES', '')" in blob(candidate, 'website/config/international-market.php')
     assert manifest['acceptance']['submit_only_after_acceptance'] is True
+    verify_plan(manifest, json.loads(PLAN.read_text()), json.loads(OVERLAYS.read_text()))
     return pending
+
+
+def verify_plan(manifest, plan, overlays):
+    assert plan['deployment_authorized'] is False
+    assert plan['status'] == 'complete_source_candidate_pending_runtime_review'
+    assert plan['git_source_commit'] == manifest['git_candidate']
+    assert set(overlays) == EXPECTED_RECONCILIATION
+    assert len(plan['files']) == len(manifest['files'])
+    assert all(plan['constraints'].values())
+    for row, candidate in zip(manifest['files'], plan['files']):
+        assert row['source'] == candidate['source']
+        assert row['destination'] == candidate['destination']
+        assert row['observed_live_sha256'] == candidate['before']
+        if row['source'] in overlays:
+            overlay = overlays[row['source']]
+            expected = manifest['reconciliation_evidence']['offline_candidates'][row['source']]
+            assert overlay['source_sha256'] == expected['source_sha256'] == candidate['before']
+            assert overlay['proposed_sha256'] == expected['proposed_sha256'] == candidate['after']
+            assert candidate['operation'] == 'overlay'
+            assert overlay['edits'] and all(set(e) == {'old', 'new', 'count'} and e['old'] and e['new']
+                                            and e['old'] != e['new'] and e['count'] == 1 for e in overlay['edits'])
+        else:
+            assert candidate['after'] == row['candidate_sha256']
+            assert candidate['operation'] == ('add' if row['operation'] == 'add' else 'replace')
+
+
+def reproduce_overlay(data, overlay):
+    """Offline byte proof using exact reviewed hunks, never a deployment operation."""
+    assert sha(data) == overlay['source_sha256']
+    original = data
+    for edit in overlay['edits']:
+        old, new = edit['old'].encode(), edit['new'].encode()
+        assert data.count(old) == edit['count'] == 1
+        data = data.replace(old, new, 1)
+    assert sha(data) == overlay['proposed_sha256']
+    restored = data
+    for edit in reversed(overlay['edits']):
+        new, old = edit['new'].encode(), edit['old'].encode()
+        assert restored.count(new) == 1
+        restored = restored.replace(new, old, 1)
+    assert restored == original
+    return data
 
 
 def three_way(live, base, candidate):
@@ -130,6 +175,7 @@ def check_snapshots(manifest, folder):
     # stand-alone export under the operator's local working directory.
     assert not folder.is_relative_to(Path('/home/servernetcloud'))
     results = []
+    overlays = json.loads(OVERLAYS.read_text())
     for row in manifest['files']:
         if row['source'] not in EXPECTED_RECONCILIATION:
             continue
@@ -141,9 +187,8 @@ def check_snapshots(manifest, folder):
         if sha(data) != row['observed_live_sha256']:
             results.append({'source': row['source'], 'status': 'snapshot_digest_mismatch'})
             continue
-        merged = three_way(data, blob(manifest['git_base'], row['source']),
-                           blob(manifest['git_candidate'], row['source']))
-        results.append({'source': row['source'], 'status': 'needs_human_review' if merged is None else 'clean_merge_needs_review',
+        merged = reproduce_overlay(data, overlays[row['source']])
+        results.append({'source': row['source'], 'status': 'forward_reverse_proof_ok_pending_runtime_review',
                         'proposed_sha256': sha(merged)})
     return results
 

@@ -40,13 +40,21 @@ class ReviewTest(unittest.TestCase):
 
     def test_reconciliation_evidence_does_not_make_release_publishable(self):
         evidence = self.manifest['reconciliation_evidence']
-        self.assertEqual(len(evidence['offline_candidates']), 3)
-        self.assertEqual(evidence['source_handoff_pending'], ['website/routes/web.php'])
+        self.assertEqual(len(evidence['offline_candidates']), 4)
+        self.assertEqual(evidence['source_handoff_pending'], [])
         modified = copy.deepcopy(self.manifest)
         source = next(iter(evidence['offline_candidates']))
         modified['reconciliation_evidence']['offline_candidates'][source]['source_sha256'] = '0' * 64
         with self.assertRaises(AssertionError):
             review.verify(modified)
+
+    def test_offline_overlay_forward_and_reverse_proof(self):
+        original, proposed = b'old\nkeep\n', b'new\nkeep\n'
+        overlay = {'source_sha256': review.sha(original), 'proposed_sha256': review.sha(proposed),
+                   'edits': [{'old': 'old\n', 'new': 'new\n', 'count': 1}]}
+        self.assertEqual(review.reproduce_overlay(original, overlay), proposed)
+        with self.assertRaises(AssertionError):
+            review.reproduce_overlay(b'unexpected\n', overlay)
 
 
 if __name__ == '__main__':

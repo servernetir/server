@@ -1,6 +1,6 @@
 {
   "release": "international-market-pilot-20261128",
-  "status": "review_only_pending_reconciliation",
+  "status": "review_only_pending_runtime_validation",
   "publishable": false,
   "git_base": "174be0972e6e28b3e2399e3a91cc37fd18c5d796",
   "git_candidate": "1df3c7d8f7c591283b26e48222b6f524448402bc",
@@ -148,8 +148,8 @@
     }
   ],
   "reconciliation_evidence": {
-    "state": "three_local_candidates_one_source_handoff_required",
-    "source_observation": "Approved read-only source comparison; three complete differences reconstructed and SHA-256 verified. The fourth comparison was truncated and is not usable as a complete source snapshot.",
+    "state": "four_local_candidates_verified",
+    "source_observation": "Approved read-only source comparison reconstructed three complete files. The owner supplied the complete fourth source-only snapshot, whose exact observed SHA-256 was verified. All four local overlays have exact forward and reverse byte proofs.",
     "offline_candidates": {
       "website/app/Console/Commands/ReleaseGate.php": {
         "source_sha256": "c83a9bfc95e802d82b421aaf410818b75bf134d7a036aa2c0259a53d4c5959bf",
@@ -165,9 +165,14 @@
         "source_sha256": "1e4e752ee8c701612c6b0b1f0c643d0fa970cd96c4a8f3e81789b10900cfdb48",
         "proposed_sha256": "b3a56ac69cd4022859db7291c098c44583670987ebcf4d8a70490fd13637407e",
         "method": "clean_three_way_merge"
+      },
+      "website/routes/web.php": {
+        "source_sha256": "28637331b10bc45d03de8bb81e3573876b6cc2f247b02e120232a78511a45b05",
+        "proposed_sha256": "67158745727caee76f597e21f33d3daad07e95937e63438162cec500de7b5114",
+        "method": "owner_supplied_complete_snapshot_scoped_route_include"
       }
     },
-    "source_handoff_pending": ["website/routes/web.php"],
+    "source_handoff_pending": [],
     "php_and_runtime_validation_pending": true
   },
   "activation": {
