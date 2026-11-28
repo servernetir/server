@@ -597,8 +597,23 @@ class Service extends Model
         if ($this->hasUnverifiedBillingTerms()) { return null; }
         $months = self::monthsIn((string) $this->cycle);
 
+        if ($months <= 0) {
+            return null;
+        }
+
+        // Explicit contract anchor: preserve the agreed Persian calendar day on renewal.
+        // Other subscriptions retain the existing Gregorian billing behavior.
+        $anchor = data_get($this->provision_meta, 'jalali_renewal_day');
+        if (is_int($anchor) && $anchor >= 1 && $anchor <= 31) {
+            [$jy, $jm] = \App\Support\Jalali::fromGregorian($from->year, $from->month, $from->day);
+            [$jy, $jm, $jd] = \App\Support\Jalali::addMonths($jy, $jm, $anchor, $months);
+            [$gy, $gm, $gd] = \App\Support\Jalali::toGregorian($jy, $jm, $jd);
+
+            return $from->copy()->setDate($gy, $gm, $gd);
+        }
+
         // NoOverflow لازم است: ۳۱ فروردین + ۱ ماه نباید به دو ماه بعد بپرد.
-        return $months > 0 ? $from->copy()->addMonthsNoOverflow($months) : null;
+        return $from->copy()->addMonthsNoOverflow($months);
     }
 
     public function cycleLabel(): string
