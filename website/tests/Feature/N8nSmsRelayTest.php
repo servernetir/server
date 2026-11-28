@@ -167,6 +167,43 @@ class N8nSmsRelayTest extends TestCase
         $this->fakeN8n(['message' => 'Error in workflow'], 500);
 
         $this->assertFalse($this->relay()->sendOtp('09142223343', '483920'));
+        Http::assertSentCount(1);
+    }
+
+    public function test_a_provider_rate_limit_is_reported_without_retry(): void
+    {
+        $this->fakeN8n(['status' => 'failed', 'reason' => 'rate_limited']);
+
+        $this->assertFalse($this->relay()->sendOtp('09142223343', '483920'));
+        $this->assertSame('rate_limited', Cache::get('sms:last_error')['reason']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_an_http_429_is_reported_without_retry(): void
+    {
+        $this->fakeN8n(['message' => 'Too many requests'], 429);
+
+        $this->assertFalse($this->relay()->sendOtp('09142223343', '483920'));
+        $this->assertSame('rate_limited', Cache::get('sms:last_error')['reason']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_an_ambiguous_connection_failure_is_never_retried(): void
+    {
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::failedConnection('Simulated connection failure')]);
+
+        $this->assertFalse($this->relay()->sendOtp('09142223343', '483920'));
+        $this->assertSame('transport_failed', Cache::get('sms:last_error')['reason']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_an_accepted_message_is_sent_only_once(): void
+    {
+        $this->fakeN8n(['status' => 'sent', 'outbox_id' => 42]);
+
+        $this->assertTrue($this->relay()->sendOtp('09142223343', '483920'));
+        Http::assertSentCount(1);
     }
 
     /**

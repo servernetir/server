@@ -72,8 +72,14 @@ class N8nRelaySender extends SignedRelaySender
 
     protected function deliver(string $envelope): bool
     {
-        $res = Http::asJson()->acceptJson()->withoutRedirecting()->timeout(15)->retry(2, 500)
+        // The relay can accept a message before its HTTP response is lost.
+        // Never resend a potentially accepted envelope automatically.
+        $res = Http::asJson()->acceptJson()->withoutRedirecting()->timeout(15)
             ->post((string) $this->url, ['envelope' => $envelope]);
+
+        if ($res->status() === 429) {
+            throw new RelayDeliveryException('rate_limited');
+        }
 
         /*
         | ⚠️ کدِ ۲۰۰ کافی **نیست**.

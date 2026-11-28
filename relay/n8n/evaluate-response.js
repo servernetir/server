@@ -22,13 +22,34 @@ const res = $json ?? {};
 */
 const outbox = res?.data?.message_outbox_ids;
 
-const ok = res?.meta?.status === true
+const acceptedEvidence = res?.meta?.status === true
   || (Array.isArray(outbox) && outbox.length > 0)
   || String(res?.meta?.message_code ?? '').startsWith('200');
+
+// Inspect structured HTTP status fields only; provider message text is not a status code.
+const statuses = [
+  res?.error?.status,
+  res?.error?.statusCode,
+  res?.statusCode,
+  res?.status,
+].filter(value =>
+  (Number.isInteger(value) && value >= 100 && value <= 599)
+  || (typeof value === 'string' && /^[1-5][0-9]{2}$/.test(value))
+).map(Number);
+// Prefer a verified error status over contradictory success fields.
+const httpStatus = statuses.find(value => value >= 400) ?? statuses[0];
+const ok = acceptedEvidence && !(Number.isFinite(httpStatus) && httpStatus >= 400);
+const definiteRejection = (httpStatus >= 400 && httpStatus < 500)
+  || (res?.meta?.status === false && (!Number.isFinite(httpStatus) || (httpStatus >= 200 && httpStatus < 300)));
+const failureReason = ok ? null
+  : httpStatus === 429 ? 'rate_limited'
+  : definiteRejection ? 'provider_failed'
+  : 'upstream_rejected';
 
 return [{ json: {
   ...prev,
   delivered: ok,
+  failure_reason: failureReason,
   // شناسهٔ صندوقِ خروجی — برای ردیابیِ یک پیامک در پنلِ اپراتور
   outbox_id: Array.isArray(outbox) ? (outbox[0] ?? null) : null,
   ippanel: res,

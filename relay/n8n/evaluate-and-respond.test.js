@@ -58,7 +58,8 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
 
   say(ev.delivered === false, 'توکنِ نامعتبر شکست شمرده شد');
   say(out.status === 'failed', 'گرهٔ پاسخ failed می‌دهد');
-  say(String(out.reason).includes('Invalid token'), '🔴 دلیل تا لاراول برمی‌گردد', out.reason?.slice(0, 40));
+  say(out.reason === 'provider_failed', '401 maps to stable provider_failed');
+  say(!JSON.stringify(out).includes('Invalid token'), 'raw provider text is not returned');
 }
 
 // ── ۳) شکستِ صریحِ اپراتور ──
@@ -66,7 +67,8 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
   const { out } = run({ data: { data: null }, meta: { status: false, message: 'اعتبار کافی نیست', message_code: '400-3' } });
 
   say(out.status === 'failed', 'meta.status=false شکست است', out.status);
-  say(out.reason === 'اعتبار کافی نیست', 'پیامِ فارسیِ اپراتور دست‌نخورده می‌رسد', out.reason);
+  say(out.reason === 'provider_failed', 'explicit provider rejection is classified');
+  say(!JSON.stringify(out).includes('اعتبار کافی نیست'), 'raw provider text is not returned');
 }
 
 /*
@@ -86,7 +88,35 @@ const say = (ok, name, extra = '') => { ok ? pass++ : fail++; console.log((ok ? 
     'آرایهٔ خالیِ شناسه = شکست', run({ data: { message_outbox_ids: [] } }).out.status);
 }
 
-// ── ۶) هیچ رازی در پاسخ نیست ──
+// ── ۶) Rate limits are classified from structured HTTP status only ──
+{
+  const diagnostic = "Try spacing your requests out using the batching settings under 'Options'";
+  for (const response of [
+    { error: { status: 429, message: diagnostic } },
+    { error: { statusCode: 429, message: diagnostic } },
+    { statusCode: '429', message: diagnostic },
+  ]) {
+    const { ev, out } = run(response);
+    say(ev.delivered === false && out.status === 'failed', '429 is a definitive failure');
+    say(out.reason === 'rate_limited', 'structured 429 is classified accurately');
+    say(!JSON.stringify(out).includes(diagnostic), 'raw diagnostic is not returned');
+  }
+  say(run({ error: { message: '429 ' + diagnostic } }).out.reason === 'upstream_rejected',
+    'text alone cannot establish HTTP 429');
+  say(run({ error: { status: 500, message: diagnostic } }).out.reason === 'upstream_rejected',
+    'ambiguous 500 is not classified as rate-limited');
+  const conflicting429 = run({ data: { message_outbox_ids: [42] }, meta: { status: true }, error: { status: 429 } }).out;
+  say(conflicting429.status === 'failed' && conflicting429.reason === 'rate_limited',
+    'verified HTTP 429 cannot be accepted despite contradictory success evidence');
+  const conflicting500 = run({ data: { message_outbox_ids: [42] }, meta: { status: true }, error: { status: 500 } }).out;
+  say(conflicting500.status === 'failed' && conflicting500.reason === 'upstream_rejected',
+    'verified HTTP 500 cannot be accepted despite contradictory success evidence');
+  const conflictingStatuses = run({ data: { message_outbox_ids: [42] }, error: { status: 200 }, statusCode: 429 }).out;
+  say(conflictingStatuses.status === 'failed' && conflictingStatuses.reason === 'rate_limited',
+    'a structured error status takes precedence over a conflicting success status');
+}
+
+// ── ۷) هیچ رازی در پاسخ نیست ──
 {
   const { out } = run({ meta: { status: true, message: 'انجام شد' }, data: { message_outbox_ids: [7] } });
 
