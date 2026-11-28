@@ -1,0 +1,80 @@
+name: International market pilot
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Support/InternationalMarket.php'
+      - 'website/app/Http/Controllers/InternationalMarketController.php'
+      - 'website/app/Http/Controllers/SiteController.php'
+      - 'website/app/Http/Middleware/ConsoleHost.php'
+      - 'website/app/Console/Commands/ReleaseGate.php'
+      - 'website/app/Console/Commands/CheckSiteLinks.php'
+      - 'website/routes/international-market.php'
+      - 'website/routes/web.php'
+      - 'website/config/international-market.php'
+      - 'website/lang/**/international-market.php'
+      - 'website/resources/views/pages/international-market.blade.php'
+      - 'website/resources/views/partials/header.blade.php'
+      - 'website/public/assets/css/international-market.css'
+      - 'website/tests/Feature/InternationalMarketPilotTest.php'
+      - 'website/tests/Feature/ForeignLocalePriceGuardTest.php'
+      - '.github/workflows/international-market-pilot.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: international-market-pilot-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      INTERNATIONAL_MARKET_LOCALES: ''
+      COMPOSER_NO_INTERACTION: '1'
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Test isolated publication and SEO contracts
+        run: |
+          set -euo pipefail
+          php -l app/Support/InternationalMarket.php
+          php -l app/Http/Controllers/InternationalMarketController.php
+          php -l routes/international-market.php
+          php -l config/international-market.php
+          php -l lang/ru/international-market.php
+          php -l lang/az/international-market.php
+          vendor/bin/phpunit tests/Feature/InternationalMarketPilotTest.php tests/Feature/SitemapIndexTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/LocaleKeysNeverDriftTest.php tests/Feature/ForeignLocalePriceGuardTest.php tests/Feature/ConsoleRobotsTest.php --display-warnings --fail-on-warning --colors=never

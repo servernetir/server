@@ -1,5 +1,6 @@
 @php
     $loc = app()->getLocale();
+    $marketLanguageLinks = \App\Support\InternationalMarket::switcher();
     $brandHome = preg_match('~^(?:en/|tr/)?account(?:/|$)~', request()->path())
         ? 'https://servernet.cloud'.($loc === 'fa' ? '' : '/'.$loc)
         : $homeUrl;
@@ -65,12 +66,16 @@
       </div>
       <div class="topbar-side">
         <span class="topbar-status hide-sm"><span class="pulse"></span>{{ __('ui.topbar_status') }}</span>
-        <nav class="lang-links" aria-label="Language">
+        <nav class="lang-links" aria-label="Language" @if($marketLanguageLinks !== []) style="flex-wrap:wrap" @endif>
           <a href="{{ $localeUrls['fa'] }}" @class(['active' => $loc === 'fa'])>فارسی</a>
           <span aria-hidden="true">|</span>
           <a href="{{ $localeUrls['en'] }}" @class(['active' => $loc === 'en'])>English</a>
           <span aria-hidden="true">|</span>
           <a href="{{ $localeUrls['tr'] }}" @class(['active' => $loc === 'tr'])>Türkçe</a>
+          @foreach($marketLanguageLinks as $marketCode => $marketUrl)
+          <span aria-hidden="true">|</span>
+          <a href="{{ $marketUrl }}" lang="{{ $marketCode }}">{{ \App\Support\InternationalMarket::LANGUAGES[$marketCode]['label'] }}</a>
+          @endforeach
         </nav>
       </div>
     </div>
@@ -414,12 +419,16 @@
     @endif
     <div class="drawer-meta">
       <a href="tel:{{ $contact['phone_link'] }}" dir="ltr"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
-      <nav class="lang-links">
+      <nav class="lang-links" @if($marketLanguageLinks !== []) style="flex-wrap:wrap" @endif>
         <a href="{{ $localeUrls['fa'] }}" @class(['active' => $loc === 'fa'])>فارسی</a>
         <span aria-hidden="true">|</span>
         <a href="{{ $localeUrls['en'] }}" @class(['active' => $loc === 'en'])>English</a>
         <span aria-hidden="true">|</span>
         <a href="{{ $localeUrls['tr'] }}" @class(['active' => $loc === 'tr'])>Türkçe</a>
+        @foreach($marketLanguageLinks as $marketCode => $marketUrl)
+        <span aria-hidden="true">|</span>
+        <a href="{{ $marketUrl }}" lang="{{ $marketCode }}">{{ \App\Support\InternationalMarket::LANGUAGES[$marketCode]['label'] }}</a>
+        @endforeach
       </nav>
     </div>
   </div>
