@@ -1,0 +1,29 @@
+name: International market release review (offline)
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/international-market-pilot-20261128/**'
+      - '.github/workflows/international-market-release-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-review-record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate and required reconciliation
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s scripts/international-market-pilot-20261128 -p 'test_*.py' -v
+          python3 scripts/international-market-pilot-20261128/verify_review.py
+          status=0
+          python3 scripts/international-market-pilot-20261128/verify_review.py --require-publishable || status=$?
+          test "$status" -eq 2

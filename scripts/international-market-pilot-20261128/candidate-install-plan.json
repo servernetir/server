@@ -1,0 +1,122 @@
+{
+  "release": "international-market-pilot-20261128",
+  "status": "complete_source_candidate_pending_runtime_review",
+  "deployment_authorized": false,
+  "git_source_commit": "1df3c7d8f7c591283b26e48222b6f524448402bc",
+  "files": [
+    {
+      "source": "website/app/Support/InternationalMarket.php",
+      "destination": "servernet_app/app/Support/InternationalMarket.php",
+      "operation": "add",
+      "before": null,
+      "after": "d42b7282e3bb0de1da756987c1d1d66e8d31f4ffe2c0f5b5f22ff9a12b8ce901"
+    },
+    {
+      "source": "website/config/international-market.php",
+      "destination": "servernet_app/config/international-market.php",
+      "operation": "add",
+      "before": null,
+      "after": "f135ad1479eaee5f3b873a199a61955fbcb045c11bfed032596697c672030972"
+    },
+    {
+      "source": "website/lang/ru/international-market.php",
+      "destination": "servernet_app/lang/ru/international-market.php",
+      "operation": "add",
+      "before": null,
+      "after": "46da2dc921cce469a5fd13584f289fa47b0a062a0f3005427daddd1a9cb6d377"
+    },
+    {
+      "source": "website/lang/az/international-market.php",
+      "destination": "servernet_app/lang/az/international-market.php",
+      "operation": "add",
+      "before": null,
+      "after": "72ebfa7b53c868198203b034239b6d84155f64664a2252e4e30fe4bc2938a741"
+    },
+    {
+      "source": "website/public/assets/css/international-market.css",
+      "destination": "public_html/assets/css/international-market.css",
+      "operation": "add",
+      "before": null,
+      "after": "59fc9228bbf3c091231d47b207b1113b98e58e68351f596a93945c4ac7254079"
+    },
+    {
+      "source": "website/resources/views/pages/international-market.blade.php",
+      "destination": "servernet_app/resources/views/pages/international-market.blade.php",
+      "operation": "add",
+      "before": null,
+      "after": "186f75dd746985aa969a573d6da952572295d85127e24a3344f601d3c9d78171"
+    },
+    {
+      "source": "website/app/Http/Controllers/InternationalMarketController.php",
+      "destination": "servernet_app/app/Http/Controllers/InternationalMarketController.php",
+      "operation": "add",
+      "before": null,
+      "after": "b4e1f157b214b1f5ed35940288feed8076efd47d4a13484e0a2bce45c07a4f37"
+    },
+    {
+      "source": "website/routes/international-market.php",
+      "destination": "servernet_app/routes/international-market.php",
+      "operation": "add",
+      "before": null,
+      "after": "789501b3e35e1fc30c3cd5c089d88cb18855d5ea7570dd5b759c6ab2591b23b9"
+    },
+    {
+      "source": "website/app/Console/Commands/CheckSiteLinks.php",
+      "destination": "servernet_app/app/Console/Commands/CheckSiteLinks.php",
+      "operation": "replace",
+      "before": "73cffe3935f02cadd61dbf17f2f25bb4d95e6849289f94de83e8c44a571a05eb",
+      "after": "5c99d601dfb122d75e24373ddeb05ae7099df4be2f0bde26ad15d6ae08fb58d8"
+    },
+    {
+      "source": "website/app/Console/Commands/ReleaseGate.php",
+      "destination": "servernet_app/app/Console/Commands/ReleaseGate.php",
+      "operation": "overlay",
+      "before": "c83a9bfc95e802d82b421aaf410818b75bf134d7a036aa2c0259a53d4c5959bf",
+      "after": "b40fe9c05bae05cfc8e779180af240808bc77fed7f527d2965e4012ff11a6d3a"
+    },
+    {
+      "source": "website/app/Http/Middleware/ConsoleHost.php",
+      "destination": "servernet_app/app/Http/Middleware/ConsoleHost.php",
+      "operation": "replace",
+      "before": "7a2489938669cf66b5d720e50782b4f28d9960ad60ea6eb8d89c06ff82591b42",
+      "after": "5b8033fadeaf4c43ab7d819c508620faa8b5fd90db017a12c52825dccb938091"
+    },
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination": "servernet_app/app/Http/Controllers/SiteController.php",
+      "operation": "overlay",
+      "before": "952347f2b11c2c082c8343871de234effaccf9738125bb352f42e741818ca965",
+      "after": "94cb836283c5aaf1c430d4e8eecbad039d264b660c8b249ff51b5bca8e4f5b2f"
+    },
+    {
+      "source": "website/resources/views/partials/header.blade.php",
+      "destination": "servernet_app/resources/views/partials/header.blade.php",
+      "operation": "overlay",
+      "before": "1e4e752ee8c701612c6b0b1f0c643d0fa970cd96c4a8f3e81789b10900cfdb48",
+      "after": "b3a56ac69cd4022859db7291c098c44583670987ebcf4d8a70490fd13637407e"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "operation": "overlay",
+      "before": "28637331b10bc45d03de8bb81e3573876b6cc2f247b02e120232a78511a45b05",
+      "after": "67158745727caee76f597e21f33d3daad07e95937e63438162cec500de7b5114"
+    }
+  ],
+  "overlay_file": "reconciliation-overlays.json",
+  "activation": {
+    "initial_locales": "",
+    "approved_locales": "ru,az",
+    "scoped_setting_change_after_installation": true
+  },
+  "constraints": {
+    "requires_current_live_preflight": true,
+    "requires_shared_release_lock": true,
+    "requires_operator_coordination": true,
+    "requires_php_blade_validation": true,
+    "requires_private_backup_and_rollback": true,
+    "no_provider_or_financial_operations": true,
+    "no_database_migrations": true,
+    "no_general_cache_flush": true
+  }
+}

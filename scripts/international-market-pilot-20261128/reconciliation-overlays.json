@@ -1,0 +1,76 @@
+{
+  "website/app/Console/Commands/ReleaseGate.php": {
+    "source_sha256": "c83a9bfc95e802d82b421aaf410818b75bf134d7a036aa2c0259a53d4c5959bf",
+    "proposed_sha256": "b40fe9c05bae05cfc8e779180af240808bc77fed7f527d2965e4012ff11a6d3a",
+    "edits": [
+      {
+        "old": "            }\n\n            $locale = preg_match('~^/(en|tr)(?:/|$)~', $path, $localeMatch) === 1 ? $localeMatch[1] : 'fa';\n            preg_match('~<link\\s+rel=\"alternate\"\\s+hreflang=\"'.preg_quote($locale, '~').'\"\\s+href=\"([^\"]+)\"~i', $html, $selfAlternateMatch);\n            $selfAlternate = html_entity_decode($selfAlternateMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');\n",
+        "new": "            }\n\n            $locale = \\App\\Support\\InternationalMarket::localeFromPath($path);\n            preg_match('~<link\\s+rel=\"alternate\"\\s+hreflang=\"'.preg_quote($locale, '~').'\"\\s+href=\"([^\"]+)\"~i', $html, $selfAlternateMatch);\n            $selfAlternate = html_entity_decode($selfAlternateMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');\n",
+        "count": 1
+      },
+      {
+        "old": "            */\n            if (preg_match('~<title>(.*?)</title>~su', $html, $tm) === 1) {\n                $bucket = preg_match('~^/(en|tr)(/|$)~', $path, $lm) === 1 ? $lm[1] : 'fa';\n                $titles[$bucket][trim($tm[1])][] = $path;\n            }\n\n",
+        "new": "            */\n            if (preg_match('~<title>(.*?)</title>~su', $html, $tm) === 1) {\n                $titles[$locale][trim($tm[1])][] = $path;\n            }\n\n",
+        "count": 1
+      }
+    ]
+  },
+  "website/app/Http/Controllers/SiteController.php": {
+    "source_sha256": "952347f2b11c2c082c8343871de234effaccf9738125bb352f42e741818ca965",
+    "proposed_sha256": "94cb836283c5aaf1c430d4e8eecbad039d264b660c8b249ff51b5bca8e4f5b2f",
+    "edits": [
+      {
+        "old": "        $path = trim((string) parse_url($loc, PHP_URL_PATH), '/');\n        $segments = $path === '' ? [] : explode('/', $path);\n        if (in_array($segments[0] ?? '', ['en', 'tr'], true)) {\n            array_shift($segments);\n        }\n",
+        "new": "        $path = trim((string) parse_url($loc, PHP_URL_PATH), '/');\n        $segments = $path === '' ? [] : explode('/', $path);\n        if (\\App\\Support\\InternationalMarket::localeFromPath($path) !== 'fa') {\n            array_shift($segments);\n        }\n",
+        "count": 1
+      },
+      {
+        "old": "        $add('official');\n\n        $xml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>'.\"\\n\"\n            .'<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">'.\"\\n\";\n",
+        "new": "        $add('official');\n\n        $urls = array_merge($urls, \\App\\Support\\InternationalMarket::sitemapEntries());\n\n        $xml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>'.\"\\n\"\n            .'<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">'.\"\\n\";\n",
+        "count": 1
+      }
+    ]
+  },
+  "website/resources/views/partials/header.blade.php": {
+    "source_sha256": "1e4e752ee8c701612c6b0b1f0c643d0fa970cd96c4a8f3e81789b10900cfdb48",
+    "proposed_sha256": "b3a56ac69cd4022859db7291c098c44583670987ebcf4d8a70490fd13637407e",
+    "edits": [
+      {
+        "old": "@php\n    $loc = app()->getLocale();\n    $brandHome = preg_match('~^(?:en/|tr/)?account(?:/|$)~', request()->path())\n        ? 'https://servernet.cloud'.($loc === 'fa' ? '' : '/'.$loc)\n",
+        "new": "@php\n    $loc = app()->getLocale();\n    $marketLanguageLinks = \\App\\Support\\InternationalMarket::switcher();\n    $brandHome = preg_match('~^(?:en/|tr/)?account(?:/|$)~', request()->path())\n        ? 'https://servernet.cloud'.($loc === 'fa' ? '' : '/'.$loc)\n",
+        "count": 1
+      },
+      {
+        "old": "      <div class=\"topbar-side\">\n        <span class=\"topbar-status hide-sm\"><span class=\"pulse\"></span>{{ __('ui.topbar_status') }}</span>\n        <nav class=\"lang-links\" aria-label=\"Language\">\n          <a href=\"{{ $localeUrls['fa'] }}\" @class(['active' => $loc === 'fa'])>فارسی</a>\n          <span aria-hidden=\"true\">|</span>\n",
+        "new": "      <div class=\"topbar-side\">\n        <span class=\"topbar-status hide-sm\"><span class=\"pulse\"></span>{{ __('ui.topbar_status') }}</span>\n        <nav class=\"lang-links\" aria-label=\"Language\" @if($marketLanguageLinks !== []) style=\"flex-wrap:wrap\" @endif>\n          <a href=\"{{ $localeUrls['fa'] }}\" @class(['active' => $loc === 'fa'])>فارسی</a>\n          <span aria-hidden=\"true\">|</span>\n",
+        "count": 1
+      },
+      {
+        "old": "          <span aria-hidden=\"true\">|</span>\n          <a href=\"{{ $localeUrls['tr'] }}\" @class(['active' => $loc === 'tr'])>Türkçe</a>\n        </nav>\n      </div>\n",
+        "new": "          <span aria-hidden=\"true\">|</span>\n          <a href=\"{{ $localeUrls['tr'] }}\" @class(['active' => $loc === 'tr'])>Türkçe</a>\n          @foreach($marketLanguageLinks as $marketCode => $marketUrl)\n          <span aria-hidden=\"true\">|</span>\n          <a href=\"{{ $marketUrl }}\" lang=\"{{ $marketCode }}\">{{ \\App\\Support\\InternationalMarket::LANGUAGES[$marketCode]['label'] }}</a>\n          @endforeach\n        </nav>\n      </div>\n",
+        "count": 1
+      },
+      {
+        "old": "    <div class=\"drawer-meta\">\n      <a href=\"tel:{{ $contact['phone_link'] }}\" dir=\"ltr\"><svg class=\"icon\"><use href=\"#i-phone\"/></svg>{{ $contact['phone'] }}</a>\n      <nav class=\"lang-links\">\n        <a href=\"{{ $localeUrls['fa'] }}\" @class(['active' => $loc === 'fa'])>فارسی</a>\n        <span aria-hidden=\"true\">|</span>\n",
+        "new": "    <div class=\"drawer-meta\">\n      <a href=\"tel:{{ $contact['phone_link'] }}\" dir=\"ltr\"><svg class=\"icon\"><use href=\"#i-phone\"/></svg>{{ $contact['phone'] }}</a>\n      <nav class=\"lang-links\" @if($marketLanguageLinks !== []) style=\"flex-wrap:wrap\" @endif>\n        <a href=\"{{ $localeUrls['fa'] }}\" @class(['active' => $loc === 'fa'])>فارسی</a>\n        <span aria-hidden=\"true\">|</span>\n",
+        "count": 1
+      },
+      {
+        "old": "        <span aria-hidden=\"true\">|</span>\n        <a href=\"{{ $localeUrls['tr'] }}\" @class(['active' => $loc === 'tr'])>Türkçe</a>\n      </nav>\n    </div>\n",
+        "new": "        <span aria-hidden=\"true\">|</span>\n        <a href=\"{{ $localeUrls['tr'] }}\" @class(['active' => $loc === 'tr'])>Türkçe</a>\n        @foreach($marketLanguageLinks as $marketCode => $marketUrl)\n        <span aria-hidden=\"true\">|</span>\n        <a href=\"{{ $marketUrl }}\" lang=\"{{ $marketCode }}\">{{ \\App\\Support\\InternationalMarket::LANGUAGES[$marketCode]['label'] }}</a>\n        @endforeach\n      </nav>\n    </div>\n",
+        "count": 1
+      }
+    ]
+  },
+  "website/routes/web.php": {
+    "source_sha256": "28637331b10bc45d03de8bb81e3573876b6cc2f247b02e120232a78511a45b05",
+    "proposed_sha256": "67158745727caee76f597e21f33d3daad07e95937e63438162cec500de7b5114",
+    "edits": [
+      {
+        "old": "Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);\nRoute::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);\n\n/*\n",
+        "new": "Route::prefix('en')->name('en.')->middleware('locale:en')->group($site);\nRoute::prefix('tr')->name('tr.')->middleware('locale:tr')->group($site);\n\nrequire __DIR__.'/international-market.php';\n\n/*\n",
+        "count": 1
+      }
+    ]
+  }
+}
