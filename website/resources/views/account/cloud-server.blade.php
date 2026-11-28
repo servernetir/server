@@ -671,6 +671,24 @@
     <p style="margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cxp_egress_note') }}
     </p>
+    @if(count($exitOptions ?? []) <= 1)
+      <p style="margin:0 0 12px;color:var(--dim);font-size:12.5px">
+        {{ match(app()->getLocale()) {
+          'en' => 'No verified dedicated foreign exit is available right now; local egress remains available.',
+          'tr' => 'Şu anda doğrulanmış özel yabancı çıkış yok; yerel çıkış kullanılabilir.',
+          default => 'در حال حاضر اکسیت خارجی اختصاصیِ تأییدشده‌ای موجود نیست؛ خروج عادی ایران در دسترس است.',
+        } }}
+      </p>
+    @endif
+    @if(! in_array($exitCurrent, array_column($exitOptions ?? [], 'code'), true))
+      <p style="margin:0 0 12px;color:var(--warn);font-size:12.5px">
+        {{ match(app()->getLocale()) {
+          'en' => 'Current egress (not available for new selection): ',
+          'tr' => 'Mevcut çıkış (yeniden seçilemez): ',
+          default => 'خروج فعلی (برای انتخاب جدید در دسترس نیست): ',
+        } }} <b dir="ltr">{{ strtoupper((string) $exitCurrent) }}</b>
+      </p>
+    @endif
     <form method="post" action="{{ lroute('account.cloud.exit-country', $service) }}"
           style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       @csrf
