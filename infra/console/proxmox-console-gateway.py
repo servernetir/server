@@ -16,7 +16,7 @@ ALLOWED_VMS = {"116", "130"}
 ALLOWED_ORIGINS = {"https://console.servernet.cloud", "https://servernet.cloud"}
 PUBLIC = "pve-console-ir.servernet.cloud"
 CLAIM = "https://console.servernet.cloud/agent/proxmox-console/claim"
-PVE = "https://ir:8006/api2/json/nodes/ir/qemu/"
+PVE = "https://pve.servernet.cloud:8006/api2/json/nodes/ir/qemu/"
 HEX = re.compile(r"^[a-f0-9]{64}$")
 TICKET = re.compile(r"^PVEVNC:[A-Za-z0-9+/=:@_.-]+$")
 PASSWORD = re.compile(r"^[!-~]{8}$")
@@ -27,7 +27,7 @@ PREPARE_LIMIT = asyncio.Semaphore(4)
 
 class PveResolver(AbstractResolver):
     async def resolve(self, host, port=0, family=socket.AF_INET):
-        if host != "ir":
+        if host != "pve.servernet.cloud":
             raise OSError("unexpected upstream")
         return [{"hostname": host, "host": "10.10.10.1", "port": port,
                  "family": socket.AF_INET, "proto": 0, "flags": 0}]
@@ -171,7 +171,7 @@ async def websocket(request):
 
 
 async def clients(app):
-    ca = ssl.create_default_context(cafile="/etc/servernet-console/pve-ca.pem")
+    ca = ssl.create_default_context()
     authorization = Path("/etc/servernet-console/pve-auth").read_text().strip()
     if not authorization.startswith("PVEAPIToken="):
         raise RuntimeError("missing console authorization")
