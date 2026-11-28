@@ -1,6 +1,8 @@
 """Private two-VM VNC relay. No Proxmox credentials or upstream URLs reach the browser."""
 import asyncio
 import json
+import hashlib
+import sqlite3
 import re
 import secrets
 import socket
@@ -11,13 +13,15 @@ from pathlib import Path
 import aiohttp
 from aiohttp import web
 from aiohttp.abc import AbstractResolver
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 ALLOWED_VMS = {"116", "130"}
 ALLOWED_ORIGINS = {"https://console.servernet.cloud", "https://servernet.cloud"}
 PUBLIC = "pve-console-ir.servernet.cloud"
-CLAIM = "https://console.servernet.cloud/agent/proxmox-console/claim"
 PVE = "https://pve.servernet.cloud:8006/api2/json/nodes/ir/qemu/"
 HEX = re.compile(r"^[a-f0-9]{64}$")
+SIG = re.compile(r"^[a-f0-9]{128}$")
+CLAIMS_DB = "/var/lib/servernet-console/claims.sqlite"
 TICKET = re.compile(r"^PVEVNC:[A-Za-z0-9+/=:@_.-]+$")
 PASSWORD = re.compile(r"^[!-~]{8}$")
 SESSIONS = {}
@@ -66,22 +70,30 @@ async def prepare(request):
     reserved = False
     async with PREPARE_LIMIT:
         try:
-            body = await request.json()
-            grant = body.get("grant") if isinstance(body, dict) else None
-            if not isinstance(grant, str) or not HEX.fullmatch(grant):
-                return result({"ok": False}, 400)
-            async with request.app["claim_http"].post(
-                CLAIM, json={"grant": grant}, allow_redirects=False
-            ) as response:
-                if response.status != 200 or response.content_length and response.content_length > 4096:
-                    return result({"ok": False}, 403)
-                raw = await response.content.read(4097)
-                if len(raw) > 4096:
-                    return result({"ok": False}, 403)
-                claim = json.loads(raw)
-            vm = claim.get("vm")
-            if claim.get("ok") is not True or vm not in ALLOWED_VMS:
+            raw = await request.read()
+            signature = request.headers.get("X-SN-Signature", "")
+            if not SIG.fullmatch(signature) or len(raw) > 4096:
                 return result({"ok": False}, 403)
+            try:
+                request.app["verify_key"].verify(bytes.fromhex(signature), raw)
+                claim = json.loads(raw)
+            except Exception:
+                return result({"ok": False}, 403)
+            if not isinstance(claim, dict) or set(claim) != {"vm", "nonce", "expires"}:
+                return result({"ok": False}, 403)
+            vm, nonce, expires = claim["vm"], claim["nonce"], claim["expires"]
+            now = int(time.time())
+            if (vm not in ALLOWED_VMS or not isinstance(nonce, str) or not HEX.fullmatch(nonce)
+                    or type(expires) is not int or not now < expires <= now + 30):
+                return result({"ok": False}, 403)
+            # Durable single-use nonce even if the gateway restarts. Only the
+            # digest is persisted; a signed request is never logged.
+            digest = hashlib.sha256(nonce.encode("ascii")).hexdigest()
+            with sqlite3.connect(CLAIMS_DB, timeout=2) as db:
+                db.execute("CREATE TABLE IF NOT EXISTS claims (digest TEXT PRIMARY KEY, expires INTEGER)")
+                db.execute("DELETE FROM claims WHERE expires <= ?", (now,))
+                if db.execute("INSERT OR IGNORE INTO claims VALUES (?, ?)", (digest, expires)).rowcount != 1:
+                    return result({"ok": False}, 410)
             if vm in BUSY:
                 return result({"ok": False}, 409)
             BUSY.add(vm)
@@ -122,7 +134,7 @@ async def prepare(request):
             reserved = False
             upstream = None
             return result({"url": f"wss://{PUBLIC}/ws/{sid}", "password": password})
-        except (Exception, asyncio.CancelledError):
+        except Exception:
             return result({"ok": False}, 502)
         finally:
             if upstream is not None:
@@ -181,12 +193,11 @@ async def clients(app):
     app["pve_http"] = aiohttp.ClientSession(
         connector=aiohttp.TCPConnector(resolver=PveResolver(), ssl=ca),
         headers={"Authorization": authorization}, timeout=timeout)
-    app["claim_http"] = aiohttp.ClientSession(timeout=timeout)
+    app["verify_key"] = Ed25519PublicKey.from_public_bytes(bytes.fromhex(Path("/etc/servernet-console/app-public-key").read_text().strip()))
     yield
     for sid in list(SESSIONS):
         await discard(sid)
     await app["pve_http"].close()
-    await app["claim_http"].close()
 
 
 def make_app():
