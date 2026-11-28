@@ -508,6 +508,20 @@
             @if($s->isRecurring() && $s->status === 'active')
               <form method="post" action="/admin/services/{{ $s->id }}/renew" style="display:inline">@csrf<button class="del" style="color:#22d3ee" type="submit">فاکتور تمدید</button></form>
             @endif
+            @if(auth()->user()->isAdmin() && \App\Support\ExitEntitlement::optional($s, $s->cloudInstance))
+              @php $exitOn = \App\Support\ExitEntitlement::allows($s->cloudInstance); @endphp
+              <form method="post" action="{{ route('admin.service.exit-entitlement', $s) }}" style="display:inline"
+                    data-confirm="{{ $exitOn ? 'مجوز اکسیت این سرویس لغو و خروج اینترنت به ایران برگردد؟' : 'مجوز اختیاری انتخاب کشور خروج فقط برای همین سرویس فعال شود؟ مسیر فعلی تغییر نمی‌کند.' }}">
+                @csrf<input type="hidden" name="enabled" value="{{ $exitOn ? '0' : '1' }}">
+                <button class="del" type="submit" style="color:{{ $exitOn ? '#34d399' : '#fbbf24' }}"
+                        title="{{ $exitOn ? 'لغو مجوز و بازگشت خروج ایران' : 'فعال‌سازی مجوز اختیاری بدون تغییر کشور فعلی' }}">
+                  اکسیت: {{ $exitOn ? 'فعال · لغو' : 'غیرفعال · فعال‌سازی' }}
+                </button>
+              </form>
+              @if($exitOn && ! \App\Support\ExitEntitlement::availableCountries())
+                <small style="display:block;color:var(--dim);font-size:11px">اکسیت اختصاصیِ تأییدشده فعلاً موجود نیست.</small>
+              @endif
+            @endif
             {{-- ══ لغو + بازگشتِ وجه به کیف پول ══
                  مسیرِ کاملِ خاتمه (زیرساخت هم آزاد می‌شود) + اعتبار — نه فقط
                  تغییرِ وضعیت. مبلغ از جمعِ پرداختیِ همین سرویس پیش‌پر می‌شود و
