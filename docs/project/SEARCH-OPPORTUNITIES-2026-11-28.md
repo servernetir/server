@@ -17,6 +17,12 @@ Scope: 10 exact app destinations, including four independently changed productio
 
 Tests: focused PHP page/route/metadata/CTA tests, existing commercial SEO regression checks and disposable release-manifest tests. CI, installation and live acceptance are separate dispositions. After release, assess Google clicks, rank, CTR at comparable positions and true referral/conversion data for the same pages over a settled 28-day window. Search result appearance, index inclusion and assistant recommendations are not guaranteed by code.
 
+## Security release prerequisite
+
+`composer audit --locked` rejected five advisories across the existing Symfony HTTP Kernel, Mailer and Routing versions. The owner approved the minimal compatible four-package patch: HTTP Kernel, Mailer and Routing 8.1.12, HTTP Foundation 8.1.13 (a dependency of the patched HTTP Kernel). No Laravel/php platform, Composer configuration or development dependencies change. `composer audit --locked` after resolution reported no advisories. Do not publish SEO until the CI security workflow passes.
+
+Production uses a private copy of the existing vendor tree and `composer install --no-dev` from the exact reviewed lock, with scripts/plugins disabled. Confirm identical package identities, fail on any unrelated vendor byte or mode difference, audit and check platform requirements before applying. Exchange the two complete directories using same-filesystem Linux `RENAME_EXCHANGE`, checksummed lock replacement, shared release lock, and scoped OPcache activation and version checks in both existing PHP-FPM pools. Preserve the old vendor tree and lock privately, with guarded automatic rollback on activation failure. Do not update dependencies in place, flush caches globally, run migrations, restart jobs, send email, make orders or change access.
+
 ## Next evidence-driven priorities
 
 Rank-limited country VPS pages, Python hosting, bare-metal and API pages require useful workload guidance and earned relevant links rather than repeated title edits or doorway pages. Confirm actual provider availability, content freshness, and conversion instrumentation first. Continue to sample discovered/crawled-but-not-indexed URLs and prioritize genuine public pages; keep historical aliases and private/auth exclusions intact. Google generative impressions are not assistant referral sessions; measure the latter independently in first-party GA4 once data access is available.

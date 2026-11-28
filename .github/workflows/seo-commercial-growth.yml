@@ -13,6 +13,7 @@ on:
       - 'website/tests/Feature/SearchGrowthExperienceTest.php'
       - 'website/tests/Feature/SearchOpportunityNovemberTest.php'
       - 'scripts/search-opportunities-20261128/**'
+      - 'scripts/symfony-patch-20261128/**'
       - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
@@ -51,6 +52,7 @@ on:
       - 'website/tests/Feature/SearchGrowthExperienceTest.php'
       - 'website/tests/Feature/SearchOpportunityNovemberTest.php'
       - 'scripts/search-opportunities-20261128/**'
+      - 'scripts/symfony-patch-20261128/**'
       - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
@@ -119,6 +121,10 @@ jobs:
         run: python3 -m unittest discover -s scripts/search-growth-20261124 -p test_release.py -v
       - name: Verify November search opportunity release manifest
         run: python3 -m unittest discover -s scripts/search-opportunities-20261128 -p test_release.py -v
+      - name: Verify scoped Symfony dependency release
+        run: |
+          php -l scripts/symfony-patch-20261128/activate.php
+          python3 -m unittest discover -s scripts/symfony-patch-20261128 -p test_release.py -v
       - name: Install locked dependencies in isolated checkout
         working-directory: website
         run: |
