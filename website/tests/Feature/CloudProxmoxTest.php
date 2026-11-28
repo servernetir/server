@@ -136,6 +136,30 @@ class CloudProxmoxTest extends TestCase
         $this->assertStringContainsString('/status/start', $joined);
     }
 
+    public function test_managed_n8n_starter_provisions_exact_purchased_ram(): void
+    {
+        $configured = null;
+        Http::fake(function ($request) use (&$configured) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if (str_ends_with($path, '/cluster/nextid')) { return Http::response(['data' => '123']); }
+            if (str_ends_with($path, '/status') && $request->method() === 'GET') {
+                return Http::response(['data' => ['memory' => ['free' => 8 * 1024 * 1024 * 1024]]]);
+            }
+            if (str_ends_with($path, '/clone')) { return Http::response(['data' => 'UPID:ir:clone:done']); }
+            if (str_contains($path, '/tasks/')) { return Http::response(['data' => ['status' => 'stopped']]); }
+            if ($request->method() === 'PUT' && str_ends_with($path, '/config')) { $configured = $request->data(); }
+            return Http::response(['data' => []]);
+        });
+        $result = app(ProxmoxClient::class)->createServer([
+            'name' => 'n8n-starter-test', 'managed_application' => 'n8n',
+            'image_ref' => '9002', 'ram_mb' => 1024, 'vcpu' => 1, 'disk_gb' => 20,
+        ]);
+        $this->assertTrue($result['ok'], $result['message']);
+        $this->assertSame('1024', (string) $configured['memory']);
+        $this->assertSame('1', (string) $configured['cores']);
+        $this->assertSame('0', (string) $configured['balloon']);
+    }
+
     /** idempotency: نامِ تکراری → همان VMِ موجود، بی‌clone دوم */
     public function test_ip_allocation_reserves_qemu_and_every_lxc_interface(): void
     {
