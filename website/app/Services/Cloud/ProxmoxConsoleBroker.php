@@ -6,8 +6,6 @@ use App\Models\CloudInstance;
 use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Setting;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -35,7 +33,9 @@ class ProxmoxConsoleBroker
 
     public function enabledFor(Service $service): bool
     {
-        return Setting::get('proxmox_console_enabled', '0') === '1' && $this->context($service) !== null;
+        return Setting::get('proxmox_console_enabled', '0') === '1'
+            && is_readable(storage_path('app/private/proxmox-console.key'))
+            && $this->context($service) !== null;
     }
 
     public function issue(Service $service): string
@@ -47,44 +47,45 @@ class ProxmoxConsoleBroker
         return $nonce;
     }
 
-    /** The gateway receives only the VM number after a one-use claim. */
-    public function claim(Request $request): JsonResponse
-    {
-        $nonce = $request->input('grant');
-        if (! is_string($nonce) || ! preg_match('/\A[a-f0-9]{64}\z/D', $nonce)) {
-            return $this->result(['ok' => false], 400);
-        }
-        $key = $this->key($nonce);
-        $lock = Cache::lock($key.':lock', 10);
-        if (! $lock->get()) {
-            return $this->result(['ok' => false], 410);
-        }
-        try {
-            $grant = Cache::pull($key);
-            $s = is_array($grant) ? Service::find($grant['service'] ?? 0) : null;
-            if (! $s || ($grant['expires'] ?? 0) <= now()->timestamp || ! $this->enabledFor($s)) {
-                return $this->result(['ok' => false], 410);
-            }
-            $expires = $grant['expires'];
-            unset($grant['expires']);
-            if ($this->context($s) !== $grant) {
-                return $this->result(['ok' => false], 410);
-            }
-            return $this->result(['ok' => true, 'vm' => $grant['vm']]);
-        } finally {
-            $lock->release();
-        }
-    }
-
+    /**
+     * Consume the owner-bound launch grant before signing a request. The
+     * gateway accepts only the app's Ed25519 signature, not a browser token.
+     */
     public function prepare(Service $service, string $grant): ?array
     {
         if (! $this->enabledFor($service) || ! preg_match('/\A[a-f0-9]{64}\z/D', $grant)) {
             return null;
         }
+        $key = $this->key($grant);
+        $lock = Cache::lock($key.':lock', 10);
+        if (! $lock->get()) {
+            return null;
+        }
         try {
+            $cached = Cache::pull($key);
+            $context = $this->context($service);
+            if (! $context || ! is_array($cached) || ($cached['expires'] ?? 0) <= now()->timestamp) {
+                return null;
+            }
+            unset($cached['expires']);
+            if ($cached !== $context || (int) $service->customer_id !== $context['customer']) {
+                return null;
+            }
+        } finally {
+            $lock->release();
+        }
+        try {
+            $private = hex2bin(trim((string) file_get_contents(storage_path('app/private/proxmox-console.key'))));
+            if (! is_string($private) || strlen($private) !== SODIUM_CRYPTO_SIGN_SECRETKEYBYTES) {
+                return null;
+            }
+            $body = json_encode(['vm' => $context['vm'], 'nonce' => $grant,
+                'expires' => now()->addSeconds(25)->timestamp], JSON_THROW_ON_ERROR);
+            $sig = bin2hex(sodium_crypto_sign_detached($body, $private));
             $r = Http::acceptJson()->connectTimeout(4)->timeout(15)
                 ->withOptions(['verify' => true, 'allow_redirects' => false])
-                ->post(self::ORIGIN.'/prepare', ['grant' => $grant]);
+                ->withHeaders(['X-SN-Signature' => $sig])
+                ->withBody($body, 'application/json')->post(self::ORIGIN.'/prepare');
             $data = $r->successful() && strlen($r->body()) < 4096 ? $r->json() : null;
             if (! is_array($data) || ! is_string($data['url'] ?? null)
                 || ! preg_match('#\Awss://pve-console-ir\.servernet\.cloud/ws/[a-f0-9]{64}\z#D', $data['url'])
@@ -103,9 +104,4 @@ class ProxmoxConsoleBroker
         return 'sn-proxmox-console:'.hash('sha256', $nonce);
     }
 
-    private function result(array $body, int $code = 200): JsonResponse
-    {
-        return response()->json($body, $code)->header('Cache-Control', 'no-store, private')
-            ->header('Referrer-Policy', 'no-referrer')->header('X-Content-Type-Options', 'nosniff');
-    }
 }
