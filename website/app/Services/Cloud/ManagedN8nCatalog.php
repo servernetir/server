@@ -30,12 +30,22 @@ class ManagedN8nCatalog
             && Setting::get('n8n_license_confirmed') === '1';
     }
 
+    /** The 1 GiB starter is opt-in only after end-to-end resource validation. */
+    public function minimumRamMb(string $provider): int
+    {
+        if (in_array($provider, ['proxmox', 'vpstc'], true)
+            && Setting::get('n8n_starter_sales_enabled') === '1') {
+            return (int) config('managed_n8n.starter_minimum_ram_mb', 1024);
+        }
+        return (int) config('managed_n8n.minimum_ram_mb', 2048);
+    }
+
     public function eligible(CloudPlan $plan): bool
     {
         $prefix = ['proxmox' => 'ir-', 'hetzner' => 'de-', 'vpstc' => 'tr-'][$plan->provider] ?? null;
         return $prefix !== null && str_starts_with((string) $plan->location_code, $prefix)
             && in_array($plan->arch, ['x86', 'arm'], true)
-            && (int) $plan->ram_mb >= (int) config('managed_n8n.minimum_ram_mb', 2048)
+            && (int) $plan->ram_mb >= $this->minimumRamMb((string) $plan->provider)
             && (int) $plan->disk_gb >= (int) config('managed_n8n.minimum_disk_gb', 20)
             && ! $plan->isMetal();
     }
@@ -146,6 +156,7 @@ class ManagedN8nCatalog
                 'country' => strtoupper(substr($p->location_code, 0, 2)),
                 'name' => $p->public_name, 'cpu' => (int) $p->vcpu, 'ram' => $p->ramLabel(),
                 'disk' => $p->diskLabel(), 'image' => $this->image($p),
+                'starter' => (int) $p->ram_mb < (int) config('managed_n8n.minimum_ram_mb', 2048),
                 'cycles' => $cycles, 'hourly' => $this->hourly($p)];
             })->all();
         } finally {
