@@ -55,6 +55,7 @@ return [
     'order_invalid' => 'A valid profile email is required. The installer selects the operating system, credentials and configuration automatically.',
     'price_note' => 'Prices follow the live server catalogue. Longer prepaid periods use the monthly rate.',
     'independent' => 'Every order receives a separate server, data and login.',
+    'starter_note' => 'For getting started and light workflows; more RAM is recommended for file processing, concurrent runs and demanding automations.',
     'scope' => 'Delivery includes installation and working n8n access. Creating and maintaining workflows is your responsibility.',
     'login' => 'Sign in and complete order',
     'select' => 'Select',
