@@ -168,6 +168,44 @@ class BackupClientTests(unittest.TestCase):
         self.assertFalse(result["inventory_safe"])
         self.assertIn("consistency_unverified", result["issue_codes"])
 
+    def test_private_inspection_evidence_names_missing_targets_without_reading_them(self):
+        outside = self.base / "managed-by-package"
+        outside.write_text("private-fixture-secret")
+        (self.source / "enabled.conf").symlink_to(outside)
+        self.code = 2
+        result = self.client().inspect()
+        state = Path(self.cfg["state_dir"])
+        path = state / "inspect-details.json"
+        details = json.loads(path.read_bytes())
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        self.assertTrue(details["diagnostic_only"])
+        for key in ("request_id", "registry_hash", "generation", "config_hash"):
+            self.assertEqual(details[key], result[key])
+        self.assertIn({"code": "symlink_target_outside_scope", "group": "gateway",
+                       "path": str(self.source / "enabled.conf"), "resolved_target": str(outside)}, details["issues"])
+        self.assertNotIn("private-fixture-secret", path.read_text())
+        self.assertFalse(result["configured_inventory_complete"])
+        self.assertFalse(result["ready"])
+        self.assertNotIn("issues", result)
+
+    def test_diagnostic_projection_is_bounded_and_does_not_retain_raw_fields(self):
+        summary = dict(request_id=NONCE, node_id="fixture", generation=1, config_hash="e" * 64,
+                       registry_hash="f" * 64, verified_at=NOW)
+        response = {"issues": [{"code": "include_missing", "path": "/etc/example", "secret": "not-for-report"}]
+                               * (backup.MAX_INSPECT_ISSUES + 1),
+                    "docker_overlay": {"fixture": {"verified": False, "unapproved_count": 2,
+                        "unapproved_changes": [{"kind": "A", "path": "/app/unknown"},
+                                               {"kind": "C", "path": "/bad\nline"}],
+                        "raw_credentials": "not-for-report"}}}
+        details = backup._inspect_details(response, summary)
+        self.assertEqual(len(details["issues"]), backup.MAX_INSPECT_ISSUES)
+        self.assertEqual(details["issues_omitted_count"], 1)
+        row = details["docker_overlay"]["fixture"]
+        self.assertEqual(row["changes"], [{"kind": "A", "path": "/app/unknown"}])
+        self.assertFalse(row["unapproved_preview_complete"])
+        self.assertFalse(row["verified"])
+        self.assertNotIn("not-for-report", json.dumps(details))
+
     def test_actual_inspect_exit2_still_proves_independent_control_with_unsafe_inventory(self):
         self.code = 2
         self.side_cfg["groups"]["gateway"].pop("consistency")
@@ -184,6 +222,7 @@ class BackupClientTests(unittest.TestCase):
             self.client().inspect()  # Safe fixture falsely contradicts exit2.
         state = Path(self.cfg["state_dir"])
         self.assertFalse((state / "inspect-latest.json").exists())
+        self.assertFalse((state / "inspect-details.json").exists())
         with self.assertRaisesRegex(ProtocolError, "ssh_exit_failed"):
             self.client().backup()
         self.assertFalse((state / "latest.json").exists())
@@ -217,8 +256,14 @@ class BackupClientTests(unittest.TestCase):
         with self.assertRaisesRegex(ProtocolError, "private_file"): self.client()
 
     def test_production_rejects_world_writable_ancestor_and_wrong_uid(self):
-        with self.assertRaisesRegex(ProtocolError, "private_parent_mode"):
-            backup.BackupClient(copy.deepcopy(self.cfg))
+        # The host's /tmp is not necessarily world writable (e.g. CI sandbox).
+        # Exercise the intended invalid permissions on this fixture only.
+        self.base.chmod(0o777)
+        try:
+            with self.assertRaisesRegex(ProtocolError, "private_parent_mode"):
+                backup.BackupClient(copy.deepcopy(self.cfg))
+        finally:
+            self.base.chmod(0o700)
         with self.assertRaisesRegex(ProtocolError, "private_file"):
             backup.trusted_file(str(self.key), uid=os.geteuid() + 1, allow_test_paths=True)
 

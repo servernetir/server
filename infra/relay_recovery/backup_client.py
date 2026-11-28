@@ -62,6 +62,8 @@ MAX_ARTIFACT = 512 << 20
 MAX_UNCOMPRESSED = 2 << 30
 MAX_MANIFEST = 8 << 20
 MAX_MEMBERS = 100000
+MAX_INSPECT_ISSUES = 256
+MAX_INSPECT_CHANGES = 128
 SAFE_ENV = {"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"}
 
 
@@ -265,6 +267,74 @@ def _atomic_json(path: Path, value: dict):
         with contextlib.suppress(FileNotFoundError): temporary.unlink()
 
 
+def _inspect_path(value):
+    """Diagnostic metadata only, never an instruction to read/restore a path."""
+    if not isinstance(value, str) or len(value) > 4096 or not value.isprintable():
+        return None
+    try:
+        return _source_path(value)
+    except ProtocolError:
+        return None
+
+
+def _inspect_details(response: dict, summary: dict) -> dict:
+    """Retain bounded remediation evidence privately; never copy raw response.
+
+    Identity and registry hash bind the details to inspect-latest.json. These
+    details are neither a backup artifact nor an authorization to add paths.
+    """
+    details = {k: summary[k] for k in ("request_id", "node_id", "generation", "config_hash", "registry_hash", "verified_at")}
+    details.update(operation="inspect-diagnostics", diagnostic_only=True)
+    for field in ("issues", "completeness_issues"):
+        raw = response.get(field, [])
+        if not isinstance(raw, list):
+            raise ProtocolError("inspect_issues_type")
+        rows = []
+        for item in raw[:MAX_INSPECT_ISSUES]:
+            if not isinstance(item, dict) or not isinstance(item.get("code"), str) or not re.fullmatch(r"[a-z0-9_]{1,80}", item["code"]):
+                continue
+            row = {"code": item["code"]}
+            for key in ("group", "container"):
+                value = item.get(key)
+                if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", value):
+                    row[key] = value
+            for key in ("path", "resolved_target"):
+                value = _inspect_path(item.get(key))
+                if value is not None:
+                    row[key] = value
+            rows.append(row)
+        details[field] = rows
+        details[field + "_reported_count"] = len(raw)
+        details[field + "_omitted_count"] = len(raw) - len(rows)
+    overlay = response.get("docker_overlay", {})
+    if not isinstance(overlay, dict):
+        raise ProtocolError("inspect_overlay_type")
+    containers = {}
+    for name, data in sorted(overlay.items())[:128]:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", name) or not isinstance(data, dict):
+            continue
+        row = {"verified": data.get("verified") is True, "changes": []}
+        for key in ("change_count", "unapproved_count", "approved_disposable_count"):
+            value = data.get(key)
+            if type(value) is int and 0 <= value <= 4096:
+                row[key] = value
+        changes = data.get("unapproved_changes", [])
+        if isinstance(changes, list):
+            for change in changes[:MAX_INSPECT_CHANGES]:
+                if not isinstance(change, dict) or change.get("kind") not in ("A", "C", "D"):
+                    continue
+                path = _inspect_path(change.get("path"))
+                if path is not None:
+                    row["changes"].append({"kind": change["kind"], "path": path})
+        row["unapproved_preview_complete"] = (
+            "unapproved_count" in row and row["unapproved_count"] == len(row["changes"])
+        )
+        containers[name] = row
+    details["docker_overlay"] = containers
+    details["docker_overlay_omitted_count"] = len(overlay) - len(containers)
+    return details
+
+
 def _octal(field: bytes) -> int:
     field = field.strip(b" \x00")
     if not field: return 0
@@ -426,12 +496,19 @@ class BackupClient:
             registry = response.get("registry_hash")
             if not isinstance(registry, str) or not HEX64.fullmatch(registry):
                 raise ProtocolError("registry_hash")
+            for field in ("issues", "completeness_issues"):
+                if not isinstance(response.get(field, []), list):
+                    raise ProtocolError("inspect_issues_type")
             summary = {**self._base_metadata(request_id), "operation": "inspect", "ok": True,
                        "independent_control_reachable": True, "inventory_safe": response["ok"],
                        "configured_inventory_complete": response.get("configured_inventory_complete") is True,
                        "docker_writable_layer_verified": response.get("docker_writable_layer_verified") is True,
                        "registry_hash": registry, "application_health_proven": False,
                        "issue_codes": sorted({i.get("code", "unknown") for i in response.get("issues", []) + response.get("completeness_issues", []) if isinstance(i, dict) and isinstance(i.get("code"), str)})}
+            # Keep actionable evidence outside the compact CLI/status report.
+            # Matched request ID/registry hash prevents a stale detail file from
+            # being mistaken for the current inspection after a partial write.
+            _atomic_json(self.state / "inspect-details.json", _inspect_details(response, summary))
             _atomic_json(self.state / "inspect-latest.json", summary)
             return summary
 

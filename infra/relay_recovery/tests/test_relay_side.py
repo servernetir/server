@@ -160,7 +160,33 @@ class RelaySideTests(unittest.TestCase):
         codes = [i["code"] for i in report["issues"]]
         self.assertIn("symlink_target_outside_scope", codes)
         self.assertIn("symlink_target_not_exported", codes)
+        outside_issue = next(i for i in report["issues"] if i["code"] == "symlink_target_outside_scope")
+        indirect_issue = next(i for i in report["issues"] if i["code"] == "symlink_target_not_exported")
+        self.assertEqual(outside_issue["resolved_target"], str(outside))
+        self.assertEqual(indirect_issue["resolved_target"], str(self.source / "outside"))
         self.assertNotIn("secret-fixture", json.dumps(report))
+        self.assertFalse(report["configured_inventory_complete"])
+        with self.assertRaisesRegex(ProtocolError, "export_inventory_unsafe"):
+            with self.side().export_artifact("request-1"):
+                self.fail("outside targets must not be exported")
+
+    def test_explicitly_inventoried_regular_target_is_recoverable_without_following_symlink(self):
+        target = self.base / "package-managed.conf"
+        target.write_text("fixture=true\n")
+        (self.source / "enabled.conf").symlink_to(target)
+        self.assertFalse(self.side().inspect("request-1")["configured_inventory_complete"])
+        self.cfg["groups"]["gateway"]["paths"].append(str(target))
+        side = self.side()
+        self.assertTrue(side.inspect("request-1")["configured_inventory_complete"])
+        plan = side.restore_plan("request-1")
+        self.assertFalse(plan["applied"])
+        self.assertEqual(plan["symlink_candidates"][0]["target"], str(target))
+        with side.export_artifact("request-1") as (path, manifest):
+            self.assertTrue(manifest["configured_inventory_complete"])
+            self.assertFalse(manifest["application_health_proven"])
+            with tarfile.open(path) as archive:
+                self.assertIn("data/" + str(target).lstrip("/"), archive.getnames())
+                self.assertFalse(any(m.issym() or m.islnk() for m in archive.getmembers()))
 
     def test_symlink_directory_parent_is_not_opened(self):
         proxy = self.base / "proxy"
