@@ -2,7 +2,7 @@
     // Link to a product page, never an order form or a guessed content URL.
     $toolProduct = match (true) {
         in_array($slug, ['whois', 'domain-ideas', 'qr-generator', 'barcode-generator'], true) => 'domain',
-        in_array($slug, ['ip', 'speedtest', 'json-formatter', 'json-tree', 'jwt-decoder', 'base64', 'hash-generator', 'uuid-generator', 'password-generator', 'byte-converter', 'timestamp-converter'], true) => 'vps',
+        in_array($slug, ['ip', 'speedtest', 'ping', 'global-ping', 'json-formatter', 'json-tree', 'jwt-decoder', 'base64', 'hash-generator', 'uuid-generator', 'password-generator', 'byte-converter', 'timestamp-converter'], true) => 'vps',
         in_array($catKey ?? '', ['web', 'design', 'image'], true) || $slug === 'seo' => 'hosting',
         default => 'project',
     };

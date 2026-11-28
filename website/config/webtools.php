@@ -312,7 +312,7 @@ return [
                 ],
                 'svg-to-png' => [
                     'icon' => 'restore',
-                    'fa' => ['t' => 'تبدیل SVG به PNG', 'd' => 'SVG را در مرورگر به PNG با مقیاس ۱x تا ۴x یا عرض دلخواه تبدیل کنید؛ کاملاً محلی و بدون آپلود.'],
+                    'fa' => ['t' => 'تبدیل آنلاین SVG به PNG', 'd' => 'فایل یا کد SVG را به عکس PNG تبدیل و دانلود کنید؛ عرض دلخواه یا مقیاس ۱x تا ۴x، پردازش در مرورگر و بدون آپلود فایل.'],
                     'en' => ['t' => 'SVG to PNG Converter', 'd' => 'Rasterize SVG to PNG at 1x–4x or a custom pixel width, entirely in your browser — nothing is uploaded.'],
                     'tr' => ['t' => 'SVG to PNG Donusturucu', 'd' => 'SVG dosyalarini tarayicida 1x-4x veya ozel piksel genisliginde PNG olarak kaydedin; hicbir sey yuklenmez.'],
                 ],
@@ -330,7 +330,7 @@ return [
                 ],
                 'image-cropper' => [
                     'icon' => 'layout',
-                    'fa' => ['t' => 'برش عکس آنلاین', 'd' => 'برش عکس با کادر کشیدنی و نسبت دلخواه؛ خروجی PNG یا JPEG، با پردازش داخل مرورگر و بدون آپلود فایل'],
+                    'fa' => ['t' => 'برش عکس آنلاین (کراپ تصویر)', 'd' => 'عکس را با کادر دلخواه یا نسبت مربع ۱:۱، ۴:۳ و ۱۶:۹ برش دهید؛ فایل PNG یا JPG دانلود کنید. پردازش در مرورگر، بدون آپلود فایل.'],
                     'en' => ['t' => 'Image Cropper', 'd' => 'Crop images with a draggable frame and aspect presets, in your browser.'],
                     'tr' => ['t' => 'Görsel Kırpma Aracı', 'd' => 'Sürüklenebilir çerçeve ve hazır oranlarla görselleri tarayıcıda kırpın.'],
                 ],

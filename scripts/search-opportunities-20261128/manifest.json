@@ -1,0 +1,90 @@
+{
+  "files": [
+    {
+      "source": "website/config/growth.php",
+      "destination": "servernet_app/config/growth.php",
+      "before": "59e30a27e298da127df63f321d462a3907aa13804586b58a83964b5dffd4c5a5",
+      "after": "46891dd41acdbe7589f77e3f6b4d34e526f7ea90e11e59595e88dd47364eadb1"
+    },
+    {
+      "source": "website/config/lookup.php",
+      "destination": "servernet_app/config/lookup.php",
+      "before": "4dfab94e5481fdb56f185ba9673922ad963eaf76a7379370d0f40fc83fdb6b10",
+      "after": "7ca602f52fb17ad39d52a17f00132f6af66215ab126dc6718ea3c6ab9a5c2440"
+    },
+    {
+      "source": "website/config/webtools.php",
+      "destination": "servernet_app/config/webtools.php",
+      "before": "ddd1c3d5c19f59db11a254a8fcbd7bd6a96c4b61d6479a35b6e4bc1058343f26",
+      "after": "41b1a2d1ec8ddca3e12b59d8835f2283fea57456fc9a33e453cc3cbb7924b472"
+    },
+    {
+      "source": "website/lang/en/ui.php",
+      "destination": "servernet_app/lang/en/ui.php",
+      "before": "4cf389cf5552a1dc8e071e5b678b8fc9b4abfface0c97d9ec93cafb26aaf7ab2",
+      "after": "ab29a995933ef268c79258bec3b72427a977d7e5297dc06921bfc1f45043eefd",
+      "patch": true
+    },
+    {
+      "source": "website/lang/fa/ui.php",
+      "destination": "servernet_app/lang/fa/ui.php",
+      "before": "e9588cb8c9ab7366d96be50326d7457161ab63107eb688150c7f76e0c8aec517",
+      "after": "2c2491e9a24825647c6356cae79488379a9922dce6d32800b446aafbe7f87cbf",
+      "patch": true
+    },
+    {
+      "source": "website/lang/tr/ui.php",
+      "destination": "servernet_app/lang/tr/ui.php",
+      "before": "0c2298833e27f0a398ca5f481fd41225b12012dca760ba857321f41931a43366",
+      "after": "90700f33cbda222b9e1c6c56ba0aa7719aa063e5a51bbd26b43fc73d134be839",
+      "patch": true
+    },
+    {
+      "source": "website/resources/content/tools-seo.php",
+      "destination": "servernet_app/resources/content/tools-seo.php",
+      "before": "20a9abeaf13835f299bf2447d47c3117928f1f11e754b878cb2d5ecef69334fc",
+      "after": "f94a0c81b655a6b1ef5fd37dfb22a1e126abc99c5ec865a733e00d817a0c2a10"
+    },
+    {
+      "source": "website/resources/views/partials/tool-next-step.blade.php",
+      "destination": "servernet_app/resources/views/partials/tool-next-step.blade.php",
+      "before": "8ef2a15822885a3e0398e7401295b5b289775473e468c0ca06419ecf817c6a29",
+      "after": "47dad237eacd9fb5a4806ff385079e75d258f7141f420dee108c1e47b8d93a22"
+    },
+    {
+      "source": "website/resources/views/pages/lookup.blade.php",
+      "destination": "servernet_app/resources/views/pages/lookup.blade.php",
+      "before": "2aeba96e74925fa520997e283fc509f827ea3c5aa0b0abef4562ddb2be655172",
+      "after": "ef79b44c2f9fea69fcb1b469156579021a917cd0001d30131d7ee3dd45a28237"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination": "servernet_app/routes/web.php",
+      "before": "325ca26089ba6337454b7e97cdaf44538c972c02b1f702b2c8af712c530c37bd",
+      "after": "1d8482c89efd4fbd55dc203c5373ddffce5d831a00d59c0fb228b795cc71a556",
+      "patch": true
+    }
+  ],
+  "views": [
+    "pages.lookup",
+    "partials.tool-next-step"
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/search-opportunities-20261128/activate.php",
+      "sha256": "ff000fa3f0e0f9602e6c201b4e4e13e6dbc77fbaaafb1430030fb7c64750c9d2"
+    },
+    "lint.php": {
+      "path": "scripts/search-growth-20261124/lint.php",
+      "sha256": "20a9d300d0bb60372c48827cc21fe5b4efc0cabee3282b84185340454d275184"
+    }
+  }
+}

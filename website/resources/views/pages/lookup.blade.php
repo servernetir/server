@@ -107,6 +107,12 @@
   </div>
 </section>
 
+@if(in_array($type, ['ping', 'global-ping'], true))
+<div class="container"><div class="tool-result-wrap">
+  @include('partials.tool-next-step', ['slug' => $type])
+</div></div>
+@endif
+
 {{-- ============ CROSS-SELL: همه‌ی ابزارهای lookup ============ --}}
 <section class="section" style="padding-top:6px;padding-bottom:70px">
   <div class="container">

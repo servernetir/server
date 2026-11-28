@@ -11,6 +11,8 @@ on:
       - 'website/resources/views/pages/ai/home.blade.php'
       - 'website/resources/content/growth/python-hosting-django-flask-deployment.json'
       - 'website/tests/Feature/SearchGrowthExperienceTest.php'
+      - 'website/tests/Feature/SearchOpportunityNovemberTest.php'
+      - 'scripts/search-opportunities-20261128/**'
       - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
@@ -47,6 +49,8 @@ on:
       - 'website/resources/views/pages/ai/home.blade.php'
       - 'website/resources/content/growth/python-hosting-django-flask-deployment.json'
       - 'website/tests/Feature/SearchGrowthExperienceTest.php'
+      - 'website/tests/Feature/SearchOpportunityNovemberTest.php'
+      - 'scripts/search-opportunities-20261128/**'
       - 'scripts/search-growth-20261124/**'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
@@ -113,6 +117,8 @@ jobs:
         run: python3 -m unittest discover -s scripts/seo-growth-cycle -p test_opportunities.py -v
       - name: Verify guarded search growth release on disposable files
         run: python3 -m unittest discover -s scripts/search-growth-20261124 -p test_release.py -v
+      - name: Verify November search opportunity release manifest
+        run: python3 -m unittest discover -s scripts/search-opportunities-20261128 -p test_release.py -v
       - name: Install locked dependencies in isolated checkout
         working-directory: website
         run: |
@@ -147,6 +153,9 @@ jobs:
           vendor/bin/phpunit tests/Feature/SearchGrowthExperienceTest.php tests/Feature/PythonHostingSeoTest.php tests/Feature/AiUsagePlannerDiscoveryTest.php tests/Feature/AiModelSeoTest.php tests/Feature/ManagedN8nTest.php tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/IranCountryMarketingTest.php tests/Feature/CountrySitemapEligibilityTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php tests/Feature/SitemapIndexTest.php --display-warnings --fail-on-warning --colors=never
       - name: Verify tool conversion click contract
         run: node website/tests/js/tool-next-step.test.cjs
+      - name: Verify November search opportunity routes and copy
+        working-directory: website
+        run: vendor/bin/phpunit tests/Feature/SearchOpportunityNovemberTest.php tests/Feature/LegacyDiscoveryAliasesTest.php tests/Feature/DomainIdeasTest.php tests/Feature/SpeedtestToolTest.php --display-warnings --fail-on-warning --colors=never
       - name: Verify order handoff remains excluded from sitemap discovery
         working-directory: website
         run: vendor/bin/phpunit tests/Feature/Audit7RegressionTest.php --filter test_order_summary_is_noindex_and_excluded_from_the_sitemap --display-warnings --fail-on-warning --colors=never
