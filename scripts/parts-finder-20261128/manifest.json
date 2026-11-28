@@ -1,0 +1,104 @@
+{
+  "files": [
+    {
+      "source": "website/app/Services/Shop/PartFinder.php",
+      "destination": "servernet_app/app/Services/Shop/PartFinder.php",
+      "before": null,
+      "after": "8aa3a8c9909e04a6043d9674eccb088449314ba7c1e9f53be63eb1542549085c"
+    },
+    {
+      "source": "website/lang/fa/part_finder.php",
+      "destination": "servernet_app/lang/fa/part_finder.php",
+      "before": null,
+      "after": "ed551de7969fa08ba0434afe99ff64266e7a1604e981757434873ed394ec4191"
+    },
+    {
+      "source": "website/lang/en/part_finder.php",
+      "destination": "servernet_app/lang/en/part_finder.php",
+      "before": null,
+      "after": "5118bdd27c3737461d994add48e1334d43b7003aae1ab54c5520efafa8d7c2f2"
+    },
+    {
+      "source": "website/lang/tr/part_finder.php",
+      "destination": "servernet_app/lang/tr/part_finder.php",
+      "before": null,
+      "after": "19aa4a0968aeaf8f3fef5cd098aa632ccd85f1fcb591fd69e49c9ea411f86e2a"
+    },
+    {
+      "source": "website/resources/views/partials/part-finder.blade.php",
+      "destination": "servernet_app/resources/views/partials/part-finder.blade.php",
+      "before": null,
+      "after": "92d908a75e2e05d0b4b8b984b96a7725bb03ac4f4eb3eecad8b0b4a54ec3f387"
+    },
+    {
+      "source": "website/resources/views/partials/part-quote.blade.php",
+      "destination": "servernet_app/resources/views/partials/part-quote.blade.php",
+      "before": null,
+      "after": "9c6d6a8a458cbe23ada77162e77ea5afb4bf7b073b1859a8b0d922f40e7c28c8"
+    },
+    {
+      "source": "website/app/Http/Controllers/PartsShopController.php",
+      "destination": "servernet_app/app/Http/Controllers/PartsShopController.php",
+      "before": "a2d9130c18740147e46a54bee0cfa169131b51733a37019893c4b9998b2dc8cd",
+      "after": "0f85e78588baf86cbb339535c93e0dab8039b597ed9258566f1b5cefc41ccb71"
+    },
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination": "servernet_app/app/Http/Controllers/SiteController.php",
+      "before": "bf46ca97787e8a9bb8807900ba51b37e3a674e96f98806f2e28f26cc8209700f",
+      "after": "952347f2b11c2c082c8343871de234effaccf9738125bb352f42e741818ca965",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/pages/parts-index.blade.php",
+      "destination": "servernet_app/resources/views/pages/parts-index.blade.php",
+      "before": "ee27098a70658aecfb7dd38aaaaffcac2fdb01b187cc86da541541ddb4a2b280",
+      "after": "2d8a163f1a9c1b3a058e20781792916f755c64f6c919fe46b90be059689b69de"
+    },
+    {
+      "source": "website/resources/views/pages/part-detail.blade.php",
+      "destination": "servernet_app/resources/views/pages/part-detail.blade.php",
+      "before": "e64179a825cca80be8f3755e4eb77b546b44a7a5642bd25ffaa82535cfaa6535",
+      "after": "3d01f72c6b0bcdc1f88d8f9f96638e70650b1395f60a8a86a892dea1546c99cb"
+    },
+    {
+      "source": "website/resources/views/pages/contact.blade.php",
+      "destination": "servernet_app/resources/views/pages/contact.blade.php",
+      "before": "fbd92ebaf46ebcc8be184c3776c1499d460f76cff8f6369de9168eac9518e260",
+      "after": "5d6b7c66a0b18617e26ab3f774f79537ea029a2d6627dd9622dc7fb2f57e6f6a",
+      "patch": true
+    },
+    {
+      "source": "website/resources/views/partials/hardware-stock-quote.blade.php",
+      "destination": "servernet_app/resources/views/partials/hardware-stock-quote.blade.php",
+      "before": "b56a9cdde0508ce7090b739b4b2a47b22a8f6138e7802a234da7ac63b2477925",
+      "after": "1214ce184eb2fec9e0746e91d746801853be8d11dec5d2921c6f45917922fd98"
+    }
+  ],
+  "views": [
+    "pages.parts-index",
+    "pages.part-detail",
+    "pages.contact",
+    "partials.hardware-stock-quote",
+    "partials.part-finder",
+    "partials.part-quote"
+  ],
+  "helpers": {
+    "activation_common.py": {
+      "path": "scripts/mcp-auto-approval-20261122/activate.py",
+      "sha256": "9ed099500a7f3c274c1bd76f36d4215bd5f0dcd59724e00ab0c2f93947d41045"
+    },
+    "fcgi.py": {
+      "path": "scripts/mcp-auto-approval-20261122/fcgi.py",
+      "sha256": "57b07c6c014104b2fb5c2e3e232defb8b5283a39df6bdf0ffdbc45f76b3e5b62"
+    },
+    "activate.php": {
+      "path": "scripts/parts-finder-20261128/activate.php",
+      "sha256": "34be6e0dca94c8656245c119872c214770548bcdb383b5d34420620e88402f98"
+    },
+    "lint.php": {
+      "path": "scripts/search-growth-20261124/lint.php",
+      "sha256": "20a9d300d0bb60372c48827cc21fe5b4efc0cabee3282b84185340454d275184"
+    }
+  }
+}

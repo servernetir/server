@@ -1,0 +1,31 @@
+{
+  "website/app/Http/Controllers/SiteController.php": [
+    {
+      "old": "use App\\Services\\Domain\\TldPriceBook;\nuse Illuminate\\Support\\Collection;\n",
+      "new": "use App\\Services\\Domain\\TldPriceBook;\nuse App\\Services\\Shop\\PartFinder;\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Collection;\n",
+      "count": 1
+    },
+    {
+      "old": "\n    public function contact(): View\n    {\n        return view('pages.contact', [\n            'faqs' => config('servernet.faqs'),\n        ]);\n",
+      "new": "\n    public function contact(Request $request, PartFinder $finder): View\n    {\n        $quotePart = $finder->quotedPart($request->query('part'));\n\n        return view('pages.contact', [\n            'faqs' => config('servernet.faqs'),\n            'partQuoteRequested' => $request->query->has('part'),\n            'quotePart' => $quotePart,\n            'quotePartNumbers' => $quotePart ? array_slice(PartFinder::identifiers($quotePart), 0, 4) : [],\n        ]);\n",
+      "count": 1
+    }
+  ],
+  "website/resources/views/pages/contact.blade.php": [
+    {
+      "old": "@section('description', __('ui.ct_sub'))\r\n@section('content')\r\n",
+      "new": "@section('description', __('ui.ct_sub'))\r\n@if($partQuoteRequested) @section('noindex', true) @endif\r\n@section('content')\r\n",
+      "count": 1
+    },
+    {
+      "old": "      </div>\r\n      <div class=\"ct-form-wrap reveal\">\r\n",
+      "new": "      </div>\r\n      @if($quotePart)\r\n        @include('partials.part-quote')\r\n      @else\r\n      <div class=\"ct-form-wrap reveal\">\r\n",
+      "count": 1
+    },
+    {
+      "old": "      </div>\r\n    </div>\r\n",
+      "new": "      </div>\r\n      @endif\r\n    </div>\r\n",
+      "count": 1
+    }
+  ]
+}

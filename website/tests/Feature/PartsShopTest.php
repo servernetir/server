@@ -79,6 +79,76 @@ class PartsShopTest extends TestCase
         }
     }
 
+    public function test_catalog_finder_ranks_exact_part_numbers_and_normalizes_rtl_digits_and_separators(): void
+    {
+        $this->part('fan-exact', 'other', ['gen9'], null, [])->update([
+            'specs' => [['label' => ['en' => 'Listed part number'], 'value' => ['en' => '462976-001']]],
+        ]);
+        $this->part('fan-other', 'other', ['gen9'], null, ['mpn' => '462976-001A'])->update(['popular' => true]);
+        $this->part('fan-disabled', 'other', ['gen9'], null, ['mpn' => '462976-001'])->update(['active' => false]);
+        foreach (['/parts' => '۴۶۲۹۷۶–٠٠١', '/en/parts' => '462976001', '/tr/parts' => '462976 001'] as $path => $query) {
+            $base = $this->get($path)->assertOk()->assertDontSee('content="noindex,follow"', false);
+            $base->assertSee('id="part-finder-q"', false)
+                ->assertSee('rel="canonical" href="'.url($path).'"', false);
+            $this->get($path.'?q='.rawurlencode($query).'&category=other')->assertOk()
+                ->assertSee('content="noindex,follow"', false)
+                ->assertDontSee('rel="canonical"', false)
+                ->assertSeeInOrder(['data-slug="fan-exact"', 'data-slug="fan-other"'], false)
+                ->assertDontSee('data-slug="fan-disabled"', false);
+        }
+    }
+
+    public function test_catalog_finder_filters_only_explicit_generation_and_handles_empty_and_invalid_search(): void
+    {
+        $this->part('generic-ram', 'ram', null, null, ['mpn' => 'ECC-32']);
+        $this->part('catalog-ram', 'ram', ['gen9'], null, ['mpn' => 'ECC-32']);
+        $this->part('wrong-gen-ram', 'ram', ['gen10'], null, ['mpn' => 'ECC-32']);
+
+        $result = $this->get('/parts?q=ECC-۳۲&category=ram&gen=gen9')->assertOk();
+        $this->assertSame(['catalog-ram'], $result->viewData('finderResults')->pluck('slug')->all());
+        $this->assertSame(1, $result->viewData('finderResults')->total());
+        $withoutText = $this->get('/parts?category=ram&gen=gen9')->assertOk();
+        $this->assertSame(['ram-a', 'catalog-ram'], $withoutText->viewData('finderResults')->pluck('slug')->all());
+        $this->get('/en/parts?q=%25%25')->assertOk()->assertSee('Enter at least two letters')->assertDontSee('id="part-results"', false);
+        $this->get('/en/parts?q[]=Xeon&gen[]=gen9')->assertOk()->assertSee('content="noindex,follow"', false);
+        $this->get('/en/parts?q=does-not-exist')->assertOk()->assertSee('Ask about sourcing');
+        $this->get('/en/parts?q=does-not-exist&page=2')->assertNotFound();
+    }
+
+    public function test_catalog_finder_pages_results_without_dropping_filters(): void
+    {
+        for ($i = 1; $i <= 26; $i++) {
+            $this->part('ecc-lot-'.$i, 'ram', ['gen9'], null, []);
+        }
+        $first = $this->get('/en/parts?q=ECC-lot&category=ram&gen=gen9')->assertOk()
+            ->assertSee('/en/parts?q=ECC-lot&amp;category=ram&amp;gen=gen9&amp;page=2#part-results', false)
+            ->assertSee('26 catalog results');
+        $this->assertCount(24, $first->viewData('finderResults'));
+        $second = $this->get('/en/parts?q=ECC-lot&category=ram&gen=gen9&page=2')->assertOk();
+        $this->assertSame(['ecc-lot-25', 'ecc-lot-26'], $second->viewData('finderResults')->pluck('slug')->all());
+    }
+
+    public function test_exact_part_quote_opens_a_sales_draft_without_sending_anything(): void
+    {
+        $this->part('quote-card', 'nic', [], null, ['mpn' => 'A10-020']);
+        $this->part('private-part', 'nic', [], null, ['mpn' => 'PRIVATE-XYZ'])->update(['active' => false]);
+
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/parts/nic/quote-card')->assertOk()
+                ->assertSee($prefix.'/contact?part=quote-card#hardware-quote', false);
+            $this->get($prefix.'/contact?part=quote-card')->assertOk()
+                ->assertSee('content="noindex,follow"', false)
+                ->assertSee('id="hardware-quote"', false)
+                ->assertSee($prefix.'/parts/nic/quote-card', false)
+                ->assertSee('A10-020')
+                ->assertSee('mailto:'.site_contact(app()->getLocale())['sales_email'].'?subject=', false)
+                ->assertDontSee('id="ct-form"', false);
+        }
+        $this->get('/contact?part=private-part')->assertOk()->assertDontSee('PRIVATE-XYZ')->assertSee('id="ct-form"', false);
+        $this->get('/contact?part[]=quote-card')->assertOk()->assertDontSee('id="hardware-quote"', false);
+        $this->get('/contact')->assertOk()->assertSee('id="ct-form"', false)->assertDontSee('content="noindex,follow"', false);
+    }
+
     /**
      * 🔴 `/parts/compare` نباید به‌عنوانِ «دستهٔ compare» تعبیر شود.
      *

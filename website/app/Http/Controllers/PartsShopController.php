@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ServerPart;
+use App\Services\Shop\PartFinder;
 use App\Services\Shop\PartsCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -36,13 +37,44 @@ class PartsShopController extends Controller
 
     public function __construct(private readonly PartsCatalog $catalog) {}
 
-    public function index(): View
+    public function index(Request $request, PartFinder $finder): View
     {
+        $filters = $request->query();
+        $raw = $filters['q'] ?? '';
+        $query = is_string($raw) ? mb_substr(trim($raw), 0, 60) : '';
+        $normalized = PartFinder::normalize($query);
+        $category = $this->pick($filters['category'] ?? null, array_keys(ServerPart::CATEGORIES));
+        $generation = $this->pick($filters['gen'] ?? null, array_keys($this->catalog->generations()));
+        $hasSearchParams = (bool) array_intersect(['q', 'category', 'gen', 'page'], array_keys($filters));
+        $searching = mb_strlen($normalized) >= 2 || ($query === '' && ($category !== null || $generation !== null));
+        $results = null;
+
+        if ($searching) {
+            $ids = $finder->ids($normalized, $category, $generation);
+            $perPage = 24;
+            $rawPage = $filters['page'] ?? 1;
+            $page = is_scalar($rawPage) ? max(1, (int) $rawPage) : 1;
+            abort_if($page > max(1, (int) ceil(count($ids) / $perPage)), 404);
+            $pageIds = array_slice($ids, ($page - 1) * $perPage, $perPage);
+            $cards = $pageIds === [] ? collect() : ServerPart::query()->active()
+                ->whereIn('id', $pageIds)->get(ServerPart::CARD_COLUMNS)->keyBy('id');
+            $results = new LengthAwarePaginator(collect($pageIds)->map(fn ($id) => $cards->get($id))->filter()->values(),
+                count($ids), $perPage, $page, ['path' => lroute('parts.index')]);
+            $results->appends(array_filter(['q' => $query, 'category' => $category, 'gen' => $generation],
+                fn ($value) => $value !== null && $value !== ''))->fragment('part-results');
+        }
+
         return view('pages.parts-index', [
             'categories'  => $this->catalog->categories(),
             'generations' => $this->catalog->generations(),
-            'popular'     => $this->catalog->popular(),
+            'popular'     => $searching ? collect() : $this->catalog->popular(),
             'available'   => $this->catalog->available(),
+            'finderQuery' => $query,
+            'finderCategory' => $category,
+            'finderGeneration' => $generation,
+            'finderInvalid' => $query !== '' && mb_strlen($normalized) < 2,
+            'finderFiltered' => $hasSearchParams,
+            'finderResults' => $results,
         ]);
     }
 

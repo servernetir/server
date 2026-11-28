@@ -3,6 +3,7 @@
 @include('partials.atlas-seo', ['atlasContactPage' => true])
 @section('title', __('ui.ct_title').' — '.__('ui.brand'))
 @section('description', __('ui.ct_sub'))
+@if($partQuoteRequested) @section('noindex', true) @endif
 @section('content')
 @php $loc = app()->getLocale(); @endphp
 <div class="sn-atlas sn-contact-page">
@@ -21,6 +22,9 @@
           <button type="button" id="ct-open-chat"><svg class="icon"><use href="#i-bot"/></svg><span><small>{{ __('ui.ct_chat_d') }}</small><b>{{ __('ui.chat_title') }}</b></span><svg class="icon dir"><use href="#i-arrow"/></svg></button>
         </nav>
       </div>
+      @if($quotePart)
+        @include('partials.part-quote')
+      @else
       <div class="ct-form-wrap reveal">
         <h2>{{ __('atlas.contact_form') }}</h2>
         <p>{{ __('ui.ct_form_sub') }}</p>
@@ -35,6 +39,7 @@
         </form>
         <div class="ct-result" id="ct-result" hidden></div>
       </div>
+      @endif
     </div>
     <div class="sn-contact-info">
       <aside class="ct-info reveal" style="transition-delay:.1s">

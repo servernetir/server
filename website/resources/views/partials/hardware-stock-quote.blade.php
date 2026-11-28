@@ -7,7 +7,9 @@
         <p>{{ __('shop_seo.stock_copy') }}</p>
     </div>
     <div>
-        <a class="btn btn-primary" href="{{ lroute('contact') }}">{{ __('shop_seo.stock_cta') }}</a>
+        <a class="btn btn-primary" href="{{ isset($quoteSlug) ? lroute('contact', ['part' => $quoteSlug]).'#hardware-quote' : lroute('contact') }}">
+            {{ isset($quoteSlug) ? __('part_finder.quote_cta') : __('shop_seo.stock_cta') }}
+        </a>
         @if($hardwarePhone)
             <a class="btn btn-glass" href="tel:{{ $hardwarePhone }}">{{ __('ui.srv_call') }}</a>
         @endif
