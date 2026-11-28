@@ -135,8 +135,8 @@
           <span class="sp-buy-note">{{ __('ui.parts_eur_note') }}</span>
         @endif
 
-        <a class="btn btn-primary" href="{{ lroute('contact') }}">
-          <svg class="icon"><use href="#i-headset"/></svg>{{ __('ui.srv_cta_btn') }}
+        <a class="btn btn-primary" href="{{ lroute('contact', ['part' => $part->slug]).'#hardware-quote' }}">
+          <svg class="icon"><use href="#i-headset"/></svg>{{ __('part_finder.quote_cta') }}
         </a>
 
         <a class="hw-compare-link" href="{{ lroute('parts.compare').'?parts='.urlencode(collect([$part->slug])->merge($related->pluck('slug')->take(3))->implode(',')) }}">{{ __('ui.parts_compare') }}</a>
@@ -198,7 +198,7 @@
       </ul>
       <p>{{ __('shop_seo.part_compat_note') }}</p>
     </section>
-    @include('partials.hardware-stock-quote')
+    @include('partials.hardware-stock-quote', ['quoteSlug' => $part->slug])
     @if($part->category === 'gpu')
       <p class="hw-note"><a href="{{ lroute('gpu') }}">{{ __('shop_seo.rent_gpu') }}</a></p>
     @endif

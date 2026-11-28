@@ -1,6 +1,7 @@
 @extends('layouts.site')
 @section('title', __('shop_seo.parts_hub_title'))
 @section('description', __('shop_seo.parts_hub_desc'))
+@if($finderFiltered) @section('noindex', true) @endif
 @include('partials.hardware-assets')
 @section('content')
 
@@ -21,6 +22,7 @@
 
   <div class="sp-main">
 
+    @include('partials.part-finder')
     @include('partials.hardware-stock-quote')
     @include('partials.datacenter-catalogue')
     @include('partials.hardware-topic-links')

@@ -6,6 +6,8 @@ use App\Models\CloudPlan;
 use App\Services\CatalogPricing;
 use App\Services\Domain\DomainSearch;
 use App\Services\Domain\TldPriceBook;
+use App\Services\Shop\PartFinder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
@@ -101,10 +103,15 @@ class SiteController extends Controller
         })->all();
     }
 
-    public function contact(): View
+    public function contact(Request $request, PartFinder $finder): View
     {
+        $quotePart = $finder->quotedPart($request->query('part'));
+
         return view('pages.contact', [
             'faqs' => config('servernet.faqs'),
+            'partQuoteRequested' => $request->query->has('part'),
+            'quotePart' => $quotePart,
+            'quotePartNumbers' => $quotePart ? array_slice(PartFinder::identifiers($quotePart), 0, 4) : [],
         ]);
     }
 
