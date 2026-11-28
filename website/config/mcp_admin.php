@@ -8,4 +8,7 @@ return [
     'ssh_binary' => '/usr/bin/ssh',
     'ssh_timeout' => 30,
     'output_limit' => 16384,
+    // Fixed production roots for read-only release review, never tool input.
+    'release_app_root' => '/home/servernetcloud/servernet_app',
+    'release_public_root' => '/home/servernetcloud/public_html',
 ];
