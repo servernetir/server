@@ -103,7 +103,9 @@ async def prepare(request):
             if not isinstance(ticket, str) or len(ticket) > 4096:
                 raise ValueError("invalid ticket")
             if ":" in ticket and not ticket.startswith("PVEVNC:"):
-                prefix, ticket = ticket.split(":", 1)
+                if len(ticket) < 10 or ticket[8] != ":":
+                    raise ValueError("invalid challenge prefix")
+                prefix, ticket = ticket[:8], ticket[9:]
                 if password != prefix:
                     raise ValueError("challenge mismatch")
             if (not isinstance(port, int) or not 5900 <= port <= 5999
