@@ -37,7 +37,7 @@ class ManagedN8nIranCatalog
             // do not become a promise just because a foreign catalogue lists them.
             $sources = CloudPlan::sellable()->where('provider', 'vpstc')
                 ->where('location_code', 'like', 'tr-%')->where('arch', 'x86')->where('cpu_kind', 'shared')
-                ->whereBetween('vcpu', [1, 64])->whereBetween('ram_mb', [2048, 524288])
+                ->whereBetween('vcpu', [1, 64])->whereBetween('ram_mb', [$catalog->minimumRamMb('proxmox'), 524288])
                 ->whereBetween('disk_gb', [20, 4000])->orderBy('price_irt')->orderBy('id')->get()
                 ->filter(fn ($p) => $catalog->eligible($p) && $catalog->image($p) !== null)
                 ->unique(fn ($p) => $p->vcpu.'-'.$p->ram_mb.'-'.$p->disk_gb)->values();
