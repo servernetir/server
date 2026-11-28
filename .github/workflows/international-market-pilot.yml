@@ -18,6 +18,7 @@ on:
       - 'website/resources/views/partials/header.blade.php'
       - 'website/public/assets/css/international-market.css'
       - 'website/tests/Feature/InternationalMarketPilotTest.php'
+      - 'website/tests/Feature/ForeignLocalePriceGuardTest.php'
       - '.github/workflows/international-market-pilot.yml'
 
 permissions:

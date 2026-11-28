@@ -54,13 +54,23 @@ class ForeignLocalePriceGuardTest extends TestCase
         */
         $this->app->bind(\App\Services\Domain\TldPriceBook::class, fn () => new class
         {
-            /** @return array<string,int> */
-            public function forTlds(array $tlds): array
+            // Match the cached full catalogue contract used by current public
+            // pages. A nonzero registration total and term are both required
+            // to exercise the priced branch; an empty or integer-only stub
+            // silently turns each domain card into an unpriced quote.
+            /** @return array<string,array{register:int,min_years:int,max_years:int,renew:int,transfer:int}> */
+            public function cachedFullForTlds(array $tlds): array
             {
                 $out = [];
 
                 foreach ($tlds as $t) {
-                    $out[strtolower(ltrim(trim((string) $t), '.'))] = 2_016_000;
+                    $out[strtolower(ltrim(trim((string) $t), '.'))] = [
+                        'register' => 2_016_000,
+                        'min_years' => 1,
+                        'max_years' => 10,
+                        'renew' => 2_016_000,
+                        'transfer' => 2_016_000,
+                    ];
                 }
 
                 return $out;
@@ -90,7 +100,19 @@ class ForeignLocalePriceGuardTest extends TestCase
     #[DataProvider('pages')]
     public function test_a_foreign_visitor_never_gets_a_500(string $path): void
     {
-        $this->get('/'.$path)->assertOk();
+        $response = $this->get('/'.$path)->assertOk();
+
+        if (str_ends_with($path, '/popular-tlds')) {
+            $response->assertViewHas('product', fn (array $product) =>
+                collect($product['plans'])->contains(fn (array $plan) =>
+                    ($plan['live'] ?? false) === true
+                    && ($plan['irt'] ?? null) === 2_016_000
+                    && ($plan['min_years'] ?? null) === 1
+                    && ! isset($plan['eur'])
+                    && ($plan['quote'] ?? true) === false
+                )
+            );
+        }
     }
 
     /**
