@@ -54,6 +54,7 @@
             <a class="n8n-package {{ $chosen && $chosen['slug'] === $card['slug'] && $chosen['location'] === $card['location'] ? 'is-selected' : '' }}" data-n8n-plan="{{ $index }}" href="{{ $queryFor(['country' => $country, 'location' => $card['location'], 'plan' => $card['slug']]) }}#n8n-details">
               <div class="n8n-package-top"><strong>{{ $card['name'] }}</strong><span>{{ ucfirst(str_replace('-', ' ', substr($card['location'], 3))) }}</span></div>
               <dl><div><dt>{{ __('n8n.cpu') }}</dt><dd><bdi>{{ fa_num($card['cpu']) }}</bdi> vCPU</dd></div><div><dt>{{ __('n8n.ram') }}</dt><dd><bdi>{{ $card['ram'] }}</bdi></dd></div><div><dt>{{ __('n8n.disk') }}</dt><dd><bdi>{{ $card['disk'] }}</bdi></dd></div></dl>
+              @if($card['starter'] ?? false)<p class="n8n-small">{{ __('n8n.starter_note') }}</p>@endif
               <div class="n8n-package-price"><span><b>{{ cloud_price($card['cycles']['monthly']) }}</b><small>{{ __('n8n.per_month') }}</small></span><span class="n8n-choice-check" aria-hidden="true">✓</span></div>
             </a>
             @endforeach
