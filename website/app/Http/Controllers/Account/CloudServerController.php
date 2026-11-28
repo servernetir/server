@@ -150,7 +150,7 @@ class CloudServerController extends Controller
         // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
         // برای لینوکس درست است، اما نمایشِ همان دکمه روی ویندوز مشتری را به
         // عملی می‌فرستاد که همیشه شکست می‌خورد.
-        if (in_array($instance?->provider, ['arvan', 'proxmox'], true) && $instance->isWindows()) {
+        if ($instance?->provider === 'arvan' && $instance->isWindows()) {
             $caps['reset_password'] = false;
         }
         // The internal clone rebuild does not yet preserve purchased hardware.
@@ -173,7 +173,7 @@ class CloudServerController extends Controller
 
         // فازِ A: سوییچِ کشورِ خروج — فقط برای سرورهای میزبانِ ایران (Proxmox) که
         // تحویل شده‌اند. نامِ زیرساخت هیچ‌جا بیرون نمی‌رود (قاعدهٔ سفیدبرچسبی).
-        $exitCapable = $instance && $instance->provider === 'proxmox' && $instance->isDelivered();
+        $exitCapable = $this->exitAllowed($instance);
 
         // اکانت‌های تونلِ TCP — فقط اگر برای این سرور پروفایل تعریف شده باشد.
         $tunnel = TunnelProfile::fromInstance($instance);
@@ -326,6 +326,17 @@ class CloudServerController extends Controller
      * ایجنتِ ایران در پیمایشِ بعدی است. مثلِ بقیهٔ کنش‌ها: مالکیت + گیتِ
      * نوشتنی + محدودیتِ نرخ. پیام‌ها نامِ زیرساخت را نمی‌گویند.
      */
+    private function exitAllowed(?CloudInstance $instance): bool
+    {
+        // Exit is a distinct product or an explicit add-on; preserve an existing
+        // active legacy routing assignment, but never advertise it by default.
+        return $instance !== null && $instance->provider === 'proxmox'
+            && $instance->isDelivered()
+            && (str_starts_with((string) $instance->location_code, 'exit-')
+                || data_get($instance->meta, 'exit_entitled') === true
+                || $instance->exitCountryCode() !== null);
+    }
+
     public function setExitCountry(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
@@ -336,7 +347,7 @@ class CloudServerController extends Controller
 
         $instance = $this->instanceOf($service);
 
-        if ($instance === null || $instance->provider !== 'proxmox' || ! $instance->isDelivered()) {
+        if (! $this->exitAllowed($instance)) {
             return back()->withErrors(__('ui.cx_egress_na'));
         }
 
@@ -672,7 +683,7 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_op_na'));
         }
 
-        if (in_array($instance->provider, ['arvan', 'proxmox'], true) && $instance->isWindows()) {
+        if ($instance->provider === 'arvan' && $instance->isWindows()) {
             return back()->withErrors(__('ui.cx_op_na'));
         }
 
@@ -699,6 +710,14 @@ class CloudServerController extends Controller
         $service->forceFill(['password' => $r['root_password']])->save();
 
         $this->log($service, __('ui.act_cloud_rootpw'));
+
+        if ($instance->provider === 'proxmox' && ! $instance->isWindows()) {
+            return back()->with('ok', match (app()->getLocale()) {
+                'en' => 'A new password was saved. Restart the server to apply it.',
+                'tr' => 'Yeni şifre kaydedildi. Uygulamak için sunucuyu yeniden başlatın.',
+                default => 'رمز تازه ذخیره شد؛ برای اعمال آن سرور را راه‌اندازی مجدد کنید.',
+            });
+        }
 
         return back()->with('ok', __('ui.cx_newpass_ok'));
     }
